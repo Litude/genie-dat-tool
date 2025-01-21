@@ -2,3 +2,4 @@ node_modules/
 build/
 *.dat
 *.ucr
+tr_*.txt

@@ -58,12 +58,12 @@ export class Technology {
     }
 }
 
-export function readTechnologiesFromBuffer(buffer: BufferReader, loadingContent: LoadingContext): Technology[] {
+export function readTechnologiesFromBuffer(buffer: BufferReader, loadingContext: LoadingContext): Technology[] {
     const result: Technology[] = [];
     const technologyCount = buffer.readInt16();
     for (let i = 0; i < technologyCount; ++i) {
         const technology = new Technology();
-        technology.readFromBuffer(buffer, loadingContent);
+        technology.readFromBuffer(buffer, loadingContext);
         result.push(technology);
     }
 

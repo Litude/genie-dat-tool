@@ -1,8 +1,12 @@
+import { createWriteStream } from "fs";
 import BufferReader from "../BufferReader";
 import { Point } from "../geometry/Point";
 import { Rectangle } from "../geometry/Rectangle";
 import { LoadingContext } from "./LoadingContext";
+import { SavingContext } from "./SavingContext";
 import { Bool8, Float32, Int16, Int32, Pointer, ResourceId, SoundEffectId, UInt8 } from "./Types";
+import { EOL } from "os";
+import { formatInteger, formatString } from "../Formatting";
 
 interface SpriteOverlay {
     spriteId: Int16;
@@ -114,7 +118,7 @@ export class Sprite {
 
 }
 
-export function readSprites(buffer: BufferReader, loadingContent: LoadingContext) {
+export function readSprites(buffer: BufferReader, loadingContext: LoadingContext) {
     console.log(`Offset at start is ${buffer.tell()}`)
     const result: (Sprite | null)[] = [];
     const validSprites: boolean[] = [];
@@ -126,11 +130,44 @@ export function readSprites(buffer: BufferReader, loadingContent: LoadingContext
 
     for (let i = 0; i < spriteCount; ++i) {
         if (validSprites[i]) {
-            result.push(new Sprite(buffer, loadingContent));
+            result.push(new Sprite(buffer, loadingContext));
         }
         else {
             result.push(null);
         }
     }
     return result;
+}
+
+export function writeSpritesToWorldTextFile(sprites: Sprite[], savingContext: SavingContext) {
+    const writeStream = createWriteStream('tr_spr.txt');
+    writeStream.write(`${sprites.length}${EOL}`) // Total sprites entries
+    writeStream.write(`${sprites.length}${EOL}`) // Entries that have data here (these should always match because there are no null sprite entries)
+
+    // for (let i = 0; i < sprites.length; ++i) {
+    //     const sprite = sprites[i]
+    //     writeStream.write([
+    //         formatInteger(sprite.id),
+    //         formatString(sprite.name, 17),
+    //         formatString(sprite.resourceFilename, 9),
+    //         formatInteger(sprite.resourceId),
+    //         formatInteger(sprite.framesPerAngle),
+    //         formatInteger(sprite.angleCount),
+    //         formatInteger(sprite.mirroringMode === 0 ? 0 : 1),
+    //         EOL
+    //     ].join(""))
+
+    //     for (let j = 0; j < soundEffect.samples.length; ++j) {
+    //         const sample = soundEffect.samples[j];
+    //         const filename = sample.resourceFilename.endsWith(".wav") ? sample.resourceFilename.slice(0, -4) : sample.resourceFilename;
+    //         writeStream.write([
+    //             "  ",
+    //             formatInteger(sample.resourceId),
+    //             formatString(filename, 9),
+    //             formatInteger(sample.playbackProbability),
+    //             EOL
+    //         ].join(""))
+    //     }
+    // }
+    writeStream.close();
 }

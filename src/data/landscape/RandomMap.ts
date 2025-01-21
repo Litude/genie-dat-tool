@@ -206,7 +206,7 @@ export class RandomMap {
     }
 }
 
-export function readRandomMapData(randomMapCount: number, buffer: BufferReader, loadingContent: LoadingContext): RandomMap[] {
+export function readRandomMapData(randomMapCount: number, buffer: BufferReader, loadingContext: LoadingContext): RandomMap[] {
     const result: RandomMap[] = [];
 
     const preMapData: PreMapData[] = [];
@@ -237,7 +237,7 @@ export function readRandomMapData(randomMapCount: number, buffer: BufferReader, 
 
     for (let i = 0; i < randomMapCount; ++i) {
         const randomMap = new RandomMap();
-        randomMap.readFromBuffer(buffer, loadingContent, preMapData[i]);
+        randomMap.readFromBuffer(buffer, loadingContext, preMapData[i]);
         result.push(randomMap);
     }
 

@@ -34,12 +34,12 @@ export class StateEffect {
     }
 }
 
-export function readStateEffects(buffer: BufferReader, loadingContent: LoadingContext): StateEffect[] {
+export function readStateEffects(buffer: BufferReader, loadingContext: LoadingContext): StateEffect[] {
     const result: StateEffect[] = [];
     const effectCount = buffer.readInt32();
     for (let i = 0; i < effectCount; ++i) {
         const stateEffect = new StateEffect();
-        stateEffect.readFromBuffer(buffer, loadingContent);
+        stateEffect.readFromBuffer(buffer, loadingContext);
         result.push(stateEffect);
     }
 

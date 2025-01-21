@@ -22,11 +22,9 @@ export function readObjectPrototypesFromBuffer(buffer: BufferReader, loadingCont
     }
 
     for (let i = 0; i < objectCount; ++i) {
-        console.log(`Reading unit ${i}`);
         let object: SceneryObjectPrototype | null = null;
         if (validObjects[i]) {
             const objectType = buffer.readUInt8();
-            console.log(`Reading object type ${objectType}`);
             switch (objectType) {
                 case ObjectType.Scenery:
                     object = new SceneryObjectPrototype();

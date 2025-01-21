@@ -138,17 +138,17 @@ export class Terrain {
     }
 }
 
-export function readMainTerrainData(buffer: BufferReader, loadingContent: LoadingContext): Terrain[] {
+export function readMainTerrainData(buffer: BufferReader, loadingContext: LoadingContext): Terrain[] {
     const result: Terrain[] = [];
     for (let i = 0; i < 32; ++i) {
         const terrain = new Terrain();
-        terrain.readFromBuffer(buffer, loadingContent);
+        terrain.readFromBuffer(buffer, loadingContext);
         result.push(terrain);
     }
     return result;
 }
 
-export function readSecondaryTerrainData(terrains: Terrain[], buffer: BufferReader, loadingContent: LoadingContext) {
+export function readSecondaryTerrainData(terrains: Terrain[], buffer: BufferReader, loadingContext: LoadingContext) {
     const terrainCount = buffer.readInt16();
     terrains.splice(terrainCount);
 }

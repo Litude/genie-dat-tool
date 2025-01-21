@@ -110,7 +110,7 @@ export class MapProperties {
         this.unitVisibilityManagerPointer = buffer.readPointer();
     }
 
-    readQuaterniaryDataFromBuffer(buffer: BufferReader, loadingContent: LoadingContext): void {
+    readQuaterniaryDataFromBuffer(buffer: BufferReader, loadingContext: LoadingContext): void {
         this.randomMapEntriesPointer = buffer.readPointer();
     }
 

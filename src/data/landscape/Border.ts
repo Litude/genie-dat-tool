@@ -93,18 +93,18 @@ export class Border {
     }
 }
 
-export function readMainBorderData(buffer: BufferReader, loadingContent: LoadingContext): Border[] {
+export function readMainBorderData(buffer: BufferReader, loadingContext: LoadingContext): Border[] {
     const result: Border[] = [];
     console.log(`Offset is ${buffer.tell()}`)
     for (let i = 0; i < 16; ++i) {
         const border = new Border();
-        border.readFromBuffer(buffer, loadingContent);
+        border.readFromBuffer(buffer, loadingContext);
         result.push(border);
     }
     return result;
 }
 
-export function readSecondaryBorderData(borders: Border[], buffer: BufferReader, loadingContent: LoadingContext) {
+export function readSecondaryBorderData(borders: Border[], buffer: BufferReader, loadingContext: LoadingContext) {
     // TODO: Should the first border be completely removed?
     const borderCount = buffer.readInt16() + 1; // need to add one to account for dummy border
     // If the dummy border is removed, need to shift all referencing ids by -1?

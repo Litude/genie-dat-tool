@@ -14,6 +14,7 @@ function main() {
     console.log(headerString);
 
     const worldDatabase = new WorldDatabase(dataBuffer, { version: 3.7 });
+    worldDatabase.writeToWorldTextFile();
     //console.log(worldDatabase.toString());
 }
 
