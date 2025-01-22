@@ -1,10 +1,9 @@
-import { createWriteStream } from "fs";
 import BufferReader from "../BufferReader";
 import { LoadingContext } from "./LoadingContext";
 import { SavingContext } from "./SavingContext";
 import { asInt16, asUInt8, ColorId, Int16, PaletteIndex, ResourceId } from "./Types";
-import { EOL } from "os";
-import { formatInteger, formatString } from "../Formatting";
+import { TextFileWriter } from "../textfile/TextFileWriter";
+import { TextFileNames } from "../textfile/TextFile";
 
 const enum ColormapType {
     Default = 0,
@@ -42,22 +41,20 @@ export function readColormaps(buffer: BufferReader, loadingContext: LoadingConte
 }
 
 export function writeColormapsToWorldTextFile(colormaps: Colormap[], savingContext: SavingContext) {
-    const writeStream = createWriteStream('tr_colr.txt');
-    writeStream.write(`${colormaps.length}${EOL}`) // Total colormap entries
-    writeStream.write(`${colormaps.length}${EOL}`) // Entries that have data here (these should always match anyway...)
-    const sortedEntries = [...colormaps].map(entry => ({
-        ...entry,
-        resourceFilename: entry.resourceFilename.endsWith(".col") ? entry.resourceFilename.slice(0, -4) : entry.resourceFilename
-    })).sort((a, b) => a.resourceFilename.localeCompare(b.resourceFilename));
+    const textFileWriter = new TextFileWriter(TextFileNames.Colormaps);
+    textFileWriter.raw(colormaps.length).eol(); // Total colormap entries
+    textFileWriter.raw(colormaps.length).eol(); // Entries that have data here (these should always match anyway...)
+
+    const sortedEntries = [...colormaps].sort((a, b) => a.resourceFilename.localeCompare(b.resourceFilename));
     for (let i = 0; i < sortedEntries.length; ++i) {
-        const entries = [
-            formatInteger(sortedEntries[i].id),
-            formatInteger(sortedEntries[i].resourceId),
-            formatString(sortedEntries[i].resourceFilename, 9),
-            formatInteger(sortedEntries[i].minimapColor),
-            formatInteger(sortedEntries[i].type)
-        ]
-        writeStream.write(`${entries.join("")}${EOL}`);
+        const currentEntry = sortedEntries[i];
+        textFileWriter
+            .integer(currentEntry.id)
+            .integer(currentEntry.resourceId)
+            .filename(currentEntry.resourceFilename)
+            .integer(currentEntry.minimapColor)
+            .integer(currentEntry.type)
+            .eol()
     }
-    writeStream.close();
+    textFileWriter.close();
 }

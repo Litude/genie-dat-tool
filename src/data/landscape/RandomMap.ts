@@ -4,6 +4,12 @@ import { Rectangle } from "../../geometry/Rectangle";
 import { LoadingContext } from "../LoadingContext";
 import { Optional } from "../../ts/ts-utils";
 import { asInt32, Bool8, Int32, NullPointer, Percentage, PlayerId, Pointer, PrototypeId, TerrainId, UInt16, UInt8 } from "../Types";
+import { SavingContext } from "../SavingContext";
+import { Terrain } from "./Terrain";
+import { getEntryOrLogWarning } from "../../util";
+import { SceneryObjectPrototype } from "../object/SceneryObjectPrototype";
+import { TextFileWriter } from "../../textfile/TextFileWriter";
+import { TextFileNames } from "../../textfile/TextFile";
 
 interface PreMapData {
     mapTypeId: Int32;
@@ -25,7 +31,7 @@ interface PreMapData {
 
 interface BaseLandData {
     baseLandId: Int32;
-    terrainId: TerrainId<UInt8>;
+    terrain: Terrain | null;
     padding05: UInt8;
     padding06: UInt16;
     landSpacing: Int32;
@@ -44,16 +50,17 @@ interface BaseLandData {
 
 interface TerrainPlacementData {
     coverageProportion: Percentage<Int32>;
-    terrainId: TerrainId<Int32>;
+    terrain: Terrain | null;
     clumpCount: Int32;
     terrainSpacing: Int32;
-    replacedTerrainId: TerrainId<Int32>;
+    replacedTerrain: Terrain | null;
     clumpinessFactor: Int32;
 }
 
 interface ObjectPlacementData {
     prototypeId: PrototypeId<Int32>;
-    placementTerrain: TerrainId<Int32>;
+    objectPrototype: SceneryObjectPrototype | null;
+    placementTerrain: Terrain | null;
     groupMode: UInt8;
     scaleByMapSize: Bool8;
     padding0A: UInt16;
@@ -72,7 +79,7 @@ interface ElevationPlacementData {
     elevationHeight: Int32;
     clumpinessFactor: Int32;
     elevationSpacing: Int32;
-    placementTerrain: TerrainId<Int32>;
+    placementTerrain: Terrain | null;
     placementElevation: Int32;
 }
 
@@ -108,7 +115,7 @@ export class RandomMap {
     objectDataPointer: Pointer = NullPointer;
     elevationDataPointer: Pointer = NullPointer;
 
-    readFromBuffer(buffer: BufferReader, loadingContext: LoadingContext, preMapData: PreMapData): void {
+    readFromBuffer(buffer: BufferReader, terrains: (Terrain | null)[], loadingContext: LoadingContext, preMapData: PreMapData): void {
         this.mapTypeId = preMapData.mapTypeId;
         const copiedMapData: Optional<PreMapData, 'mapTypeId'> = { ...preMapData };
         delete copiedMapData.mapTypeId;
@@ -129,7 +136,7 @@ export class RandomMap {
         for (let i = 0; i < baseLandEntryCount; ++i) {
             this.baseLandData.push({
                 baseLandId: buffer.readInt32(),
-                terrainId: buffer.readUInt8(),
+                terrain: getEntryOrLogWarning(terrains, buffer.readUInt8(), "Terrain"),
                 padding05: buffer.readUInt8(),
                 padding06: buffer.readUInt16(),
                 landSpacing: buffer.readInt32(),
@@ -156,10 +163,10 @@ export class RandomMap {
         for (let i = 0; i < terrainEntryCount; ++i) {
             this.terrainData.push({
                 coverageProportion: buffer.readInt32(),
-                terrainId: buffer.readInt32(),
+                terrain: getEntryOrLogWarning(terrains, buffer.readInt32(), "Terrain"),
                 clumpCount: buffer.readInt32(),
                 terrainSpacing: buffer.readInt32(),
-                replacedTerrainId: buffer.readInt32(),
+                replacedTerrain: getEntryOrLogWarning(terrains, buffer.readInt32(), "Terrain"),
                 clumpinessFactor: buffer.readInt32()
             });
         }
@@ -170,7 +177,8 @@ export class RandomMap {
         for (let i = 0; i < objectEntryCount; ++i) {
             this.objectData.push({
               prototypeId: buffer.readInt32(),
-              placementTerrain: buffer.readInt32(),
+              objectPrototype: null,
+              placementTerrain: getEntryOrLogWarning(terrains, buffer.readInt32(), "Terrain"),
               groupMode: buffer.readUInt8(),
               scaleByMapSize: buffer.readBool8(),
               padding0A: buffer.readUInt16(),
@@ -194,11 +202,17 @@ export class RandomMap {
                 elevationHeight: buffer.readInt32(),
                 clumpinessFactor: buffer.readInt32(),
                 elevationSpacing: buffer.readInt32(),
-                placementTerrain: buffer.readInt32(),
+                placementTerrain: getEntryOrLogWarning(terrains, buffer.readInt32(), "Terrain"),
                 placementElevation: buffer.readInt32()
             });
         }
 
+    }
+    
+    linkOtherData(objects: (SceneryObjectPrototype | null)[]) {
+        this.objectData.forEach(object => {
+            object.objectPrototype = getEntryOrLogWarning(objects, object.prototypeId, "ObjectPrototype");
+        })
     }
 
     toString() {
@@ -206,7 +220,7 @@ export class RandomMap {
     }
 }
 
-export function readRandomMapData(randomMapCount: number, buffer: BufferReader, loadingContext: LoadingContext): RandomMap[] {
+export function readRandomMapData(randomMapCount: number, buffer: BufferReader, terrains: (Terrain | null)[], loadingContext: LoadingContext): RandomMap[] {
     const result: RandomMap[] = [];
 
     const preMapData: PreMapData[] = [];
@@ -237,9 +251,25 @@ export function readRandomMapData(randomMapCount: number, buffer: BufferReader, 
 
     for (let i = 0; i < randomMapCount; ++i) {
         const randomMap = new RandomMap();
-        randomMap.readFromBuffer(buffer, loadingContext, preMapData[i]);
+        randomMap.readFromBuffer(buffer, terrains, loadingContext, preMapData[i]);
         result.push(randomMap);
     }
 
     return result;
+}
+
+function writeRandomMapLandDataToWorldTextFile(randomMaps: RandomMap[], savingContext: SavingContext) {
+    const textFileWriter = new TextFileWriter(TextFileNames.RandomMapDefinitons);
+    textFileWriter.raw(randomMaps.length).eol(); // Total map entries
+
+    for (let i = 0; i < randomMaps.length; ++i) {
+        textFileWriter
+            .integer(randomMaps[i].mapTypeId)
+            .eol();
+    }
+    textFileWriter.close();
+}
+
+export function writeRandomMapsToWorldTextFile(randomMaps: RandomMap[], savingContext: SavingContext) {
+    writeRandomMapLandDataToWorldTextFile(randomMaps, savingContext);
 }

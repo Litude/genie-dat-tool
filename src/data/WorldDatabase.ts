@@ -1,13 +1,13 @@
 import BufferReader from "../BufferReader";
-import { Border, readMainBorderData, readSecondaryBorderData } from "./landscape/Border";
+import { Border, readMainBorderData, readSecondaryBorderData, writeBordersToWorldTextFile } from "./landscape/Border";
 import { Colormap, readColormaps, writeColormapsToWorldTextFile } from "./Colormap";
 import { Habitat, readHabitats, writeHabitatsToWorldTextFile } from "./landscape/Habitat";
 import { LoadingContext } from "./LoadingContext";
 import { MapProperties } from "./landscape/MapProperties";
-import { RandomMap, readRandomMapData } from "./landscape/RandomMap";
+import { RandomMap, readRandomMapData, writeRandomMapsToWorldTextFile } from "./landscape/RandomMap";
 import { readSoundEffects, SoundEffect, writeSoundEffectsToWorldTextFile } from "./SoundEffect";
-import { readSprites, Sprite } from "./Sprite";
-import { readMainTerrainData, readSecondaryTerrainData, Terrain } from "./landscape/Terrain";
+import { readSprites, Sprite, writeSpritesToWorldTextFile } from "./Sprite";
+import { readMainTerrainData, readSecondaryTerrainData, Terrain, writeTerrainsToWorldTextFile } from "./landscape/Terrain";
 import { readStateEffects, StateEffect } from "./research/StateEffect";
 import { Civilization } from "./Civilization";
 import { SceneryObjectPrototype } from "./object/SceneryObjectPrototype";
@@ -23,8 +23,8 @@ export class WorldDatabase {
     soundEffects: SoundEffect[];
     sprites: (Sprite | null)[];
     mapProperties: MapProperties;
-    terrains: Terrain[];
-    borders: Border[];
+    terrains: (Terrain | null)[];
+    borders: (Border | null)[];
     randomMaps: RandomMap[];
     stateEffects: StateEffect[];
     civilizations: Civilization[];
@@ -35,13 +35,13 @@ export class WorldDatabase {
         this.habitats = readHabitats(buffer, loadingContext);
         this.colormaps = readColormaps(buffer, loadingContext);
         this.soundEffects = readSoundEffects(buffer, loadingContext);
-        this.sprites = readSprites(buffer, loadingContext);
+        this.sprites = readSprites(buffer, this.soundEffects, loadingContext);
 
         this.mapProperties = new MapProperties();
         this.mapProperties.readMainDataFromBuffer(buffer, loadingContext);
-        this.terrains = readMainTerrainData(buffer, loadingContext);
+        this.terrains = readMainTerrainData(buffer, this.soundEffects, loadingContext);
         // todo: overlays are here
-        this.borders = readMainBorderData(buffer, loadingContext);
+        this.borders = readMainBorderData(buffer, this.soundEffects, this.terrains, loadingContext);
 
         this.mapProperties.readSecondaryDataFromBuffer(buffer, loadingContext);
         readSecondaryTerrainData(this.terrains, buffer, loadingContext);
@@ -53,7 +53,7 @@ export class WorldDatabase {
         const randomMapCount = buffer.readInt32();
         this.mapProperties.readQuaterniaryDataFromBuffer(buffer, loadingContext);
         // TODO: tribe random maps are here
-        this.randomMaps = readRandomMapData(randomMapCount, buffer, loadingContext);
+        this.randomMaps = readRandomMapData(randomMapCount, buffer, this.terrains, loadingContext);
 
         this.stateEffects = readStateEffects(buffer, loadingContext);
 
@@ -78,6 +78,9 @@ export class WorldDatabase {
         }
 
         this.habitats.forEach(habitat => habitat?.linkTerrains(this.terrains));
+        this.terrains.forEach(terrain => terrain?.linkOtherData(this.terrains, this.borders, this.objects[0]));
+        // TODO: What if gaia is missing stuff...? This should really link with a merged base object or something?
+        this.randomMaps.forEach(randomMap => randomMap.linkOtherData(this.objects[0]))
     }
 
     writeToWorldTextFile() {
@@ -85,6 +88,10 @@ export class WorldDatabase {
         writeHabitatsToWorldTextFile(this.habitats, this.terrains.length, savingContext);
         writeColormapsToWorldTextFile(this.colormaps, savingContext);
         writeSoundEffectsToWorldTextFile(this.soundEffects, savingContext);
+        writeSpritesToWorldTextFile(this.sprites, savingContext);
+        writeTerrainsToWorldTextFile(this.terrains, savingContext);
+        writeBordersToWorldTextFile(this.borders, savingContext);
+        writeRandomMapsToWorldTextFile(this.randomMaps, savingContext);
     }
 
     toString() {

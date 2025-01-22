@@ -1,6 +1,15 @@
 import BufferReader from "../../BufferReader";
+import { Logger } from "../../Logger";
+import { TextFileNames } from "../../textfile/TextFile";
+import { TextFileWriter } from "../../textfile/TextFileWriter";
+import { isDefined } from "../../ts/ts-utils";
+import { getEntryOrLogWarning } from "../../util";
 import { LoadingContext } from "../LoadingContext";
+import { SceneryObjectPrototype } from "../object/SceneryObjectPrototype";
+import { SavingContext } from "../SavingContext";
+import { SoundEffect } from "../SoundEffect";
 import { asBool8, asFloat32, asInt16, asInt32, asUInt16, asUInt8, Bool8, BorderId, Float32, Int16, Int32, NullPointer, PaletteIndex, Pointer, PrototypeId, ResourceId, SoundEffectId, TerrainId, UInt16, UInt8 } from "../Types";
+import { Border } from "./Border";
 
 interface FrameMap {
     frameCount: Int16;
@@ -10,6 +19,7 @@ interface FrameMap {
 
 interface TerrainObjectPlacement {
     prototypeId: PrototypeId<Int16>;
+    object: SceneryObjectPrototype | null;
     density: Int16;
     centralize: Bool8;
 }
@@ -21,20 +31,23 @@ const internalFields: (keyof Terrain)[] = [
 ];
 
 export class Terrain {
+    id: Int16 = asInt16(-1);
     enabled: Bool8 = asBool8(false);
     random: Bool8 = asBool8(false);
     internalName: string = "";
     resourceFilename: string = "";
     resourceId: ResourceId<Int32> = asInt32(-1);
     graphicPointer: Pointer = NullPointer;
-    soundEffectId: SoundEffectId<Int32> = asInt32(-1);
+    soundEffect: SoundEffect | null = null;
     minimapColor1: PaletteIndex = asUInt8(0);
     minimapColor2: PaletteIndex = asUInt8(0);
     minimapColor3: PaletteIndex = asUInt8(0);
     minimapCliffColor1: PaletteIndex = asUInt8(0);
     minimapCliffColor2: PaletteIndex = asUInt8(0);
-    passableTerrain: TerrainId<UInt8> = asUInt8(0);
-    impassableTerrain: TerrainId<UInt8> = asUInt8(0);
+    passableTerrainId: TerrainId<UInt8> = asUInt8(0);
+    passableTerrain: Terrain | null = null;
+    impassableTerrainId: TerrainId<UInt8> = asUInt8(0);
+    impassableTerrain: Terrain | null = null;
 
     // TODO: Move animation stuff to common interface?
     animated: Bool8 = asBool8(false);
@@ -49,14 +62,17 @@ export class Terrain {
 
     drawCount: UInt8 = asUInt8(0); // definitely overwritten...
     frameMaps: FrameMap[] = [];
-    renderedTerrain: TerrainId<Int16> = asInt16(-1);
+    renderedTerrainId: TerrainId<Int16> = asInt16(-1);
+    renderedTerrain: Terrain | null = null;
     terrainPatternHeight: Int16 = asInt16(0);
     terrainPatternWidth: Int16 = asInt16(0);
-    borderTypes: BorderId<Int16>[] = [];
+    borderTypeIds: BorderId<Int16>[] = [];
+    borderTypes: (Border | null)[] = [];
     objectPlacements: TerrainObjectPlacement[] = [];
     padding0196: UInt16 = asUInt16(0);
 
-    readFromBuffer(buffer: BufferReader, loadingContext: LoadingContext): void {
+    readFromBuffer(buffer: BufferReader, id: Int16, soundEffects: SoundEffect[], loadingContext: LoadingContext): void {
+        this.id = id;
         this.enabled = buffer.readBool8();
         this.random = buffer.readBool8();
 
@@ -64,8 +80,9 @@ export class Terrain {
         this.resourceFilename = buffer.readFixedSizeString(13);
         this.resourceId = buffer.readInt32();
 
-        this.graphicPointer = buffer.readPointer(); // overwritten quickly by the game
-        this.soundEffectId = buffer.readInt32();
+        this.graphicPointer = buffer.readPointer(); // overwritten by the game
+        const soundEffectId = buffer.readInt32();
+        this.soundEffect = getEntryOrLogWarning(soundEffects, soundEffectId, "SoundEffect");
 
         this.minimapColor1 = buffer.readUInt8();
         this.minimapColor2 = buffer.readUInt8();
@@ -73,8 +90,8 @@ export class Terrain {
         this.minimapCliffColor1 = buffer.readUInt8();
         this.minimapCliffColor2 = buffer.readUInt8();
 
-        this.passableTerrain = buffer.readUInt8();
-        this.impassableTerrain = buffer.readUInt8();
+        this.passableTerrainId = buffer.readUInt8();
+        this.impassableTerrainId = buffer.readUInt8();
 
         this.animated = buffer.readBool8();
         this.animationFrameCount = buffer.readInt16();
@@ -99,13 +116,13 @@ export class Terrain {
                 frameIndex: buffer.readInt16()
             });
         }
-        this.renderedTerrain = buffer.readInt16();
+        this.renderedTerrainId = buffer.readInt16();
         this.terrainPatternHeight = buffer.readInt16();
         this.terrainPatternWidth = buffer.readInt16();
 
         this.borderTypes = [];
         for (let i = 0; i < 32; ++i) {
-            this.borderTypes.push(buffer.readInt16());
+            this.borderTypeIds.push(buffer.readInt16());
         }
 
         const placementObjectTypes: PrototypeId<Int16>[] = [];
@@ -125,6 +142,7 @@ export class Terrain {
         for (let i = 0; i < placementObjectCount; ++i) {
             this.objectPlacements.push({
                 prototypeId: placementObjectTypes[i],
+                object: null,
                 density: placementObjectDensities[i],
                 centralize: placementObjectCentralize[i]
             });
@@ -133,22 +151,116 @@ export class Terrain {
 
     }
 
+    linkOtherData(terrains: (Terrain | null)[], borders: (Border | null)[], objects: (SceneryObjectPrototype | null)[]) {
+        this.passableTerrain = this.passableTerrainId !== 255 ? getEntryOrLogWarning(terrains, this.passableTerrainId, "Terrain") : null;
+        this.impassableTerrain = this.impassableTerrainId !== 255 ? getEntryOrLogWarning(terrains, this.impassableTerrainId, "Terrain") : null;
+        this.renderedTerrain = getEntryOrLogWarning(terrains, this.renderedTerrainId, "Terrain");
+        this.borderTypes = this.borderTypeIds.map(borderId => getEntryOrLogWarning(borders, borderId, "Border"));
+        this.objectPlacements.forEach(placement => {
+            placement.object = getEntryOrLogWarning(objects, placement.prototypeId, "ObjectPrototype");
+        });
+    }
+
     toString() {
         return JSON.stringify(this);
     }
 }
 
-export function readMainTerrainData(buffer: BufferReader, loadingContext: LoadingContext): Terrain[] {
+export function readMainTerrainData(buffer: BufferReader, soundEffects: SoundEffect[], loadingContext: LoadingContext): (Terrain | null)[] {
     const result: Terrain[] = [];
     for (let i = 0; i < 32; ++i) {
         const terrain = new Terrain();
-        terrain.readFromBuffer(buffer, loadingContext);
+        terrain.readFromBuffer(buffer, asInt16(i), soundEffects, loadingContext);
         result.push(terrain);
     }
-    return result;
+    return result.map(result => result.enabled ? result : null);
 }
 
-export function readSecondaryTerrainData(terrains: Terrain[], buffer: BufferReader, loadingContext: LoadingContext) {
+export function readSecondaryTerrainData(terrains: (Terrain | null)[], buffer: BufferReader, loadingContext: LoadingContext) {
     const terrainCount = buffer.readInt16();
-    terrains.splice(terrainCount);
+    if (terrainCount !== terrains.filter(x => x).length) {
+        Logger.warn(`Mismatch between enabled terrains and terrain count, DAT might be corrupt!`)
+    }
+}
+
+function writeTerrainObjectsToWorldTextFile(terrains: (Terrain | null)[], savingContext: SavingContext) {
+    const textFileWriter = new TextFileWriter(TextFileNames.TerrainObjects);
+    const parsedEntries = [...terrains]
+        .filter(isDefined)
+        .sort((a, b) => a.internalName.localeCompare(b.internalName))
+        .flatMap(terrain => terrain.objectPlacements.map(placement => ({ ...placement, terrainId: terrain.id })));
+    textFileWriter.raw(parsedEntries.length).eol();
+    for (let i = 0; i < parsedEntries.length; ++i) {
+        const entry = parsedEntries[i];
+        if (entry.object) {
+            textFileWriter
+                .integer(entry.terrainId)
+                .integer(entry.object.id)
+                .integer(entry.density)
+                .integer(entry.centralize ? 1 : 0)
+                .eol()
+        }
+    }
+    textFileWriter.close();
+}
+
+export function writeTerrainsToWorldTextFile(terrains: (Terrain | null)[], savingContext: SavingContext) {
+    const textFileWriter = new TextFileWriter(TextFileNames.Terrains);
+    textFileWriter.raw(terrains.filter(isDefined).length).eol(); // Total terrain entries
+    const sortedTerrains = [...terrains].filter(isDefined).sort((a, b) => a.internalName.localeCompare(b.internalName));
+    for (let i = 0; i < sortedTerrains.length; ++i) {
+        const terrain = sortedTerrains[i];
+        const borderEntries = terrain.borderTypes.map((border, id) => ({
+            terrain: border ? getEntryOrLogWarning(terrains, id, "Terrain") : null,
+            border
+        })).sort((a, b) => {
+            if (a.terrain && b.terrain) {
+                return a.terrain.internalName.localeCompare(b.terrain.internalName)
+            }
+            else {
+                return a.terrain ? 1 : - 1;
+            }
+        });
+        const borderCount = borderEntries.filter(entry => entry.border).length;
+        textFileWriter
+            .integer(terrain.id)
+            .string(terrain.internalName.replaceAll(" ", "_"), 17)
+            .filename(terrain.resourceFilename)
+            .integer(terrain.resourceId)
+            .integer(terrain.random ? 1 : 0)
+            .integer(terrain.minimapColor2)
+            .integer(terrain.minimapColor1)
+            .integer(terrain.minimapColor3)
+            .integer(terrain.soundEffect?.id ?? -1)
+            .integer(terrain.animated ? 1 : 0)
+            .integer(terrain.animationFrameCount)
+            .float(terrain.animationFrameDelay)
+            .float(terrain.animationReplayDelay)
+            .integer(terrain.renderedTerrain?.id ?? -1)
+            .integer(terrain.terrainPatternHeight)
+            .integer(terrain.terrainPatternWidth)
+            .integer(terrain.minimapCliffColor1)
+            .integer(terrain.minimapCliffColor2)
+            .integer(terrain.impassableTerrain?.id ?? 255)
+            .integer(terrain.passableTerrain?.id ?? 255)
+            .integer(borderCount);
+        for (let j = 0; j < 19; ++j) {
+            textFileWriter
+                .integer(terrain.frameMaps[j].frameCount)
+                .integer(terrain.frameMaps[j].animationFrames);
+        }
+        for (let j = 0; j < terrain.borderTypes.length; ++j) {
+            const borderEntry = borderEntries[j];
+            if (borderEntry.border) {
+                textFileWriter
+                    .integer(borderEntry.terrain?.id ?? -1)
+                    .integer(borderEntry.border.id);
+            }
+        }
+        textFileWriter.eol();
+
+    }
+
+    textFileWriter.close();
+    writeTerrainObjectsToWorldTextFile(terrains, savingContext);
 }

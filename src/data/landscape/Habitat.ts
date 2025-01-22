@@ -1,11 +1,10 @@
 import BufferReader from "../../BufferReader";
 import { LoadingContext } from "../LoadingContext";
 import { asInt16, Float32, Int16, TerrainId } from "../Types";
-import { createWriteStream, WriteStream } from 'fs';
-import { EOL } from 'os';
 import { Terrain } from './Terrain';
-import { formatFloat, formatInteger } from '../../Formatting';
 import { SavingContext } from "../SavingContext";
+import { TextFileWriter } from "../../textfile/TextFileWriter";
+import { TextFileNames } from "../../textfile/TextFile";
 
 interface TerrainData {
     terrainId: TerrainId<Int16>;
@@ -15,7 +14,6 @@ interface TerrainData {
 export class Habitat {
     id: Int16 = asInt16(-1); 
     terrainData: TerrainData[] = [];
-    //multipliers: Float32[] = [];
 
     constructor(id: number, terrainCount: number, buffer?: BufferReader) {
         this.id = asInt16(id);
@@ -31,13 +29,13 @@ export class Habitat {
         }
     }
 
-    linkTerrains(terrains: Terrain[]) {
+    linkTerrains(terrains: (Terrain | null)[]) {
         for (let i = 0; i < this.terrainData.length; ++i) {
             this.terrainData[i].terrain = terrains[this.terrainData[i].terrainId];
         }
     }
 
-    writeToWorldTextFile(file: WriteStream) {
+    writeToWorldTextFile(file: TextFileWriter) {
         // These must be sorted alphabetically
         const sortedTerrainData = [...this.terrainData].sort((a, b) => {
             if (a.terrain && b.terrain) {
@@ -50,11 +48,16 @@ export class Habitat {
 
         const validCount = sortedTerrainData.filter(terrainData => terrainData.multiplier).length
         if (validCount > 0) {
-            file.write(`${formatInteger(this.id)}${formatInteger(validCount)}${EOL}`);
+            file.integer(this.id).integer(validCount).eol();
     
             for (let i = 0; i < sortedTerrainData.length; ++i) {
-                if (sortedTerrainData[i].multiplier) {
-                    file.write(`     ${formatInteger(sortedTerrainData[i].terrainId)}${formatFloat(sortedTerrainData[i].multiplier)}${EOL}`);
+                const terrainData = sortedTerrainData[i];
+                if (terrainData.multiplier) {
+                    file
+                        .indent(5)
+                        .integer(terrainData.terrainId)
+                        .float(terrainData.multiplier)
+                        .eol()
                 }
             }
         }
@@ -90,12 +93,16 @@ export function readHabitats(buffer: BufferReader, loadingContext: LoadingContex
 }
 
 export function writeHabitatsToWorldTextFile(habitats: (Habitat | null)[], terrainCount: number, savingContext: SavingContext) {
-    const writeStream = createWriteStream('tr_tset.txt');
-    writeStream.write(`${habitats.filter(habitat => habitat?.terrainData.map(x => x.multiplier).length).length}${EOL}`)
-    writeStream.write(`${terrainCount}${EOL}`)
-    writeStream.write(` ${EOL}`);
+    const textFileWriter = new TextFileWriter(TextFileNames.Habitats);
+
+    // Since files don't include rows where the value is zero, count how many entries there are that have non-zero entries
+    const validEntries = habitats.filter(habitat => habitat?.terrainData.map(x => x.multiplier).length).length;
+    textFileWriter.raw(validEntries).eol();
+    textFileWriter.raw(terrainCount).eol();
+    textFileWriter.raw(" ").eol();
+
     habitats.forEach(habitat => {
-        habitat?.writeToWorldTextFile(writeStream);
+        habitat?.writeToWorldTextFile(textFileWriter);
     })
-    writeStream.close();
+    textFileWriter.close();
 }

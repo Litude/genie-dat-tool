@@ -1,12 +1,14 @@
-import { createWriteStream } from "fs";
 import BufferReader from "../BufferReader";
 import { Point } from "../geometry/Point";
 import { Rectangle } from "../geometry/Rectangle";
 import { LoadingContext } from "./LoadingContext";
 import { SavingContext } from "./SavingContext";
-import { Bool8, Float32, Int16, Int32, Pointer, ResourceId, SoundEffectId, UInt8 } from "./Types";
-import { EOL } from "os";
-import { formatInteger, formatString } from "../Formatting";
+import { Bool8, Float32, Int16, Int32, Pointer, ResourceId, UInt8 } from "./Types";
+import { TextFileWriter } from "../textfile/TextFileWriter";
+import { TextFileNames } from "../textfile/TextFile";
+import { SoundEffect } from "./SoundEffect";
+import { Logger } from "../Logger";
+import { getEntryOrLogWarning } from "../util";
 
 interface SpriteOverlay {
     spriteId: Int16;
@@ -18,8 +20,9 @@ interface SpriteOverlay {
 }
 
 interface SpriteAngleSoundEffect {
+    angle: number;
     frameNumber: number;
-    soundEffectId: number;
+    soundEffect: SoundEffect | null;
 }
 
 export class Sprite {
@@ -33,7 +36,7 @@ export class Sprite {
     forcedColorTransform: Int16;
     selectionType: UInt8;
     boundingBox: Rectangle<Int16>;
-    soundEffectId: SoundEffectId<Int16>;
+    soundEffect: SoundEffect | null;
     angleSoundEffectsEnabled: Bool8;
     framesPerAngle: Int16;
     angleCount: Int16;
@@ -45,7 +48,7 @@ export class Sprite {
     overlays: SpriteOverlay[];
     angleSoundEffects: SpriteAngleSoundEffect[];
 
-    constructor(buffer: BufferReader, loadingContext: LoadingContext) {
+    constructor(buffer: BufferReader, soundEffects: SoundEffect[], loadingContext: LoadingContext) {
         this.name = buffer.readFixedSizeString(21);
         this.resourceFilename = buffer.readFixedSizeString(13);
         this.resourceId = buffer.readInt32();
@@ -63,7 +66,8 @@ export class Sprite {
 
         const overlayCount = buffer.readInt16();
 
-        this.soundEffectId = buffer.readInt16();
+        const soundEffectId = buffer.readInt16();
+        this.soundEffect = getEntryOrLogWarning(soundEffects, soundEffectId, "SoundEffect");
         this.angleSoundEffectsEnabled = buffer.readBool8();
         this.framesPerAngle = buffer.readInt16();
         this.angleCount = buffer.readInt16();
@@ -91,22 +95,44 @@ export class Sprite {
         this.angleSoundEffects = [];
         if (this.angleSoundEffectsEnabled) {
             for (let i = 0; i < this.angleCount; ++i) {
-                const frameNumbers: number[] = [];
-                const soundEffectIds: number[] = [];
+
                 for (let j = 0; j < 3; ++j) {
-                    frameNumbers.push(buffer.readInt16());
-                }
-                for (let j = 0; j < 3; ++j) {
-                    soundEffectIds.push(buffer.readInt16());
-                }
-                // TODO: Should entries with -1 in both fields be excluded to make the data cleaner?
-                // Also could have a boolean indicating whether a sound effect is meant for all frames or not
-                for (let j = 0; j < 3; ++j) {
+                    const frameNumber = buffer.readInt16();
+                    const soundEffectId = buffer.readInt16();
+                    let soundEffect: SoundEffect | null = null;
+                    if (soundEffectId >= 0) {
+                        if (soundEffectId < soundEffects.length) {
+                            soundEffect = soundEffects[soundEffectId];
+                        }
+                        else {
+                            Logger.warn(`Could not find sound effect ${soundEffectId}, data might be corrupt!`)
+                        }
+                    }
                     this.angleSoundEffects.push({
-                        frameNumber: frameNumbers[j],
-                        soundEffectId: soundEffectIds[j],
-                    })
+                        angle: i,
+                        frameNumber,
+                        soundEffect,
+                    });
                 }
+                
+                // const frameNumbers: number[] = [];
+                // const soundEffectIds: number[] = [];
+
+                // for (let j = 0; j < 3; ++j) {
+                //     frameNumbers.push(buffer.readInt16());
+                // }
+                // for (let j = 0; j < 3; ++j) {
+                //     soundEffectIds.push(buffer.readInt16());
+                // }
+                // // TODO: Should entries with -1 in both fields be excluded to make the data cleaner?
+                // // Also could have a boolean indicating whether a sound effect is meant for all frames or not
+                // for (let j = 0; j < 3; ++j) {
+                //     this.angleSoundEffects.push({
+                //         angle: i,
+                //         frameNumber: frameNumbers[j],
+                //         soundEffectId: soundEffectIds[j],
+                //     })
+                // }
             }
         }
 
@@ -118,7 +144,7 @@ export class Sprite {
 
 }
 
-export function readSprites(buffer: BufferReader, loadingContext: LoadingContext) {
+export function readSprites(buffer: BufferReader, soundEffects: SoundEffect[], loadingContext: LoadingContext) {
     console.log(`Offset at start is ${buffer.tell()}`)
     const result: (Sprite | null)[] = [];
     const validSprites: boolean[] = [];
@@ -130,7 +156,7 @@ export function readSprites(buffer: BufferReader, loadingContext: LoadingContext
 
     for (let i = 0; i < spriteCount; ++i) {
         if (validSprites[i]) {
-            result.push(new Sprite(buffer, loadingContext));
+            result.push(new Sprite(buffer, soundEffects, loadingContext));
         }
         else {
             result.push(null);
@@ -139,35 +165,68 @@ export function readSprites(buffer: BufferReader, loadingContext: LoadingContext
     return result;
 }
 
-export function writeSpritesToWorldTextFile(sprites: Sprite[], savingContext: SavingContext) {
-    const writeStream = createWriteStream('tr_spr.txt');
-    writeStream.write(`${sprites.length}${EOL}`) // Total sprites entries
-    writeStream.write(`${sprites.length}${EOL}`) // Entries that have data here (these should always match because there are no null sprite entries)
+export function writeSpritesToWorldTextFile(sprites: (Sprite | null)[], savingContext: SavingContext) {
+    const textFileWriter = new TextFileWriter(TextFileNames.Sprites);
+    textFileWriter.raw(sprites.length).eol(); // Total sprites entries
+    textFileWriter.raw(sprites.filter(sprite => sprite?.name).length).eol(); // Entries that have data here
 
-    // for (let i = 0; i < sprites.length; ++i) {
-    //     const sprite = sprites[i]
-    //     writeStream.write([
-    //         formatInteger(sprite.id),
-    //         formatString(sprite.name, 17),
-    //         formatString(sprite.resourceFilename, 9),
-    //         formatInteger(sprite.resourceId),
-    //         formatInteger(sprite.framesPerAngle),
-    //         formatInteger(sprite.angleCount),
-    //         formatInteger(sprite.mirroringMode === 0 ? 0 : 1),
-    //         EOL
-    //     ].join(""))
+    for (let i = 0; i < sprites.length; ++i) {
+        const sprite = sprites[i]
+        // TODO: Old versions don't actually support empty lines, need to throw an error in that case
+        if (sprite && sprite.name && sprite.resourceFilename) {
+            textFileWriter
+                .integer(sprite.id)
+                .string(sprite.name.replaceAll(' ', '_'), 17)
+                .filename(sprite.resourceFilename)
+                .integer(sprite.resourceId)
+                .integer(sprite.framesPerAngle)
+                .integer(sprite.angleCount)
+                .integer(sprite.mirroringMode === 0 ? 0 : 1)
+                .integer(sprite.colorTransformType)
+                .integer(sprite.layer)
+                .integer(sprite.forcedColorTransform)
+                .integer(sprite.spriteType & 0x04 ? 1 : 0) // Randomize on start flag
+                .integer(sprite.selectionType)
+                .integer(sprite.spriteType & 0x01 ? 1 : 0) // Animated flag
+                .integer(sprite.spriteType & 0x02 ? 1 : 0) // Directional flag
+                .integer(sprite.spriteType & 0x08 ? 1 : 0) // Loop once flag
+                .integer(sprite.boundingBox.left)
+                .integer(sprite.boundingBox.top)
+                .integer(sprite.boundingBox.right)
+                .integer(sprite.boundingBox.bottom)
+                .float(sprite.objectSpeedMultiplier)
+                .float(sprite.animationDuration)
+                .float(sprite.animationReplayDelay)
+                .integer(sprite.overlays.length)
+                .integer(sprite.soundEffect?.id ?? -1)
+                .integer(sprite.angleSoundEffectsEnabled ? sprite.angleCount : 0)
+                .eol();
+                
+            for (let j = 0; j < sprite.overlays.length; ++j) {
+                const overlay = sprite.overlays[j];
+                textFileWriter
+                    .indent(2)
+                    .integer(overlay.spriteId)
+                    .integer(overlay.offset.x)
+                    .integer(overlay.offset.y)
+                    .integer(overlay.angle)
+                    .eol();
+            }
+            if (sprite.angleSoundEffectsEnabled) {
+                for (let j = 0; j < sprite.angleSoundEffects.length; ++j) {
+                    const soundEffect = sprite.angleSoundEffects[j];
+                    if (soundEffect.soundEffect) {
+                        textFileWriter
+                        .indent(4)
+                        .integer(j)
+                        .integer(soundEffect.frameNumber)
+                        .integer(soundEffect.soundEffect.id)
+                        .eol();
+                    }
+                }
+            }
+        }
 
-    //     for (let j = 0; j < soundEffect.samples.length; ++j) {
-    //         const sample = soundEffect.samples[j];
-    //         const filename = sample.resourceFilename.endsWith(".wav") ? sample.resourceFilename.slice(0, -4) : sample.resourceFilename;
-    //         writeStream.write([
-    //             "  ",
-    //             formatInteger(sample.resourceId),
-    //             formatString(filename, 9),
-    //             formatInteger(sample.playbackProbability),
-    //             EOL
-    //         ].join(""))
-    //     }
-    // }
-    writeStream.close();
+    }
+    textFileWriter.close();
 }

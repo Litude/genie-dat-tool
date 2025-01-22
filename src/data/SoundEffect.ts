@@ -1,10 +1,9 @@
-import { createWriteStream } from "fs";
 import BufferReader from "../BufferReader";
 import { LoadingContext } from "./LoadingContext";
 import { SavingContext } from "./SavingContext";
 import { asInt16, asUInt32, Int16, Int32, Percentage, ResourceId, UInt32 } from "./Types";
-import { EOL } from "os";
-import { formatInteger, formatString } from "../Formatting";
+import { TextFileWriter } from "../textfile/TextFileWriter";
+import { TextFileNames } from "../textfile/TextFile";
 
 interface SoundSample {
     resourceFilename: string;
@@ -49,29 +48,26 @@ export function readSoundEffects(buffer: BufferReader, loadingContext: LoadingCo
 }
 
 export function writeSoundEffectsToWorldTextFile(soundEffects: SoundEffect[], savingContext: SavingContext) {
-    const writeStream = createWriteStream('tr_snd.txt');
-    writeStream.write(`${soundEffects.length}${EOL}`) // Total sound effect entries
-    writeStream.write(`${soundEffects.length}${EOL}`) // Entries that have data here (these should always match because there are no null sound entries)
+    const textFileWriter = new TextFileWriter(TextFileNames.SoundEffects);
+    textFileWriter.raw(soundEffects.length).eol(); // Total sound effect entries
+    textFileWriter.raw(soundEffects.length).eol(); // Entries that have data here (these should always match because there are no null sound entries)
 
     for (let i = 0; i < soundEffects.length; ++i) {
-        const soundEffect = soundEffects[i]
-        writeStream.write([
-            formatInteger(soundEffect.id),
-            formatInteger(soundEffect.samples.length),
-            EOL
-        ].join(""))
+        const soundEffect = soundEffects[i];
+        textFileWriter
+            .integer(soundEffect.id)
+            .integer(soundEffect.samples.length)
+            .eol()
 
         for (let j = 0; j < soundEffect.samples.length; ++j) {
             const sample = soundEffect.samples[j];
-            const filename = sample.resourceFilename.endsWith(".wav") ? sample.resourceFilename.slice(0, -4) : sample.resourceFilename;
-            writeStream.write([
-                "  ",
-                formatInteger(sample.resourceId),
-                formatString(filename, 9),
-                formatInteger(sample.playbackProbability),
-                EOL
-            ].join(""))
+            textFileWriter
+                .indent(2)
+                .integer(sample.resourceId)
+                .filename(sample.resourceFilename)
+                .integer(sample.playbackProbability)
+                .eol()
         }
     }
-    writeStream.close();
+    textFileWriter.close();
 }

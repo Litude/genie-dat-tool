@@ -1,0 +1,36 @@
+Habitats seem to have had names in the database system used by Ensemble Studios to manage unit data. Unfortunately this habitat name data is no longer present in the .DAT file or its precursor (tr_world text files). The only known information is the alphabetical order of the 05.01.0204 .DAT file...
+
+ALPHA (05.01.0204), only alphabetical order is known. What follows are guesses on the name...
+1 = all terrains
+2 = alligator
+3 = animals
+4 = beach (or Beach only)
+5 = boats (or Beach+water)
+6 = buildings (or Desert+grass)
+0 = desert bonus
+9 = dock
+7 = units (or Grass+Desert+Beach)
+8 = unused
+
+FINAL
+0 = all terrains
+1 = animals
+2 = beach
+3 = boats
+4 = buildings
+5 = desert bonus(?) perhaps a remnant?
+6 = dock
+7 = units
+8 = resources
+9 = farm
+10 = walls
+
+
+OLD ALPHA (nov 1996)
+0 = flying/missile
+1 = unused
+2 = animals
+3 = unused
+4 = boats
+5 = buildings
+6 = units
