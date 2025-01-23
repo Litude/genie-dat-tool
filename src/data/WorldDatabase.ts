@@ -8,14 +8,15 @@ import { RandomMap, readRandomMapData, writeRandomMapsToWorldTextFile } from "./
 import { readSoundEffects, SoundEffect, writeSoundEffectsToWorldTextFile } from "./SoundEffect";
 import { readSprites, Sprite, writeSpritesToWorldTextFile } from "./Sprite";
 import { readMainTerrainData, readSecondaryTerrainData, Terrain, writeTerrainsToWorldTextFile } from "./landscape/Terrain";
-import { readStateEffects, StateEffect } from "./research/StateEffect";
-import { Civilization } from "./Civilization";
+import { readStateEffects, StateEffect, writeStateEffectsToWorldTextFile } from "./research/StateEffect";
+import { Civilization, writeCivilizationsToWorldTextFile } from "./Civilization";
 import { SceneryObjectPrototype } from "./object/SceneryObjectPrototype";
 import { readObjectPrototypesFromBuffer } from "./object/ObjectPrototypes";
-import { readTechnologiesFromBuffer, Technology } from "./research/Technology";
+import { readTechnologiesFromBuffer, Technology, writeTechnologiesToWorldTextFile } from "./research/Technology";
 import { createWriteStream } from "fs";
 import { EOL } from "node:os";
 import { SavingContext } from "./SavingContext";
+import { asInt16 } from "./Types";
 
 export class WorldDatabase {
     habitats: (Habitat | null)[];
@@ -62,7 +63,7 @@ export class WorldDatabase {
         this.objects = [];
         for (let i = 0; i < civilizationCount; ++i) {
             const civilization = new Civilization();
-            civilization.readFromBuffer(buffer, loadingContext);
+            civilization.readFromBuffer(buffer, asInt16(i), loadingContext);
             this.civilizations.push(civilization);
             this.objects.push(readObjectPrototypesFromBuffer(buffer, loadingContext));
         }
@@ -92,6 +93,10 @@ export class WorldDatabase {
         writeTerrainsToWorldTextFile(this.terrains, savingContext);
         writeBordersToWorldTextFile(this.borders, savingContext);
         writeRandomMapsToWorldTextFile(this.randomMaps, savingContext);
+        writeStateEffectsToWorldTextFile(this.stateEffects, savingContext);
+        writeCivilizationsToWorldTextFile(this.civilizations, savingContext);
+        // write objects here
+        writeTechnologiesToWorldTextFile(this.technologies, savingContext);
     }
 
     toString() {

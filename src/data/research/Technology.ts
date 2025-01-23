@@ -1,5 +1,8 @@
 import BufferReader from "../../BufferReader";
+import { TextFileNames } from "../../textfile/TextFile";
+import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { LoadingContext } from "../LoadingContext";
+import { SavingContext } from "../SavingContext";
 import { asInt16, asInt32, asUInt8, AttributeId, Bool8, Int16, Int32, PrototypeId, StateEffectId, StringId, TechnologyId, UInt8 } from "../Types";
 
 interface TechnologyResourceCost {
@@ -9,6 +12,7 @@ interface TechnologyResourceCost {
 }
 
 export class Technology {
+    id: Int16 = asInt16(-1);
     internalName: string = "";
     prerequisiteTechnologyIds: TechnologyId<Int16>[] = [];
     resourceCosts: TechnologyResourceCost[] = [];
@@ -25,7 +29,8 @@ export class Technology {
     helpPageStringId: StringId<Int32> = asInt32(-1);
     hotkeyStringId: StringId<Int32> = asInt32(-1);
 
-    readFromBuffer(buffer: BufferReader, loadingContext: LoadingContext): void {
+    readFromBuffer(buffer: BufferReader, id: Int16, loadingContext: LoadingContext): void {
+        this.id = id;
         this.prerequisiteTechnologyIds = [];
         for (let i = 0; i < 4; ++i) {
             this.prerequisiteTechnologyIds.push(buffer.readInt16());
@@ -53,6 +58,10 @@ export class Technology {
         this.internalName = buffer.readPascalString16();
     }
 
+    isValid() {
+        return this.internalName !== "";
+    }
+
     toString() {
         return this.internalName;
     }
@@ -63,9 +72,50 @@ export function readTechnologiesFromBuffer(buffer: BufferReader, loadingContext:
     const technologyCount = buffer.readInt16();
     for (let i = 0; i < technologyCount; ++i) {
         const technology = new Technology();
-        technology.readFromBuffer(buffer, loadingContext);
+        technology.readFromBuffer(buffer, asInt16(i), loadingContext);
         result.push(technology);
     }
 
     return result;
+}
+
+export function writeTechnologiesToWorldTextFile(technologies: Technology[], savingContext: SavingContext) {
+    const textFileWriter = new TextFileWriter(TextFileNames.Technologies);
+    textFileWriter.raw(technologies.length).eol(); // Total technology entries
+    const validEntries = technologies.filter(entry => entry.isValid());
+    textFileWriter.raw(validEntries.length).eol(); // Entries that have data
+
+    validEntries.forEach(entry => {
+        textFileWriter
+            .integer(entry.id)
+            .string(entry.internalName.replaceAll(' ', '_'), 31)
+            .integer(entry.minimumPrerequisites)
+            .integer(entry.researchDuration)
+            .integer(entry.stateEffectId)
+            .integer(entry.technologyType)
+            .integer(entry.iconNumber)
+            .integer(entry.researchButtonIndex)
+            .integer(entry.researchLocation)
+
+        for (let i = 0; i < 4; ++i) {
+            textFileWriter.integer(entry.prerequisiteTechnologyIds[i]);
+        }
+        for (let i = 0; i < 3; ++i) {
+            const cost = entry.resourceCosts[i];
+            textFileWriter
+                .integer(cost.attributeId)
+                .integer(cost.amount)
+                .integer(cost.costDeducted ? 1 : 0);
+        }
+
+        textFileWriter
+            .integer(entry.nameStringId)
+            .integer(entry.researchStringId)
+            .integer(entry.helpDialogStringId)
+            .integer(entry.helpPageStringId)
+            .integer(entry.hotkeyStringId)
+            .eol();
+    });
+    textFileWriter.close();
+
 }

@@ -31,6 +31,7 @@ interface PreMapData {
 
 interface BaseLandData {
     baseLandId: Int32;
+    terrainId: TerrainId<UInt8>;
     terrain: Terrain | null;
     padding05: UInt8;
     padding06: UInt16;
@@ -50,9 +51,11 @@ interface BaseLandData {
 
 interface TerrainPlacementData {
     coverageProportion: Percentage<Int32>;
+    terrainId: TerrainId<Int32>;
     terrain: Terrain | null;
     clumpCount: Int32;
     terrainSpacing: Int32;
+    replacedTerrainId: TerrainId<Int32>;
     replacedTerrain: Terrain | null;
     clumpinessFactor: Int32;
 }
@@ -60,6 +63,7 @@ interface TerrainPlacementData {
 interface ObjectPlacementData {
     prototypeId: PrototypeId<Int32>;
     objectPrototype: SceneryObjectPrototype | null;
+    placementTerrainId: TerrainId<Int32>;
     placementTerrain: Terrain | null;
     groupMode: UInt8;
     scaleByMapSize: Bool8;
@@ -68,7 +72,7 @@ interface ObjectPlacementData {
     objectsPerGroupVariance: Int32;
     objectGroupsPerPlayer: Int32;
     objectGroupRadius: Int32;
-    placementPlayerId: PlayerId<Int32>;
+    placementPlayerId: PlayerId<Int32>; // -1 means all players
     placementBaseLandId: Int32;
     minDistanceToPlayers: Int32;
     maxDistanceToPlayers: Int32;
@@ -79,6 +83,7 @@ interface ElevationPlacementData {
     elevationHeight: Int32;
     clumpinessFactor: Int32;
     elevationSpacing: Int32;
+    placementTerrainId: TerrainId<Int32>;
     placementTerrain: Terrain | null;
     placementElevation: Int32;
 }
@@ -134,9 +139,10 @@ export class RandomMap {
         this.baseLandDataPointer = buffer.readPointer();
         this.baseLandData = [];
         for (let i = 0; i < baseLandEntryCount; ++i) {
-            this.baseLandData.push({
+            const landEntry: BaseLandData = {
                 baseLandId: buffer.readInt32(),
-                terrain: getEntryOrLogWarning(terrains, buffer.readUInt8(), "Terrain"),
+                terrainId: buffer.readUInt8(),
+                terrain: null,
                 padding05: buffer.readUInt8(),
                 padding06: buffer.readUInt16(),
                 landSpacing: buffer.readInt32(),
@@ -154,57 +160,70 @@ export class RandomMap {
                 playerBaseRadius: buffer.readInt32(),
                 edgeFade: buffer.readInt32(),
                 clumpinessFactor: buffer.readInt32()
-            });
+            };
+            landEntry.terrain = getEntryOrLogWarning(terrains, landEntry.terrainId, "Terrain");
+            this.baseLandData.push(landEntry);
         }
 
         const terrainEntryCount = buffer.readInt32();
         this.terrainDataPointer = buffer.readPointer();
         this.terrainData = [];
         for (let i = 0; i < terrainEntryCount; ++i) {
-            this.terrainData.push({
+            const terrainDataEntry: TerrainPlacementData = {
                 coverageProportion: buffer.readInt32(),
-                terrain: getEntryOrLogWarning(terrains, buffer.readInt32(), "Terrain"),
+                terrainId: buffer.readInt32(),
+                terrain: null,
                 clumpCount: buffer.readInt32(),
                 terrainSpacing: buffer.readInt32(),
-                replacedTerrain: getEntryOrLogWarning(terrains, buffer.readInt32(), "Terrain"),
+                replacedTerrainId: buffer.readInt32(),
+                replacedTerrain: null,
                 clumpinessFactor: buffer.readInt32()
-            });
+            }
+            terrainDataEntry.terrain = getEntryOrLogWarning(terrains, terrainDataEntry.terrainId, "Terrain"),
+            terrainDataEntry.replacedTerrain = getEntryOrLogWarning(terrains, terrainDataEntry.replacedTerrainId, "Terrain"),
+            this.terrainData.push(terrainDataEntry);
         }
 
         const objectEntryCount = buffer.readInt32();
         this.objectDataPointer = buffer.readPointer();
         this.objectData = [];
         for (let i = 0; i < objectEntryCount; ++i) {
-            this.objectData.push({
-              prototypeId: buffer.readInt32(),
-              objectPrototype: null,
-              placementTerrain: getEntryOrLogWarning(terrains, buffer.readInt32(), "Terrain"),
-              groupMode: buffer.readUInt8(),
-              scaleByMapSize: buffer.readBool8(),
-              padding0A: buffer.readUInt16(),
-              objectsPerGroup: buffer.readInt32(),
-              objectsPerGroupVariance: buffer.readInt32(),
-              objectGroupsPerPlayer: buffer.readInt32(),
-              objectGroupRadius: buffer.readInt32(),
-              placementPlayerId: buffer.readInt32(),
-              placementBaseLandId: buffer.readInt32(),
-              minDistanceToPlayers: buffer.readInt32(),
-              maxDistanceToPlayers: buffer.readInt32()
-            });
+            const objectData: ObjectPlacementData = {
+                prototypeId: buffer.readInt32(),
+                objectPrototype: null,
+                placementTerrainId: buffer.readInt32(),
+                placementTerrain: null,
+                groupMode: buffer.readUInt8(),
+                scaleByMapSize: buffer.readBool8(),
+                padding0A: buffer.readUInt16(),
+                objectsPerGroup: buffer.readInt32(),
+                objectsPerGroupVariance: buffer.readInt32(),
+                objectGroupsPerPlayer: buffer.readInt32(),
+                objectGroupRadius: buffer.readInt32(),
+                placementPlayerId: buffer.readInt32(),
+                placementBaseLandId: buffer.readInt32(),
+                minDistanceToPlayers: buffer.readInt32(),
+                maxDistanceToPlayers: buffer.readInt32()
+            };
+            objectData.placementTerrain = getEntryOrLogWarning(terrains, objectData.placementTerrainId, "Terrain");
+            this.objectData.push(objectData);
         }
 
         const elevationEntryCount = buffer.readInt32();
         this.elevationDataPointer = buffer.readPointer();
         this.elevationData = [];
         for (let i = 0; i < elevationEntryCount; ++i) {
-            this.elevationData.push({
+            const elevationData: ElevationPlacementData = {
                 coverageProportion: buffer.readInt32(),
                 elevationHeight: buffer.readInt32(),
                 clumpinessFactor: buffer.readInt32(),
                 elevationSpacing: buffer.readInt32(),
-                placementTerrain: getEntryOrLogWarning(terrains, buffer.readInt32(), "Terrain"),
+                placementTerrainId: buffer.readInt32(),
+                placementTerrain: null,
                 placementElevation: buffer.readInt32()
-            });
+            }
+            elevationData.placementTerrain = getEntryOrLogWarning(terrains, elevationData.placementTerrainId, "Terrain");
+            this.elevationData.push(elevationData);
         }
 
     }
@@ -258,7 +277,7 @@ export function readRandomMapData(randomMapCount: number, buffer: BufferReader, 
     return result;
 }
 
-function writeRandomMapLandDataToWorldTextFile(randomMaps: RandomMap[], savingContext: SavingContext) {
+function writeRandomMapDefinitionsToWorldTextFile(randomMaps: RandomMap[], savingContext: SavingContext) {
     const textFileWriter = new TextFileWriter(TextFileNames.RandomMapDefinitons);
     textFileWriter.raw(randomMaps.length).eol(); // Total map entries
 
@@ -270,6 +289,106 @@ function writeRandomMapLandDataToWorldTextFile(randomMaps: RandomMap[], savingCo
     textFileWriter.close();
 }
 
+function writeRandomMapBaseLandDataToWorldTextFile(randomMaps: RandomMap[], savingContext: SavingContext) {
+    const textFileWriter = new TextFileWriter(TextFileNames.RandomMapBaseLands);
+    textFileWriter.raw(randomMaps.length).eol(); // Total map entries
+
+    for (let i = 0; i < randomMaps.length; ++i) {
+        const randomMap = randomMaps[i];
+        textFileWriter 
+            .integer(i)
+            .integer(randomMap.baseLandData.length)
+            .integer(randomMap.border.left)
+            .integer(randomMap.border.top)
+            .integer(randomMap.border.right)
+            .integer(randomMap.border.bottom)
+            .integer(randomMap.borderEdgeFade)
+            .integer(randomMap.waterShapeLandPlacementEdge)
+            .integer(randomMap.baseTerrain)
+            .integer(randomMap.landCover)
+            .eol()
+
+        for (let j = 0; j < randomMap.baseLandData.length; ++j) {
+            const baseLandData = randomMap.baseLandData[j];
+            textFileWriter.indent(2)
+                .integer(baseLandData.baseLandId)
+                .integer(baseLandData.terrainId)
+                .integer(baseLandData.landSpacing)
+                .integer(baseLandData.baseSize)
+                .integer(baseLandData.zone)
+                .integer(baseLandData.placementType)
+                .integer(baseLandData.origin.x)
+                .integer(baseLandData.origin.y)
+                .integer(baseLandData.landProportion)
+                .integer(baseLandData.playerPlacement)
+                .integer(baseLandData.playerBaseRadius)
+                .integer(baseLandData.edgeFade)
+                .eol();
+        }
+    }
+    textFileWriter.close();
+}
+
+function writeRandomMapTerrainPlacementDataToWorldTextFile(randomMaps: RandomMap[], savingContext: SavingContext) {
+    const textFileWriter = new TextFileWriter(TextFileNames.RandomMapTerrains);
+    textFileWriter.raw(randomMaps.length).eol(); // Total map entries
+
+    for (let i = 0; i < randomMaps.length; ++i) {
+        const randomMap = randomMaps[i];
+        textFileWriter 
+            .integer(i)
+            .integer(randomMap.terrainData.length)
+            .eol()
+
+        for (let j = 0; j < randomMap.terrainData.length; ++j) {
+            const terrainData = randomMap.terrainData[j];
+            textFileWriter.indent(2)
+                .integer(terrainData.coverageProportion)
+                .integer(terrainData.terrainId)
+                .integer(terrainData.clumpCount)
+                .integer(terrainData.terrainSpacing)
+                .integer(terrainData.replacedTerrainId)
+                .eol();
+        }
+    }
+    textFileWriter.close();
+}
+
+function writeRandomMapObjectPlacementDataToWorldTextFile(randomMaps: RandomMap[], savingContext: SavingContext) {
+    const textFileWriter = new TextFileWriter(TextFileNames.RandomMapObjects);
+    textFileWriter.raw(randomMaps.length).eol(); // Total map entries
+
+    for (let i = 0; i < randomMaps.length; ++i) {
+        const randomMap = randomMaps[i];
+        textFileWriter 
+            .integer(i)
+            .integer(randomMap.objectData.length)
+            .eol()
+
+        for (let j = 0; j < randomMap.objectData.length; ++j) {
+            const objectData = randomMap.objectData[j];
+            textFileWriter.indent(2)
+                .integer(objectData.prototypeId)
+                .integer(objectData.placementTerrainId)
+                .integer(objectData.groupMode)
+                .integer(objectData.scaleByMapSize ? 1 : 0)
+                .integer(objectData.objectsPerGroup)
+                .integer(objectData.objectsPerGroupVariance)
+                .integer(objectData.objectGroupsPerPlayer)
+                .integer(objectData.objectGroupRadius)
+                .integer(objectData.placementPlayerId)
+                .integer(objectData.placementBaseLandId)
+                .integer(objectData.minDistanceToPlayers)
+                .integer(objectData.maxDistanceToPlayers)
+                .eol();
+        }
+    }
+    textFileWriter.close();
+}
+
 export function writeRandomMapsToWorldTextFile(randomMaps: RandomMap[], savingContext: SavingContext) {
-    writeRandomMapLandDataToWorldTextFile(randomMaps, savingContext);
+    writeRandomMapDefinitionsToWorldTextFile(randomMaps, savingContext);
+    writeRandomMapBaseLandDataToWorldTextFile(randomMaps, savingContext);
+    writeRandomMapTerrainPlacementDataToWorldTextFile(randomMaps, savingContext);
+    writeRandomMapObjectPlacementDataToWorldTextFile(randomMaps, savingContext);
 }

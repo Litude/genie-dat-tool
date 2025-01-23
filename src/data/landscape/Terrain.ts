@@ -192,10 +192,10 @@ function writeTerrainObjectsToWorldTextFile(terrains: (Terrain | null)[], saving
     textFileWriter.raw(parsedEntries.length).eol();
     for (let i = 0; i < parsedEntries.length; ++i) {
         const entry = parsedEntries[i];
-        if (entry.object) {
+        if (entry.prototypeId >= 0) {
             textFileWriter
                 .integer(entry.terrainId)
-                .integer(entry.object.id)
+                .integer(entry.prototypeId)
                 .integer(entry.density)
                 .integer(entry.centralize ? 1 : 0)
                 .eol()
