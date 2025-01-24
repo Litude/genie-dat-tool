@@ -1,5 +1,7 @@
 import BufferReader from "../../BufferReader";
+import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { LoadingContext } from "../LoadingContext";
+import { SavingContext } from "../SavingContext";
 import { asFloat32, asInt16, asUInt8, Float32, Int16, PrototypeId, SpriteId, UInt8 } from "../Types";
 import { AnimatedObjectPrototype } from "./AnimatedObjectPrototype";
 import { ObjectType } from "./ObjectType";
@@ -24,5 +26,20 @@ export class MobileObjectPrototype extends AnimatedObjectPrototype {
         this.trailingUnitMode = buffer.readUInt8();
         this.trailingUnitDensity = buffer.readFloat32();
         this.moveAlgorithm = buffer.readUInt8();
+    }
+
+    writeToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext): void {
+        super.writeToTextFile(textFileWriter, savingContext);
+        textFileWriter
+            .indent(4)
+            .integer(this.walkingSpriteId)
+            .integer(this.runningSpriteId)
+            .float(this.rotationSpeed)
+            .integer(this.sizeClass)
+            .integer(this.trailingUnitId)
+            .integer(this.trailingUnitMode)
+            .float(this.trailingUnitDensity)
+            .integer(this.moveAlgorithm)
+            .eol();
     }
 }

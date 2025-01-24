@@ -1,6 +1,11 @@
 import BufferReader from "../../BufferReader"
+import { TextFileNames } from "../../textfile/TextFile";
+import { TextFileWriter } from "../../textfile/TextFileWriter";
+import { isDefined } from "../../ts/ts-utils";
+import { Civilization } from "../Civilization";
 import { LoadingContext } from "../LoadingContext"
-import { Bool32 } from "../Types";
+import { SavingContext } from "../SavingContext";
+import { asInt32, Bool32 } from "../Types";
 import { ActorObjectPrototype } from "./ActorObjectPrototype";
 import { AdvancedCombatantObjectPrototype } from "./AdvancedCombatantObjectPrototype";
 import { AnimatedObjectPrototype } from "./AnimatedObjectPrototype";
@@ -71,4 +76,30 @@ export function readObjectPrototypesFromBuffer(buffer: BufferReader, loadingCont
         result.push(object);
     }
     return result;
+}
+
+
+export function writObjectPrototypesToWorldTextFile(civilizations: Civilization[], prototypes: (SceneryObjectPrototype | null)[][], savingContext: SavingContext) {
+    const textFileWriter = new TextFileWriter(TextFileNames.Objects);
+    textFileWriter.raw(civilizations.length).eol(); // civilization count
+    const civilizationObjects = civilizations.map((civilization, index) => ({
+        civilization,
+        objects: prototypes[index].filter(isDefined).sort((a, b) => a.internalName.localeCompare(b.internalName)),
+        totalObjectCount: asInt32(prototypes[index].length),
+    })).sort((a, b) => a.civilization.internalName.localeCompare(b.civilization.internalName))
+    
+    civilizationObjects.forEach(civObject => {
+        textFileWriter
+            .integer(civObject.civilization.id)
+            .integer(civObject.totalObjectCount)
+            .integer(asInt32(civObject.objects.length))
+            .eol();
+        
+        civObject.objects.forEach(object => {
+            object.writeToTextFile(textFileWriter, savingContext);
+        });
+    })
+
+    textFileWriter.close();
+
 }

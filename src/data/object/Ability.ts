@@ -1,5 +1,7 @@
 import BufferReader from "../../BufferReader";
+import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { LoadingContext } from "../LoadingContext";
+import { SavingContext } from "../SavingContext";
 import { AbilityId, ActionId, asBool8, asFloat32, asInt16, asUInt8, AttributeId, Bool8, Float32, Int16, PrototypeId, SoundEffectId, SpriteId, TerrainId, UInt8 } from "../Types";
 import { ObjectClass } from "./ObjectClass";
 
@@ -28,7 +30,7 @@ export class Ability {
     holdingAttributeCheck: UInt8 = asUInt8(0);
     buildingTarget: Bool8 = asBool8(false);
     moveSpriteId: SpriteId<Int16> = asInt16(-1);
-    workProceedingSpriteId: SpriteId<Int16> = asInt16(-1);
+    workPreceedingSpriteId: SpriteId<Int16> = asInt16(-1);
     workActiveSpriteId: SpriteId<Int16> = asInt16(-1);
     carrySpriteId: SpriteId<Int16> = asInt16(-1);
     resourceGatheringSoundId: SoundEffectId<Int16> = asInt16(-1);
@@ -59,10 +61,49 @@ export class Ability {
         this.holdingAttributeCheck = buffer.readUInt8();
         this.buildingTarget = buffer.readBool8();
         this.moveSpriteId = buffer.readInt16();
-        this.workProceedingSpriteId = buffer.readInt16();
+        this.workPreceedingSpriteId = buffer.readInt16();
         this.workActiveSpriteId = buffer.readInt16();
         this.carrySpriteId = buffer.readInt16();
         this.resourceGatheringSoundId = buffer.readInt16();
         this.resourceDepositSoundId = buffer.readInt16();
+    }
+
+    writeToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext) {
+        textFileWriter
+            .indent(6)
+            .integer(this.abilityType)
+            .integer(this.index)
+            .integer(this.defaultAbility ? 1 : 0)
+            .integer(this.actionType)
+            .integer(this.objectClass)
+            .integer(this.objectPrototypeId)
+            .integer(this.terrainId)
+            .integer(this.attributeType1)
+            .integer(this.attributeType2)
+            .integer(this.attributeType3)
+            .integer(this.attributeType4)
+            .float(this.workRate1)
+            .float(this.workRate2)
+            .float(this.workRange)
+            .integer(this.autoSearchTargets ? 1 : 0)
+            .float(this.searchWaitTime)
+            .eol();
+
+        textFileWriter
+            .indent(10)
+            .integer(this.enableTargeting)
+            .integer(this.combatLevelFlag)
+            .integer(this.workFlag1)
+            .integer(this.workFlag2)
+            .integer(this.targetDiplomacyType)
+            .integer(this.holdingAttributeCheck)
+            .integer(this.buildingTarget ? 1 : 0)
+            .integer(this.moveSpriteId)
+            .integer(this.workPreceedingSpriteId)
+            .integer(this.workActiveSpriteId)
+            .integer(this.carrySpriteId)
+            .integer(this.resourceGatheringSoundId)
+            .integer(this.resourceDepositSoundId)
+            .eol();
     }
 }

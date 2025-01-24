@@ -1,6 +1,8 @@
 import BufferReader from "../../BufferReader";
 import { Point, Point3D } from "../../geometry/Point";
+import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { LoadingContext } from "../LoadingContext";
+import { SavingContext } from "../SavingContext";
 import { asBool8, asFloat32, asInt16, asInt32, asUInt8, AttributeId, Bool8, Float32, HabitatId, Int16, Int32, PaletteIndex, PrototypeId, SoundEffectId, SpriteId, StringId, TerrainId, UInt8 } from "../Types";
 import { ObjectClass } from "./ObjectClass";
 import { ObjectType } from "./ObjectType";
@@ -208,6 +210,114 @@ export class SceneryObjectPrototype {
         this.internalName = nameLength > 0 ? buffer.readFixedSizeString(nameLength) : "";
         this.upgradeUnitPrototypeId = buffer.readInt16();
 
+    }
+
+
+    writeToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext) {
+        textFileWriter.eol();
+
+        textFileWriter
+            .indent(2)
+            .integer(this.objectType)
+            .integer(this.id)
+            .eol();
+
+        textFileWriter
+            .indent(4)
+            .string(this.internalName, 26)
+            .integer(this.nameStringId)
+            .integer(this.creationStringId)
+            .integer(this.objectClass)
+            .integer(this.idleSpriteId)
+            .integer(this.deathSpriteId)
+            .integer(this.undeathSpriteId)
+            .integer(this.undead ? 1 : 0)
+            .integer(this.hitpoints)
+            .float(this.lineOfSight)
+            .integer(this.garrisonCapacity)
+            .float(this.collisionRadius.x)
+            .float(this.collisionRadius.y)
+            .float(this.collisionRadius.z)
+            .integer(this.deadUnitId)
+            .integer(this.sortNumber)
+            .integer(this.canBeBuiltOn)
+            .integer(this.iconNumber)
+            .integer(this.hiddenInEditor ? 1 : 0)
+            .integer(this.portraitPicture)
+            .integer(this.available ? 1 : 0)
+            .eol()
+
+        const outlineRadius = this.selectionOutlineRadius.x !== this.collisionRadius.x ||
+            this.selectionOutlineRadius.y !== this.collisionRadius.y ||
+            this.selectionOutlineRadius.z !== this.collisionRadius.z;
+
+        textFileWriter
+            .indent(4)
+            .integer(this.placementNeighbouringTerrains[0])
+            .integer(this.placementNeighbouringTerrains[1])
+            .integer(this.placementUnderlyingTerrains[0])
+            .integer(this.placementUnderlyingTerrains[1])
+            .float(this.clearanceSize.x)
+            .float(this.clearanceSize.y)
+            .integer(this.elevationMode)
+            .integer(this.fogVisibility)
+            .integer(this.habitat)
+            .eol()
+
+        textFileWriter
+            .indent(4)
+            .integer(this.creationSoundId)
+            .integer(this.flyMode)
+            .integer(this.attributeCapacity)
+            .float(this.multipleAttributeMode)
+            .float(this.attributeDecayRate)
+            .integer(this.blastDefenseLevel)
+            .integer(this.combatMode)
+            .integer(this.interactionMode)
+            .integer(this.minimapMode)
+            .integer(this.interfaceType)
+            .integer(this.minimapColor)
+            .integer(this.helpDialogStringId)
+            .integer(this.helpPageStringId)
+            .integer(this.hotkeyStringId)
+            .integer(this.trackAsResource ? 1 : 0)
+            .integer(this.doppelgangerMode)
+            .integer(this.resourceGroup)
+            .integer(this.selectionOutlineFlags)
+            .integer(this.editorSelectionOutlineColor)
+            .float(outlineRadius ? this.selectionOutlineRadius.x : this.collisionRadius.x)
+            .float(outlineRadius ? this.selectionOutlineRadius.y : this.collisionRadius.y)
+            .float(outlineRadius ? this.selectionOutlineRadius.z : this.collisionRadius.z);
+
+        for (let i = 0; i < 3; ++i) {
+            textFileWriter
+                .integer(this.attributesStored[i].attributeId)
+                .float(this.attributesStored[i].amount)
+                .integer(this.attributesStored[i].storageType);
+        }
+        textFileWriter.eol();
+
+        textFileWriter
+            .indent(6)
+                .integer(this.damageSprites.length)
+                .eol();
+
+        this.damageSprites.forEach(damageSprite => {
+            textFileWriter
+                .indent(8)
+                .integer(damageSprite.spriteId)
+                .integer(damageSprite.damagePercent)
+                .integer(damageSprite.applyMode)
+                .eol();
+        })
+
+        textFileWriter
+            .indent(4)
+            .integer(this.selectionSoundId)
+            .integer(this.deathSoundId)
+            .integer(this.attackReaction)
+            .integer(this.convertTerrain ? 1 : 0)
+            .eol();
     }
 
 }

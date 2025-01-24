@@ -1,5 +1,7 @@
 import BufferReader from "../../BufferReader";
+import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { LoadingContext } from "../LoadingContext";
+import { SavingContext } from "../SavingContext";
 import { asInt16, asUInt8, AttributeId, Bool8, Int16, PrototypeId, UInt8 } from "../Types";
 import { CombatantObjectPrototype } from "./CombatantObjectPrototype";
 import { ObjectType } from "./ObjectType";
@@ -34,6 +36,26 @@ export class AdvancedCombatantObjectPrototype extends CombatantObjectPrototype {
         this.creationLocation = buffer.readInt16();
         this.creationButtonIndex = buffer.readUInt8();
         this.originalPierceArmorValue = buffer.readInt16();
+    }
+
+    writeToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext): void {
+        super.writeToTextFile(textFileWriter, savingContext)
+        textFileWriter
+            .indent(4)
+
+        for (let i = 0; i < 3; ++i) {
+            const resourceCost = this.resourceCosts[i];
+            textFileWriter
+                .integer(resourceCost.attributeId)
+                .integer(resourceCost.amount)
+                .integer(resourceCost.costDeducted ? 1 : 0)
+        }
+
+        textFileWriter
+            .integer(this.creationDuration)
+            .integer(this.creationLocation)
+            .integer(this.creationButtonIndex)
+            .eol();
     }
 
 }

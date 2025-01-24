@@ -1,8 +1,9 @@
 import { sprintf } from "sprintf-js";
-import { Float32, Int16, Int32, Int8, UInt16, UInt32, UInt8 } from "../data/Types";
+import { Float32, Float64, Int16, Int32, Int8, UInt16, UInt32, UInt8 } from "../data/Types";
 import { EOL } from "os";
 import { createWriteStream, PathLike, WriteStream } from "fs";
 import { Logger } from "../Logger";
+import { ExcludeBranded } from "../ts/ts-utils";
 
 export class TextFileWriter {
     stream: WriteStream;
@@ -22,7 +23,7 @@ export class TextFileWriter {
         return this;
     }
 
-    integer(input: number) {
+    integer(input: Int8 | Int16 | Int32 | UInt8 | UInt16 | UInt32 | number & { __brand?: never }) {
         this.buffer.push(sprintf("%-7d", input));
         return this;
     }

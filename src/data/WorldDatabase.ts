@@ -11,7 +11,7 @@ import { readMainTerrainData, readSecondaryTerrainData, Terrain, writeTerrainsTo
 import { readStateEffects, StateEffect, writeStateEffectsToWorldTextFile } from "./research/StateEffect";
 import { Civilization, writeCivilizationsToWorldTextFile } from "./Civilization";
 import { SceneryObjectPrototype } from "./object/SceneryObjectPrototype";
-import { readObjectPrototypesFromBuffer } from "./object/ObjectPrototypes";
+import { readObjectPrototypesFromBuffer, writObjectPrototypesToWorldTextFile } from "./object/ObjectPrototypes";
 import { readTechnologiesFromBuffer, Technology, writeTechnologiesToWorldTextFile } from "./research/Technology";
 import { createWriteStream } from "fs";
 import { EOL } from "node:os";
@@ -95,7 +95,7 @@ export class WorldDatabase {
         writeRandomMapsToWorldTextFile(this.randomMaps, savingContext);
         writeStateEffectsToWorldTextFile(this.stateEffects, savingContext);
         writeCivilizationsToWorldTextFile(this.civilizations, savingContext);
-        // write objects here
+        writObjectPrototypesToWorldTextFile(this.civilizations, this.objects, savingContext);
         writeTechnologiesToWorldTextFile(this.technologies, savingContext);
     }
 

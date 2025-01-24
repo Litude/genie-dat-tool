@@ -1,6 +1,8 @@
 import BufferReader from "../../BufferReader";
 import { Point3D } from "../../geometry/Point";
+import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { LoadingContext } from "../LoadingContext";
+import { SavingContext } from "../SavingContext";
 import { asFloat32, asInt16, asUInt8, Float32, HabitatId, Int16, Percentage, PrototypeId, SpriteId, UInt8 } from "../Types";
 import { ActorObjectPrototype } from "./ActorObjectPrototype";
 import { ObjectType } from "./ObjectType";
@@ -75,5 +77,37 @@ export class CombatantObjectPrototype extends ActorObjectPrototype {
         this.originalAttackValue = buffer.readInt16();
         this.originalRangeValue = buffer.readFloat32();
         this.originalAttackSpeed = buffer.readFloat32();
+    }
+
+    writeToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext): void {
+        super.writeToTextFile(textFileWriter, savingContext);
+        textFileWriter
+            .indent(4)
+            .integer(this.attackSpriteId)
+            .integer(this.baseArmor)
+            .integer(this.armorTypes.length)
+            .integer(this.attackTypes.length)
+            .integer(this.bonusHabitat)
+            .float(this.maxRange)
+            .float(this.blastRadius)
+            .float(this.attackSpeed)
+            .integer(this.projectileUnitId)
+            .integer(this.accuracy)
+            .integer(this.breakOffCombat)
+            .integer(this.attackFrame)
+            .float(this.projectileOffset.x)
+            .float(this.projectileOffset.y)
+            .float(this.projectileOffset.z)
+            .integer(this.blastAttackLevel)
+            .float(this.minRange)
+            .eol();
+
+        [...this.armorTypes, ...this.attackTypes].forEach(damageType => {
+            textFileWriter
+                .indent(6)
+                .integer(damageType.type)
+                .integer(damageType.amount)
+                .eol();
+        })
     }
 }
