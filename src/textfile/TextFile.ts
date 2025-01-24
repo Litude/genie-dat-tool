@@ -1,4 +1,5 @@
 export const TextFileNames = {
+    MainFile: "tr_wrld.txt",
     Habitats: "tr_tset.txt",
     Colormaps: "tr_colr.txt",
     SoundEffects: "tr_snd.txt",

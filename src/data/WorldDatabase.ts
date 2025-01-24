@@ -17,6 +17,8 @@ import { createWriteStream } from "fs";
 import { EOL } from "node:os";
 import { SavingContext } from "./SavingContext";
 import { asInt16 } from "./Types";
+import { TextFileWriter } from "../textfile/TextFileWriter";
+import { TextFileNames } from "../textfile/TextFile";
 
 export class WorldDatabase {
     habitats: (Habitat | null)[];
@@ -97,6 +99,31 @@ export class WorldDatabase {
         writeCivilizationsToWorldTextFile(this.civilizations, savingContext);
         writObjectPrototypesToWorldTextFile(this.civilizations, this.objects, savingContext);
         writeTechnologiesToWorldTextFile(this.technologies, savingContext);
+
+        const textFileWriter = new TextFileWriter(TextFileNames.MainFile);
+        textFileWriter
+            .string(TextFileNames.Habitats, 13).eol()
+            .string(TextFileNames.Colormaps, 13).eol()
+            .string(TextFileNames.SoundEffects, 13).eol()
+            .string(TextFileNames.Borders, 13).eol()
+            .string(TextFileNames.Overlays, 13).eol()
+            .string(TextFileNames.Terrains, 13).eol()
+            .string(TextFileNames.TribeRandomMaps, 13).eol()
+            .string(TextFileNames.Sprites, 13).eol()
+            .string(TextFileNames.Civilizations, 13).eol()
+            .string(TextFileNames.Objects, 13).eol()
+            .string(TextFileNames.StateEffects, 13).eol()
+            .string(TextFileNames.TerrainObjects, 13).eol()
+            .string(TextFileNames.RandomMapDefinitons, 13).eol()
+            .string(TextFileNames.RandomMapBaseLands, 13).eol()
+            .string(TextFileNames.RandomMapTerrains, 13).eol()
+            .string(TextFileNames.RandomMapObjects, 13).eol()
+            .integer(this.mapProperties.tileWidthPx).eol()
+            .integer(this.mapProperties.tileHeightPx).eol()
+            .integer(this.mapProperties.elevationHeightPx).eol()
+            .raw(TextFileNames.Technologies).eol();
+        textFileWriter.close();
+
     }
 
     toString() {
