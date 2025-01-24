@@ -88,7 +88,7 @@ export class WorldDatabase {
 
     writeToWorldTextFile() {
         const savingContext: SavingContext = { version: 3.7 };
-        writeHabitatsToWorldTextFile(this.habitats, this.terrains.length, savingContext);
+        writeHabitatsToWorldTextFile(this.habitats, this.terrains.filter(x => x).length, savingContext);
         writeColormapsToWorldTextFile(this.colormaps, savingContext);
         writeSoundEffectsToWorldTextFile(this.soundEffects, savingContext);
         writeSpritesToWorldTextFile(this.sprites, savingContext);

@@ -47,18 +47,16 @@ export class Habitat {
         });
 
         const validCount = sortedTerrainData.filter(terrainData => terrainData.multiplier).length
-        if (validCount > 0) {
-            file.integer(this.id).integer(validCount).eol();
-    
-            for (let i = 0; i < sortedTerrainData.length; ++i) {
-                const terrainData = sortedTerrainData[i];
-                if (terrainData.multiplier) {
-                    file
-                        .indent(5)
-                        .integer(terrainData.terrainId)
-                        .float(terrainData.multiplier)
-                        .eol()
-                }
+        file.integer(this.id).integer(validCount).eol();
+
+        for (let i = 0; i < sortedTerrainData.length; ++i) {
+            const terrainData = sortedTerrainData[i];
+            if (terrainData.multiplier) {
+                file
+                    .indent(5)
+                    .integer(terrainData.terrainId)
+                    .float(terrainData.multiplier)
+                    .eol()
             }
         }
     }
@@ -96,8 +94,7 @@ export function writeHabitatsToWorldTextFile(habitats: (Habitat | null)[], terra
     const textFileWriter = new TextFileWriter(TextFileNames.Habitats);
 
     // Since files don't include rows where the value is zero, count how many entries there are that have non-zero entries
-    const validEntries = habitats.filter(habitat => habitat?.terrainData.map(x => x.multiplier).length).length;
-    textFileWriter.raw(validEntries).eol();
+    textFileWriter.raw(habitats.length).eol();
     textFileWriter.raw(terrainCount).eol();
     textFileWriter.raw(" ").eol();
 

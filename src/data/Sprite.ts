@@ -3,7 +3,7 @@ import { Point } from "../geometry/Point";
 import { Rectangle } from "../geometry/Rectangle";
 import { LoadingContext } from "./LoadingContext";
 import { SavingContext } from "./SavingContext";
-import { Bool8, Float32, Int16, Int32, Pointer, ResourceId, UInt8 } from "./Types";
+import { Bool8, Float32, Int16, Int32, Pointer, ResourceId, SoundEffectId, UInt8 } from "./Types";
 import { TextFileWriter } from "../textfile/TextFileWriter";
 import { TextFileNames } from "../textfile/TextFile";
 import { SoundEffect } from "./SoundEffect";
@@ -22,6 +22,7 @@ interface SpriteOverlay {
 interface SpriteAngleSoundEffect {
     angle: number;
     frameNumber: number;
+    soundEffectId: SoundEffectId<Int16>;
     soundEffect: SoundEffect | null;
 }
 
@@ -36,6 +37,7 @@ export class Sprite {
     forcedColorTransform: Int16;
     selectionType: UInt8;
     boundingBox: Rectangle<Int16>;
+    soundEffectId: SoundEffectId<Int16>;
     soundEffect: SoundEffect | null;
     angleSoundEffectsEnabled: Bool8;
     framesPerAngle: Int16;
@@ -66,8 +68,8 @@ export class Sprite {
 
         const overlayCount = buffer.readInt16();
 
-        const soundEffectId = buffer.readInt16();
-        this.soundEffect = getEntryOrLogWarning(soundEffects, soundEffectId, "SoundEffect");
+        this.soundEffectId = buffer.readInt16();
+        this.soundEffect = getEntryOrLogWarning(soundEffects, this.soundEffectId, "SoundEffect");
         this.angleSoundEffectsEnabled = buffer.readBool8();
         this.framesPerAngle = buffer.readInt16();
         this.angleCount = buffer.readInt16();
@@ -111,28 +113,10 @@ export class Sprite {
                     this.angleSoundEffects.push({
                         angle: i,
                         frameNumber,
+                        soundEffectId,
                         soundEffect,
                     });
                 }
-                
-                // const frameNumbers: number[] = [];
-                // const soundEffectIds: number[] = [];
-
-                // for (let j = 0; j < 3; ++j) {
-                //     frameNumbers.push(buffer.readInt16());
-                // }
-                // for (let j = 0; j < 3; ++j) {
-                //     soundEffectIds.push(buffer.readInt16());
-                // }
-                // // TODO: Should entries with -1 in both fields be excluded to make the data cleaner?
-                // // Also could have a boolean indicating whether a sound effect is meant for all frames or not
-                // for (let j = 0; j < 3; ++j) {
-                //     this.angleSoundEffects.push({
-                //         angle: i,
-                //         frameNumber: frameNumbers[j],
-                //         soundEffectId: soundEffectIds[j],
-                //     })
-                // }
             }
         }
 
@@ -174,6 +158,15 @@ export function writeSpritesToWorldTextFile(sprites: (Sprite | null)[], savingCo
         const sprite = sprites[i]
         // TODO: Old versions don't actually support empty lines, need to throw an error in that case
         if (sprite && sprite.name && sprite.resourceFilename) {
+            // This is a hackish way to keep tower sound effects as they are. It would seem they were originally imported with a non-existing angle number of 1
+            // so they were set to -1 during import and such entries are not included by default
+            let subsituteEntry = false;
+            let angleSoundEffectCount = sprite.angleSoundEffectsEnabled ? sprite.angleSoundEffects.reduce((acc, cur) => acc + (cur.soundEffectId >= 0 ? 1 : 0), 0) : 0;
+            if (angleSoundEffectCount === 0 && sprite.angleSoundEffectsEnabled) {
+                angleSoundEffectCount = sprite.angleCount;
+                subsituteEntry = true;
+            }
+
             textFileWriter
                 .integer(sprite.id)
                 .string(sprite.name.replaceAll(' ', '_'), 17)
@@ -198,8 +191,8 @@ export function writeSpritesToWorldTextFile(sprites: (Sprite | null)[], savingCo
                 .float(sprite.animationDuration)
                 .float(sprite.animationReplayDelay)
                 .integer(sprite.overlays.length)
-                .integer(sprite.soundEffect?.id ?? -1)
-                .integer(sprite.angleSoundEffectsEnabled ? sprite.angleCount : 0)
+                .integer(sprite.soundEffectId)
+                .integer(angleSoundEffectCount)
                 .eol();
                 
             for (let j = 0; j < sprite.overlays.length; ++j) {
@@ -213,15 +206,27 @@ export function writeSpritesToWorldTextFile(sprites: (Sprite | null)[], savingCo
                     .eol();
             }
             if (sprite.angleSoundEffectsEnabled) {
-                for (let j = 0; j < sprite.angleSoundEffects.length; ++j) {
-                    const soundEffect = sprite.angleSoundEffects[j];
-                    if (soundEffect.soundEffect) {
+                if (subsituteEntry) {
+                    for (let j = 0; j < sprite.angleCount; ++j) {
                         textFileWriter
                         .indent(4)
-                        .integer(j)
-                        .integer(soundEffect.frameNumber)
-                        .integer(soundEffect.soundEffect.id)
+                        .integer(-1)
+                        .integer(-1)
+                        .integer(-1)
                         .eol();
+                    }
+                }
+                else {
+                    for (let j = 0; j < sprite.angleSoundEffects.length; ++j) {
+                        const soundEffect = sprite.angleSoundEffects[j];
+                        if (soundEffect.soundEffectId >= 0) {
+                            textFileWriter
+                            .indent(4)
+                            .integer(soundEffect.angle)
+                            .integer(soundEffect.frameNumber)
+                            .integer(soundEffect.soundEffectId)
+                            .eol();
+                        }
                     }
                 }
             }
