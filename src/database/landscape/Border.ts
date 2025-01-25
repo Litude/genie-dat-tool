@@ -107,7 +107,6 @@ export class Border {
 
 export function readMainBorderData(buffer: BufferReader, soundEffects: SoundEffect[], terrains: (Terrain | null)[], loadingContext: LoadingContext): (Border | null)[] {
     const result: Border[] = [];
-    console.log(`Offset is ${buffer.tell()}`)
     for (let i = 0; i < 16; ++i) {
         const border = new Border();
         border.readFromBuffer(buffer, asInt16(i), soundEffects, terrains, loadingContext);
@@ -156,6 +155,6 @@ export function writeBordersToWorldTextFile(borders: (Border | null)[], savingCo
         textFileWriter.eol();
         textFileWriter.raw(" ").eol();
     })
-    
+
     textFileWriter.close();
 }

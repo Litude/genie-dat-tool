@@ -72,12 +72,10 @@ export function readHabitats(buffer: BufferReader, loadingContext: LoadingContex
     const validHabitats: boolean[] = [];
     const habitatCount = buffer.readInt16()
     const terrainCount = buffer.readInt16();
-    console.log(`Parsing habitats, there are ${habitatCount} habitats and ${terrainCount} terrains per habitat`);
     
     for (let i = 0; i < habitatCount; ++i) {
         validHabitats.push(Boolean(buffer.readBool32()))
     }
-    console.log(`Valid habitats: ${validHabitats}`);
     for (let i = 0; i < habitatCount; ++i) {
         if (validHabitats[i]) {
             habitats.push(new Habitat(i, terrainCount, buffer));

@@ -212,9 +212,14 @@ export class SceneryObjectPrototype {
         this.convertTerrain = buffer.readBool8();
 
         this.internalName = nameLength > 0 ? buffer.readFixedSizeString(nameLength) : "";
-        this.upgradeUnitPrototypeId = buffer.readInt16();
-        if (this.upgradeUnitPrototypeId !== this.id) {
-            Logger.warn(`Mismatch between stored Object id ${this.id} and upgrade id ${this.upgradeUnitPrototypeId}, data might be corrupt!`);
+        if (loadingContext.version >= 3.5) {
+            this.upgradeUnitPrototypeId = buffer.readInt16();
+            if (this.upgradeUnitPrototypeId !== this.id) {
+                Logger.warn(`Mismatch between stored Object id ${this.id} and upgrade id ${this.upgradeUnitPrototypeId}, data might be corrupt!`);
+            }
+        }
+        else {
+            this.upgradeUnitPrototypeId = this.id;
         }
 
     }

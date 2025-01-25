@@ -17,6 +17,7 @@ function parseVersion(input: string) {
 }
 
 const SupportedDatVersions = [
+    3.4, // TODO: later trial version identify as 3.4 but are actually 3.7...
     3.5,
     3.7
 ]
