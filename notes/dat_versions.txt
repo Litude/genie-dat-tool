@@ -15,7 +15,7 @@ VER 2.7
 VER 3.1
 ** TODO **
 
-VER 3.1 (1997-07-03)
+VER 3.1 REV 2 (1997-07-03)
 - Actor objects can now have a different move and attack sound
 
 VER 3.2 (1997-07-08)

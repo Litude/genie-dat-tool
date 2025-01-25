@@ -89,8 +89,7 @@ export class WorldDatabase {
         this.randomMaps.forEach(randomMap => randomMap.linkOtherData(this.objects[0]))
     }
 
-    writeToWorldTextFile() {
-        const savingContext: SavingContext = { version: 3.7 };
+    writeToWorldTextFile(savingContext: SavingContext) {
         writeHabitatsToWorldTextFile(this.habitats, this.terrains.filter(x => x).length, savingContext);
         writeColormapsToWorldTextFile(this.colormaps, savingContext);
         writeSoundEffectsToWorldTextFile(this.soundEffects, savingContext);

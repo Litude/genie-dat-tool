@@ -306,11 +306,15 @@ export class SceneryObjectPrototype {
             .integer(this.trackAsResource ? 1 : 0)
             .integer(this.doppelgangerMode)
             .integer(this.resourceGroup)
-            .integer(this.selectionOutlineFlags)
-            .integer(this.editorSelectionOutlineColor)
-            .float(outlineRadius ? this.selectionOutlineRadius.x : this.collisionRadius.x)
-            .float(outlineRadius ? this.selectionOutlineRadius.y : this.collisionRadius.y)
-            .float(outlineRadius ? this.selectionOutlineRadius.z : this.collisionRadius.z);
+
+        if (savingContext.version >= 3.3) {
+            textFileWriter
+                .integer(this.selectionOutlineFlags)
+                .integer(this.editorSelectionOutlineColor)
+                .float(outlineRadius ? this.selectionOutlineRadius.x : this.collisionRadius.x)
+                .float(outlineRadius ? this.selectionOutlineRadius.y : this.collisionRadius.y)
+                .float(outlineRadius ? this.selectionOutlineRadius.z : this.collisionRadius.z);
+        }
 
         for (let i = 0; i < 3; ++i) {
             textFileWriter

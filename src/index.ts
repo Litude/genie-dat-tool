@@ -5,6 +5,8 @@ import { Logger } from "./Logger";
 
 const VERSION_REGEX = /VER\s+(\d+\.\d+)/
 
+const UseVersion311 = false;
+
 function parseVersion(input: string) {
     const match = input.match(VERSION_REGEX);
 
@@ -28,10 +30,15 @@ const SupportedDatVersions = [
 function main() {
     const dataBuffer = new BufferReader(decompressFile("empires.dat"));
     const headerString = dataBuffer.readFixedSizeString(8);
-    const version = parseVersion(headerString);
+    let version = parseVersion(headerString);
     if (version && SupportedDatVersions.includes(version)) {
+        Logger.info(`Detected version ${version}`);
+        // TODO: Could support multiple potential versions and if an error occurs, try the next version
+        if (version === 3.1 && UseVersion311) {
+            version = 3.11;
+        }
         const worldDatabase = new WorldDatabase(dataBuffer, { version });
-        worldDatabase.writeToWorldTextFile();
+        worldDatabase.writeToWorldTextFile({ version });
     }
     else if (version) {
         Logger.error(`Detected unsupported version ${version}`)

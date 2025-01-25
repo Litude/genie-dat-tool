@@ -65,6 +65,13 @@ export class TextFileWriter {
         return this;
     }
 
+    conditional(result: boolean, func: (arg: TextFileWriter) => void) {
+        if (result) {
+            func(this);
+        }
+        return this;
+    }
+
     eol() {
         // TODO: Should this always be \r\n?
         this.buffer.push(EOL);

@@ -57,7 +57,10 @@ export class ActorObjectPrototype extends MobileObjectPrototype {
             .integer(this.dropSites[1])
             .integer(this.abilitySwapGroup)
             .integer(this.attackSoundId)
-            .integer(this.moveSoundId)
+            .conditional(
+                savingContext.version >= 3.11,
+                writer => writer.integer(this.moveSoundId)
+            )
             .integer(this.runPattern)
             .eol();
         
