@@ -35,7 +35,13 @@ export class AdvancedCombatantObjectPrototype extends CombatantObjectPrototype {
         this.creationDuration = buffer.readInt16();
         this.creationLocation = buffer.readInt16();
         this.creationButtonIndex = buffer.readUInt8();
-        this.originalPierceArmorValue = buffer.readInt16();
+        if (loadingContext.version >= 3.2) {
+            this.originalPierceArmorValue = buffer.readInt16();
+        }
+        else {
+            this.originalPierceArmorValue = asInt16(Math.max(0, ...this.armorTypes.filter(x => x.type === 3).map(x => x.amount)));
+            this.originalArmorValue = asInt16(Math.max(this.baseArmor, ...this.armorTypes.filter(x => x.type !== 3).map(x => x.amount)));
+        }
     }
 
     writeToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext): void {

@@ -73,10 +73,18 @@ export class CombatantObjectPrototype extends ActorObjectPrototype {
         this.blastAttackLevel = buffer.readUInt8();
         this.minRange = buffer.readFloat32();
         this.attackSpriteId = buffer.readInt16();
-        this.originalArmorValue = buffer.readInt16();
-        this.originalAttackValue = buffer.readInt16();
-        this.originalRangeValue = buffer.readFloat32();
-        this.originalAttackSpeed = buffer.readFloat32();
+        if (loadingContext.version >= 3.2) {
+            this.originalArmorValue = buffer.readInt16();
+            this.originalAttackValue = buffer.readInt16();
+            this.originalRangeValue = buffer.readFloat32();
+            this.originalAttackSpeed = buffer.readFloat32();
+        }
+        else {
+            this.originalArmorValue = asInt16(Math.max(this.baseArmor, ...this.armorTypes.map(x => x.amount)));
+            this.originalAttackValue = asInt16(Math.max(0, ...this.attackTypes.map(x => x.amount)));
+            this.originalRangeValue = this.maxRange;
+            this.originalAttackSpeed = this.attackSpeed;
+        }
     }
 
     writeToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext): void {

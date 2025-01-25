@@ -169,13 +169,24 @@ export class SceneryObjectPrototype {
         this.doppelgangerMode = buffer.readUInt8();
         this.resourceGroup = buffer.readUInt8();
 
-        this.selectionOutlineFlags = buffer.readUInt8();
-        this.editorSelectionOutlineColor = buffer.readUInt8();
-        this.selectionOutlineRadius = {
-            x: buffer.readFloat32(),
-            y: buffer.readFloat32(),
-            z: buffer.readFloat32()
-        };
+        if (loadingContext.version >= 3.3) {
+            this.selectionOutlineFlags = buffer.readUInt8();
+            this.editorSelectionOutlineColor = buffer.readUInt8();
+            this.selectionOutlineRadius = {
+                x: buffer.readFloat32(),
+                y: buffer.readFloat32(),
+                z: buffer.readFloat32()
+            };
+        }
+        else {
+            this.selectionOutlineFlags = asUInt8(0);
+            this.editorSelectionOutlineColor = asUInt8(0);
+            this.selectionOutlineRadius = {
+                x: this.collisionRadius.x,
+                y: this.collisionRadius.y,
+                z: this.collisionRadius.z,
+            }
+        }
 
         // TODO: Filter unused based on loading context
         const attributeTypes: AttributeId<Int16>[] = [];

@@ -30,7 +30,12 @@ export class ActorObjectPrototype extends MobileObjectPrototype {
         }
         this.abilitySwapGroup = buffer.readUInt8();
         this.attackSoundId = buffer.readInt16();
-        this.moveSoundId = buffer.readInt16();
+        if (loadingContext.version >= 3.11) {
+            this.moveSoundId = buffer.readInt16();
+        }
+        else {
+            this.moveSoundId = this.attackSoundId;
+        }
         this.runPattern = buffer.readUInt8();
 
         this.abilityList = [];
