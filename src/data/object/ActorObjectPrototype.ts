@@ -18,8 +18,8 @@ export class ActorObjectPrototype extends MobileObjectPrototype {
     runPattern: UInt8 = asUInt8(0);
     abilityList: Ability[] = [];
     
-    readFromBuffer(buffer: BufferReader, loadingContext: LoadingContext): void {
-        super.readFromBuffer(buffer, loadingContext);
+    readFromBuffer(buffer: BufferReader, id: Int16, loadingContext: LoadingContext): void {
+        super.readFromBuffer(buffer, id, loadingContext);
         this.defaultAbility = buffer.readInt16();
         this.searchRadius = buffer.readFloat32();
         this.workRate = buffer.readFloat32();

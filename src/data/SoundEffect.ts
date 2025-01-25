@@ -4,6 +4,7 @@ import { SavingContext } from "./SavingContext";
 import { asInt16, asUInt32, Int16, Int32, Percentage, ResourceId, UInt32 } from "./Types";
 import { TextFileWriter } from "../textfile/TextFileWriter";
 import { TextFileNames } from "../textfile/TextFile";
+import { Logger } from "../Logger";
 
 interface SoundSample {
     resourceFilename: string;
@@ -17,8 +18,11 @@ export class SoundEffect {
     samples: SoundSample[];
     cacheTime: UInt32 = asUInt32(0);
 
-    constructor(buffer: BufferReader, loadingContext: LoadingContext) {
+    constructor(buffer: BufferReader, id: Int16, loadingContext: LoadingContext) {
         this.id = buffer.readInt16();
+        if (this.id !== id) {
+            Logger.warn(`Mismatch between stored Sound Effect id ${this.id} and ordering ${id}, data might be corrupt!`);
+        }
         this.playDelay = buffer.readInt16();
         const sampleCount = buffer.readInt16();
         this.cacheTime = buffer.readUInt32();
@@ -42,7 +46,7 @@ export function readSoundEffects(buffer: BufferReader, loadingContext: LoadingCo
     const result: SoundEffect[] = [];
     const soundEffectCount = buffer.readInt16();
     for (let i = 0; i < soundEffectCount; ++i) {
-        result.push(new SoundEffect(buffer, loadingContext));
+        result.push(new SoundEffect(buffer, asInt16(i), loadingContext));
     }
     return result;
 }

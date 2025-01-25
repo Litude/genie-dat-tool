@@ -37,8 +37,8 @@ export class CombatantObjectPrototype extends ActorObjectPrototype {
     originalRangeValue: Float32 = asFloat32(0);
     originalAttackSpeed: Float32 = asFloat32(0);
     
-    readFromBuffer(buffer: BufferReader, loadingContext: LoadingContext): void {
-        super.readFromBuffer(buffer, loadingContext);
+    readFromBuffer(buffer: BufferReader, id: Int16, loadingContext: LoadingContext): void {
+        super.readFromBuffer(buffer, id, loadingContext);
         this.baseArmor = buffer.readUInt8();
 
         const attackTypeCount = buffer.readInt16();

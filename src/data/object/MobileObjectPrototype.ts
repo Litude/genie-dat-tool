@@ -16,8 +16,8 @@ export class MobileObjectPrototype extends AnimatedObjectPrototype {
     trailingUnitDensity: Float32 = asFloat32(0);
     moveAlgorithm: UInt8 = asUInt8(0); // obsolete?
     
-    readFromBuffer(buffer: BufferReader, loadingContext: LoadingContext): void {
-        super.readFromBuffer(buffer, loadingContext);
+    readFromBuffer(buffer: BufferReader, id: Int16, loadingContext: LoadingContext): void {
+        super.readFromBuffer(buffer, id, loadingContext);
         this.walkingSpriteId = buffer.readInt16();
         this.runningSpriteId = buffer.readInt16();
         this.rotationSpeed = buffer.readFloat32();

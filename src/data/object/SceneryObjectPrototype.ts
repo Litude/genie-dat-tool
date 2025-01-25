@@ -1,5 +1,6 @@
 import BufferReader from "../../BufferReader";
 import { Point, Point3D } from "../../geometry/Point";
+import { Logger } from "../../Logger";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
@@ -92,9 +93,12 @@ export class SceneryObjectPrototype {
     convertTerrain: Bool8 = asBool8(false);
     upgradeUnitPrototypeId: PrototypeId<Int16> = asInt16(-1); // internal field, should definitely not be modified
     
-    readFromBuffer(buffer: BufferReader, loadingContext: LoadingContext): void {
+    readFromBuffer(buffer: BufferReader, id: Int16, loadingContext: LoadingContext): void {
         const nameLength = buffer.readInt16();
         this.id = buffer.readInt16();
+        if (this.id !== id) {
+            Logger.warn(`Mismatch between stored Object id ${this.id} and ordering ${id}, data might be corrupt!`);
+        }
         this.nameStringId = buffer.readInt16();
         this.creationStringId = buffer.readInt16();
         this.objectClass = buffer.readInt16();
@@ -209,6 +213,9 @@ export class SceneryObjectPrototype {
 
         this.internalName = nameLength > 0 ? buffer.readFixedSizeString(nameLength) : "";
         this.upgradeUnitPrototypeId = buffer.readInt16();
+        if (this.upgradeUnitPrototypeId !== this.id) {
+            Logger.warn(`Mismatch between stored Object id ${this.id} and upgrade id ${this.upgradeUnitPrototypeId}, data might be corrupt!`);
+        }
 
     }
 

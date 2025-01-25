@@ -9,6 +9,28 @@ interface TileProperty {
     yDelta: Int16;
 }
 
+const DefaultYDelta: Int16[] = [
+    asInt16(0),
+    asInt16(-100),
+    asInt16(100),
+    asInt16(-100),
+    asInt16(-100),
+    asInt16(-100),
+    asInt16(100),
+    asInt16(-100),
+    asInt16(100),
+    asInt16(-100),
+    asInt16(100),
+    asInt16(-100),
+    asInt16(-100),
+    asInt16(-100),
+    asInt16(100),
+    asInt16(100),
+    asInt16(100),
+    asInt16(0),
+    asInt16(0),
+];
+
 // TODO: Split or rename this since it has all kinds of different mostly unused stuff
 export class MapProperties {
     // All of these fields are actually ignored in the final version of the game. Early versions read the tile dimensions but also skip the rest...
@@ -71,10 +93,12 @@ export class MapProperties {
             this.tileProperties.push({
                 width: buffer.readInt16(),
                 height: buffer.readInt16(),
-                yDelta: buffer.readInt16()
+                yDelta: loadingContext.version >= 3.7 ? buffer.readInt16() : DefaultYDelta[i],
             });
         }
-        this.padding008A = buffer.readUInt16();
+        if (loadingContext.version >= 3.7) {
+            this.padding008A = buffer.readUInt16();
+        }
     }
 
     readSecondaryDataFromBuffer(buffer: BufferReader, loadingContext: LoadingContext): void {

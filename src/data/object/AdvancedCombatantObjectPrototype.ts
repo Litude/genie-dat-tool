@@ -20,8 +20,8 @@ export class AdvancedCombatantObjectPrototype extends CombatantObjectPrototype {
     creationButtonIndex: UInt8 = asUInt8(0);
     originalPierceArmorValue: Int16 = asInt16(0);
 
-    readFromBuffer(buffer: BufferReader, loadingContext: LoadingContext): void {
-        super.readFromBuffer(buffer, loadingContext);
+    readFromBuffer(buffer: BufferReader, id: Int16, loadingContext: LoadingContext): void {
+        super.readFromBuffer(buffer, id, loadingContext);
 
         this.resourceCosts = [];
         for (let i = 0; i < 3; ++i) {

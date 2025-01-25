@@ -2,7 +2,7 @@ import BufferReader from "../../BufferReader";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
-import { asFloat32, asUInt8, Float32, UInt8 } from "../Types";
+import { asFloat32, asUInt8, Float32, Int16, UInt8 } from "../Types";
 import { CombatantObjectPrototype } from "./CombatantObjectPrototype";
 import { ObjectType } from "./ObjectType";
 
@@ -14,8 +14,8 @@ export class ProjectileObjectPrototype extends CombatantObjectPrototype {
     areaEffect: UInt8 = asUInt8(0);
     projectileArc: Float32 = asFloat32(0);
 
-    readFromBuffer(buffer: BufferReader, loadingContext: LoadingContext): void {
-        super.readFromBuffer(buffer, loadingContext);
+    readFromBuffer(buffer: BufferReader, id: Int16, loadingContext: LoadingContext): void {
+        super.readFromBuffer(buffer, id, loadingContext);
         this.projectileType = buffer.readUInt8();
         this.targettingMode = buffer.readUInt8();
         this.hitMode = buffer.readUInt8();

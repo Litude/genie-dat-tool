@@ -16,8 +16,8 @@ export class BuildingObjectPrototype extends AdvancedCombatantObjectPrototype {
     researchedTechnologyWhenBuilt: TechnologyId<Int16> = asInt16(-1); // most buildings unlock some kind of "shadow" technology when built such as enabling its units to be created
     constructionSoundEffectId: SoundEffectId<Int16> = asInt16(-1);
 
-    readFromBuffer(buffer: BufferReader, loadingContext: LoadingContext): void {
-        super.readFromBuffer(buffer, loadingContext);
+    readFromBuffer(buffer: BufferReader, id: Int16, loadingContext: LoadingContext): void {
+        super.readFromBuffer(buffer, id, loadingContext);
 
         this.constructionSpriteId = buffer.readInt16();
         this.adjacentConnectionMode = buffer.readBool8();

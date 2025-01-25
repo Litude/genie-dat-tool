@@ -5,7 +5,7 @@ import { isDefined } from "../../ts/ts-utils";
 import { Civilization } from "../Civilization";
 import { LoadingContext } from "../LoadingContext"
 import { SavingContext } from "../SavingContext";
-import { asInt32, Bool32 } from "../Types";
+import { asInt16, asInt32, Bool32 } from "../Types";
 import { ActorObjectPrototype } from "./ActorObjectPrototype";
 import { AdvancedCombatantObjectPrototype } from "./AdvancedCombatantObjectPrototype";
 import { AnimatedObjectPrototype } from "./AnimatedObjectPrototype";
@@ -69,7 +69,7 @@ export function readObjectPrototypesFromBuffer(buffer: BufferReader, loadingCont
                 throw new Error(`Received unknown object type ${objectType} when reading units!`);
             }
             else {
-                object.readFromBuffer(buffer, loadingContext);
+                object.readFromBuffer(buffer, asInt16(i), loadingContext);
                 object.objectType = objectType;
             }
         }

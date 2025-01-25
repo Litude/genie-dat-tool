@@ -1,3 +1,5 @@
+// This is used for determining the sort order when outputting tr_play.txt files
+
 [
     "Food Stockpile",
     "Wood Stockpile",

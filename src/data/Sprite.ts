@@ -3,7 +3,7 @@ import { Point } from "../geometry/Point";
 import { Rectangle } from "../geometry/Rectangle";
 import { LoadingContext } from "./LoadingContext";
 import { SavingContext } from "./SavingContext";
-import { Bool8, Float32, Int16, Int32, Pointer, ResourceId, SoundEffectId, UInt8 } from "./Types";
+import { asInt16, Bool8, Float32, Int16, Int32, Pointer, ResourceId, SoundEffectId, UInt8 } from "./Types";
 import { TextFileWriter } from "../textfile/TextFileWriter";
 import { TextFileNames } from "../textfile/TextFile";
 import { SoundEffect } from "./SoundEffect";
@@ -50,7 +50,7 @@ export class Sprite {
     overlays: SpriteOverlay[];
     angleSoundEffects: SpriteAngleSoundEffect[];
 
-    constructor(buffer: BufferReader, soundEffects: SoundEffect[], loadingContext: LoadingContext) {
+    constructor(buffer: BufferReader, id: Int16, soundEffects: SoundEffect[], loadingContext: LoadingContext) {
         this.name = buffer.readFixedSizeString(21);
         this.resourceFilename = buffer.readFixedSizeString(13);
         this.resourceId = buffer.readInt32();
@@ -78,6 +78,9 @@ export class Sprite {
         this.animationReplayDelay = buffer.readFloat32();
         this.spriteType = buffer.readUInt8();
         this.id = buffer.readInt16();
+        if (this.id !== id) {
+            Logger.warn(`Mismatch between stored Sprite id ${this.id} and ordering ${id}, data might be corrupt!`);
+        }
         this.mirroringMode = buffer.readUInt8();
 
         this.overlays = [];
@@ -129,18 +132,24 @@ export class Sprite {
 }
 
 export function readSprites(buffer: BufferReader, soundEffects: SoundEffect[], loadingContext: LoadingContext) {
-    console.log(`Offset at start is ${buffer.tell()}`)
     const result: (Sprite | null)[] = [];
     const validSprites: boolean[] = [];
     const spriteCount = buffer.readInt16();
 
-    for (let i = 0; i < spriteCount; ++i) {
-        validSprites.push(Boolean(buffer.readBool32()))
+    if (loadingContext.version >= 3.7) {
+        for (let i = 0; i < spriteCount; ++i) {
+            validSprites.push(Boolean(buffer.readBool32()))
+        }
+    }
+    else {
+        for (let i = 0; i < spriteCount; ++i) {
+            validSprites.push(true);
+        }
     }
 
     for (let i = 0; i < spriteCount; ++i) {
         if (validSprites[i]) {
-            result.push(new Sprite(buffer, soundEffects, loadingContext));
+            result.push(new Sprite(buffer, asInt16(i), soundEffects, loadingContext));
         }
         else {
             result.push(null);

@@ -1,21 +1,40 @@
 import { decompressFile } from "./deflate";
 import BufferReader from "./BufferReader";
 import { WorldDatabase } from "./data/WorldDatabase";
+import { Logger } from "./Logger";
 
+const VERSION_REGEX = /VER\s+(\d+\.\d+)/
+
+function parseVersion(input: string) {
+    const match = input.match(VERSION_REGEX);
+
+    if (match && match[1]) {
+        return +match[1];
+    }
+    else {
+        return null;
+    }
+}
+
+const SupportedDatVersions = [
+    3.5,
+    3.7
+]
 
 function main() {
     const dataBuffer = new BufferReader(decompressFile("empires.dat"));
     const headerString = dataBuffer.readFixedSizeString(8);
-
-
-    if (headerString === "VER 3.7") {
-        console.log('this is a match!')
+    const version = parseVersion(headerString);
+    if (version && SupportedDatVersions.includes(version)) {
+        const worldDatabase = new WorldDatabase(dataBuffer, { version });
+        worldDatabase.writeToWorldTextFile();
     }
-    console.log(headerString);
-
-    const worldDatabase = new WorldDatabase(dataBuffer, { version: 3.7 });
-    worldDatabase.writeToWorldTextFile();
-    //console.log(worldDatabase.toString());
+    else if (version) {
+        Logger.error(`Detected unsupported version ${version}`)
+    }
+    else {
+        Logger.error(`Input does not seem to be a valid DAT file`);
+    }
 }
 
 main();
