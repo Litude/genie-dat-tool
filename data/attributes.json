@@ -1,62 +1,61 @@
-// This is used for determining the sort order when outputting tr_play.txt files
-
+// This file is only used for determining the sort order of attributes when outputting tr_play.txt files
 [
-    "Food Stockpile",
-    "Wood Stockpile",
-    "Stone Stockpile",
-    "Gold Stockpile",
-    "Population Cap",
-    "Religion",
-    "Current Age",
-    "Artifacts",
-    "Trade Bonus",
-    "Current Age",
-    "Trade Goods",
-    "Trade Production",
-    "Population",
-    "Decay",
-    "Discovery",
-    "Ruins",
-    "Meat",
-    "Berries",
-    "Fish",
-    "Trade Levy",
-    "Total Owned Units",
-    "Kills",
-    "Research Count",
-    "Exploration",
-    "Age Bronze Tech",
-    "Age Iron Tech",
-    "Age Tool Tech",
-    "Attack Sound",
-    "Convert Priest",
-    "Convert Building",
-    "Gold Replace",
-    "Building Limit",
-    "Food Limit",
-    "Unit Limit",
-    "Maintenance",
-    "Rejunevation",
-    "Rejunevation Recharge Rate",
-    "Farm Food",
-    "Civilian Population",
-    "All Techs Achieved",
-    "Military Population",
-    "Conversions",
-    "Wonder",
-    "Razings",
-    "Kill Ratio",
-    "Player Killed",
-    "Tribute Inefficiency",
-    "Gold Bonus",
-    "Town Center Unavailable",
-    "Gold Counter",
-    "Writing",
-    "Houses",
-    "Temples",
-    "Tribute",
-    "Hold Ruins",
-    "Hold Artifacts",
-    "Heal Rate Modifier",
-    "Martyrdom"
+    "Food Stockpile", // 0
+    "Wood Stockpile", // 1
+    "Stone Stockpile", // 2
+    "Gold Stockpile", // 3
+    "Population Cap", // 4
+    "Religion", // 5
+    "Current Age", // 6
+    "Artifacts", // 7
+    "Trade Bonus", // 8
+    "Trade Goods", // 9
+    "Trade Production", // 10
+    "Population", // 11
+    "Decay", // 12
+    "Discovery", // 13
+    "Ruins", // 14
+    "Meat", // 15
+    "Berries", // 16
+    "Fish", // 17
+    "Trade Levy", // 18
+    "Total Owned Units", // 19
+    "Kills", // 20
+    "Research Count", // 21
+    "Exploration", // 22
+    "Age Bronze Tech", // 23
+    "Age Iron Tech", // 24
+    "Age Tool Tech", // 25
+    "Attack Sound", // 26
+    "Convert Priest", // 28
+    "Convert Building", // 28
+    "Gold Replace", // 29
+    "Building Limit", // 30
+    "Food Limit", // 31
+    "Unit Limit", // 32
+    "Maintenance", // 33
+    "Rejunevation", // 34
+    "Rejunevation Recharge Rate", // 35
+    "Farm Food", // 36
+    "Civilian Population", // 37
+    "", // 38
+    "All Techs Achieved", // 39
+    "Military Population", // 40
+    "Conversions", // 41
+    "Wonder", // 42
+    "Razings", // 43
+    "Kill Ratio", // 44
+    "Player Killed", // 45
+    "Tribute Inefficiency", // 46
+    "Gold Bonus", // 47
+    "Town Center Unavailable", // 48
+    "Gold Counter", // 49
+    "Writing", // 50
+    "Houses", // 51
+    "Temples", // 52
+    "Tribute", // 53
+    "Hold Ruins", // 54
+    "Hold Artifacts", // 55
+    "Heal Rate Modifier", // 56
+    "Martyrdom" // 57
 ]

@@ -1,6 +1,7 @@
 import BufferReader from "../BufferReader";
-import { TextFileNames } from "../textfile/TextFile";
+import { TextFileNames, textFileStringCompare } from "../textfile/TextFile";
 import { TextFileWriter } from "../textfile/TextFileWriter";
+import { Attribute, createDefaultAttribute } from "./Attributes";
 import { LoadingContext } from "./LoadingContext";
 import { SavingContext } from "./SavingContext";
 import { ArchitectureStyleId, asInt16, asUInt8, Float32, Int16, StateEffectId, UInt8 } from "./Types";
@@ -28,15 +29,14 @@ export class Civilization {
     }
 }
 
-export function writeCivilizationsToWorldTextFile(civilizations: Civilization[], savingContext: SavingContext) {
+export function writeCivilizationsToWorldTextFile(civilizations: Civilization[], attributes: Attribute[], savingContext: SavingContext) {
     const textFileWriter = new TextFileWriter(TextFileNames.Civilizations);
 
     textFileWriter.raw(civilizations.length).eol(); // Total civilization entries
     textFileWriter.raw(civilizations.length).eol(); // Entries that have data here (these should always match because there are no null civilization entries)
 
-    const sortedCivilizations = [...civilizations].sort((a, b) => a.internalName.localeCompare(b.internalName));
-    for (let i = 0; i < sortedCivilizations.length; ++i) {
-        const civilization = sortedCivilizations[i];
+    const sortedCivilizations = [...civilizations].sort((a, b) => textFileStringCompare(a.internalName, b.internalName));
+    sortedCivilizations.forEach(civilization => {
 
         textFileWriter
             .integer(civilization.id)
@@ -47,22 +47,28 @@ export function writeCivilizationsToWorldTextFile(civilizations: Civilization[],
             .integer(civilization.attributes.filter(x => x).length)
             .eol();
 
-        // TODO: Attributes should be sorted acc to name...
-        for (let j = 0; j < civilization.attributes.length; ++j) {
-            if (civilization.attributes[j]) {
-                textFileWriter
-                    .indent(2)
-                    .integer(j)
-                    .float(civilization.attributes[j])
-                    .eol();
+        const civAttributes = civilization.attributes.map((attributeAmount, id) => {
+            const attribute = attributes[id] ? attributes[id] : createDefaultAttribute(id);
+            return {
+                ...attribute,
+                amount: attributeAmount
             }
-        }
+        }).sort((a, b) => textFileStringCompare(a.internalName, b.internalName))
+        .filter(entry => entry.amount)
+
+        civAttributes.forEach(attribute => {
+            textFileWriter
+                .indent(2)
+                .integer(attribute.id)
+                .float(attribute.amount)
+                .eol();
+        })
 
         textFileWriter
             .indent(2)
             .integer(civilization.architectureStyle)
             .eol();
-    }
+    })
     textFileWriter.close();
 
 }

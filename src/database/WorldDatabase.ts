@@ -19,8 +19,10 @@ import { SavingContext } from "./SavingContext";
 import { asInt16 } from "./Types";
 import { TextFileWriter } from "../textfile/TextFileWriter";
 import { TextFileNames } from "../textfile/TextFile";
+import { Attribute, readAttributesFromJsonFile } from "./Attributes";
 
 export class WorldDatabase {
+    attributes: Attribute[];
     habitats: (Habitat | null)[];
     colormaps: Colormap[];
     soundEffects: SoundEffect[];
@@ -35,6 +37,7 @@ export class WorldDatabase {
     technologies: Technology[];
 
     constructor(buffer: BufferReader, loadingContext: LoadingContext) {
+        this.attributes = readAttributesFromJsonFile("./data/attributes.json");
         this.habitats = readHabitats(buffer, loadingContext);
         this.colormaps = readColormaps(buffer, loadingContext);
         this.soundEffects = readSoundEffects(buffer, loadingContext);
@@ -96,7 +99,7 @@ export class WorldDatabase {
         writeBordersToWorldTextFile(this.borders, savingContext);
         writeRandomMapsToWorldTextFile(this.randomMaps, savingContext);
         writeStateEffectsToWorldTextFile(this.stateEffects, savingContext);
-        writeCivilizationsToWorldTextFile(this.civilizations, savingContext);
+        writeCivilizationsToWorldTextFile(this.civilizations, this.attributes, savingContext);
         writObjectPrototypesToWorldTextFile(this.civilizations, this.objects, savingContext);
         writeTechnologiesToWorldTextFile(this.technologies, savingContext);
 

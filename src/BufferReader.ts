@@ -1,4 +1,4 @@
-import { Bool16, Bool32, Bool8, Float32, Float64, Int16, Int32, Int8, Pointer, UInt16, UInt32, UInt8 } from "./data/Types";
+import { Bool16, Bool32, Bool8, Float32, Float64, Int16, Int32, Int8, Pointer, UInt16, UInt32, UInt8 } from "./database/Types";
 
 export default class BufferReader {
     private buffer: Buffer;

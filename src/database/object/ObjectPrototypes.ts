@@ -1,5 +1,5 @@
 import BufferReader from "../../BufferReader"
-import { TextFileNames } from "../../textfile/TextFile";
+import { TextFileNames, textFileStringCompare } from "../../textfile/TextFile";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { isDefined } from "../../ts/ts-utils";
 import { Civilization } from "../Civilization";
@@ -84,9 +84,9 @@ export function writObjectPrototypesToWorldTextFile(civilizations: Civilization[
     textFileWriter.raw(civilizations.length).eol(); // civilization count
     const civilizationObjects = civilizations.map((civilization, index) => ({
         civilization,
-        objects: prototypes[index].filter(isDefined).sort((a, b) => a.internalName.localeCompare(b.internalName)),
+        objects: prototypes[index].filter(isDefined).sort((a, b) => textFileStringCompare(a.internalName, b.internalName)),
         totalObjectCount: asInt32(prototypes[index].length),
-    })).sort((a, b) => a.civilization.internalName.localeCompare(b.civilization.internalName))
+    })).sort((a, b) => textFileStringCompare(a.civilization.internalName, b.civilization.internalName))
     
     civilizationObjects.forEach(civObject => {
         textFileWriter

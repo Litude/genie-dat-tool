@@ -4,7 +4,7 @@ import { asInt16, Float32, Int16, TerrainId } from "../Types";
 import { Terrain } from './Terrain';
 import { SavingContext } from "../SavingContext";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
-import { TextFileNames } from "../../textfile/TextFile";
+import { TextFileNames, textFileStringCompare } from "../../textfile/TextFile";
 
 interface TerrainData {
     terrainId: TerrainId<Int16>;
@@ -39,7 +39,7 @@ export class Habitat {
         // These must be sorted alphabetically
         const sortedTerrainData = [...this.terrainData].sort((a, b) => {
             if (a.terrain && b.terrain) {
-                return a.terrain.internalName.localeCompare(b.terrain.internalName)
+                return textFileStringCompare(a.terrain.internalName, b.terrain.internalName)
             }
             else {
                 throw new Error(`Tried to write Habitats but terrain was null! Have they been linked?`)
@@ -49,8 +49,7 @@ export class Habitat {
         const validCount = sortedTerrainData.filter(terrainData => terrainData.multiplier).length
         file.integer(this.id).integer(validCount).eol();
 
-        for (let i = 0; i < sortedTerrainData.length; ++i) {
-            const terrainData = sortedTerrainData[i];
+        sortedTerrainData.forEach(terrainData => {
             if (terrainData.multiplier) {
                 file
                     .indent(5)
@@ -58,7 +57,7 @@ export class Habitat {
                     .float(terrainData.multiplier)
                     .eol()
             }
-        }
+        });
     }
 
     toString() {
@@ -93,7 +92,6 @@ export function readHabitats(buffer: BufferReader, loadingContext: LoadingContex
 export function writeHabitatsToWorldTextFile(habitats: (Habitat | null)[], terrainCount: number, savingContext: SavingContext) {
     const textFileWriter = new TextFileWriter(TextFileNames.Habitats);
 
-    // Since files don't include rows where the value is zero, count how many entries there are that have non-zero entries
     textFileWriter.raw(habitats.length).eol();
     textFileWriter.raw(terrainCount).eol();
     textFileWriter.raw(" ").eol();

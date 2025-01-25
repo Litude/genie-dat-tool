@@ -1,6 +1,6 @@
 import BufferReader from "../../BufferReader";
 import { Logger } from "../../Logger";
-import { TextFileNames } from "../../textfile/TextFile";
+import { TextFileNames, textFileStringCompare } from "../../textfile/TextFile";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { isDefined } from "../../ts/ts-utils";
 import { getEntryOrLogWarning } from "../../util";
@@ -127,9 +127,8 @@ export function readSecondaryBorderData(borders: (Border | null)[], buffer: Buff
 export function writeBordersToWorldTextFile(borders: (Border | null)[], savingContext: SavingContext) {
     const textFileWriter = new TextFileWriter(TextFileNames.Borders);
     textFileWriter.raw(borders.filter(isDefined).length).eol(); // Total terrain entries
-    const sortedBorders = [...borders].filter(isDefined).sort((a, b) => a.internalName.localeCompare(b.internalName));
-    for (let i = 0; i < sortedBorders.length; ++i) {
-        const border = sortedBorders[i];
+    const sortedBorders = [...borders].filter(isDefined).sort((a, b) => textFileStringCompare(a.internalName, b.internalName));
+    sortedBorders.forEach(border => {
         textFileWriter
             .integer(border.id)
             .string(border.internalName.replaceAll(" ", "_"), 17)
@@ -156,8 +155,7 @@ export function writeBordersToWorldTextFile(borders: (Border | null)[], savingCo
         }
         textFileWriter.eol();
         textFileWriter.raw(" ").eol();
-
-    }
-
+    })
+    
     textFileWriter.close();
 }

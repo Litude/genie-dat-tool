@@ -1,6 +1,6 @@
 import BufferReader from "../../BufferReader";
 import { Logger } from "../../Logger";
-import { TextFileNames } from "../../textfile/TextFile";
+import { TextFileNames, textFileStringCompare } from "../../textfile/TextFile";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { isDefined } from "../../ts/ts-utils";
 import { getEntryOrLogWarning } from "../../util";
@@ -187,11 +187,11 @@ function writeTerrainObjectsToWorldTextFile(terrains: (Terrain | null)[], saving
     const textFileWriter = new TextFileWriter(TextFileNames.TerrainObjects);
     const parsedEntries = [...terrains]
         .filter(isDefined)
-        .sort((a, b) => a.internalName.localeCompare(b.internalName))
+        .sort((a, b) => textFileStringCompare(a.internalName, b.internalName))
         .flatMap(terrain => terrain.objectPlacements.map(placement => ({ ...placement, terrainId: terrain.id })));
     textFileWriter.raw(parsedEntries.length).eol();
-    for (let i = 0; i < parsedEntries.length; ++i) {
-        const entry = parsedEntries[i];
+
+    parsedEntries.forEach(entry => {
         if (entry.prototypeId >= 0) {
             textFileWriter
                 .integer(entry.terrainId)
@@ -200,14 +200,16 @@ function writeTerrainObjectsToWorldTextFile(terrains: (Terrain | null)[], saving
                 .integer(entry.centralize ? 1 : 0)
                 .eol()
         }
-    }
+    });
     textFileWriter.close();
 }
 
 export function writeTerrainsToWorldTextFile(terrains: (Terrain | null)[], savingContext: SavingContext) {
     const textFileWriter = new TextFileWriter(TextFileNames.Terrains);
     textFileWriter.raw(terrains.filter(isDefined).length).eol(); // Total terrain entries
-    const sortedTerrains = [...terrains].filter(isDefined).sort((a, b) => a.internalName.localeCompare(b.internalName));
+    const sortedTerrains = [...terrains].filter(isDefined).sort((a, b) => textFileStringCompare(a.internalName, b.internalName));
+
+
     for (let i = 0; i < sortedTerrains.length; ++i) {
         const terrain = sortedTerrains[i];
         const borderEntries = terrain.borderTypes.map((border, id) => ({
@@ -215,7 +217,7 @@ export function writeTerrainsToWorldTextFile(terrains: (Terrain | null)[], savin
             border
         })).sort((a, b) => {
             if (a.terrain && b.terrain) {
-                return a.terrain.internalName.localeCompare(b.terrain.internalName)
+                return textFileStringCompare(a.terrain.internalName, b.terrain.internalName);
             }
             else {
                 return a.terrain ? 1 : - 1;

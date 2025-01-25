@@ -3,7 +3,7 @@ import { LoadingContext } from "./LoadingContext";
 import { SavingContext } from "./SavingContext";
 import { asInt16, asUInt8, ColorId, Int16, PaletteIndex, ResourceId } from "./Types";
 import { TextFileWriter } from "../textfile/TextFileWriter";
-import { TextFileNames } from "../textfile/TextFile";
+import { TextFileNames, textFileStringCompare } from "../textfile/TextFile";
 import { Logger } from "../Logger";
 
 const enum ColormapType {
@@ -49,9 +49,8 @@ export function writeColormapsToWorldTextFile(colormaps: Colormap[], savingConte
     textFileWriter.raw(colormaps.length).eol(); // Total colormap entries
     textFileWriter.raw(colormaps.length).eol(); // Entries that have data here (these should always match anyway...)
 
-    const sortedEntries = [...colormaps].sort((a, b) => a.resourceFilename.localeCompare(b.resourceFilename));
-    for (let i = 0; i < sortedEntries.length; ++i) {
-        const currentEntry = sortedEntries[i];
+    const sortedEntries = [...colormaps].sort((a, b) => textFileStringCompare(a.resourceFilename, b.resourceFilename));
+    sortedEntries.forEach(currentEntry => {
         textFileWriter
             .integer(currentEntry.id)
             .integer(currentEntry.resourceId)
@@ -59,6 +58,6 @@ export function writeColormapsToWorldTextFile(colormaps: Colormap[], savingConte
             .integer(currentEntry.minimapColor)
             .integer(currentEntry.type)
             .eol()
-    }
+    });
     textFileWriter.close();
 }

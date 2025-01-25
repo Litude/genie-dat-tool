@@ -1,6 +1,6 @@
 import { decompressFile } from "./deflate";
 import BufferReader from "./BufferReader";
-import { WorldDatabase } from "./data/WorldDatabase";
+import { WorldDatabase } from "./database/WorldDatabase";
 import { Logger } from "./Logger";
 
 const VERSION_REGEX = /VER\s+(\d+\.\d+)/
