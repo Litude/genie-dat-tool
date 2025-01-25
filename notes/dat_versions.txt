@@ -13,7 +13,10 @@ VER 2.7
 ** TODO **
 
 VER 3.1
-** TODO **
+** Some of these changes likely happended in VER 2.8-VER 3.0**
+- Support for track as resource boolean for objects
+- Support for resource group for objects
+- Support for specifying doppelganer type for objects
 
 VER 3.1 REV 2 (1997-07-03)
 - Actor objects can now have a different move and attack sound
@@ -27,7 +30,7 @@ VER 3.3 (1997-07-16)
 - Support for object selection outline flags (disable hitpoints bar and always show outline in editor)
 - Support for objects having a specific outline color in the editor
 
-VER 3.4 (1997-07-25)
+VER 3.40 (1997-07-25)
 - No known differences
 
 VER 3.5 (1997-08-14)

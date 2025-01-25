@@ -165,9 +165,29 @@ export class SceneryObjectPrototype {
         this.hotkeyStringId = buffer.readInt32();
 
         this.reusable = buffer.readBool8();
-        this.trackAsResource = buffer.readBool8();
-        this.doppelgangerMode = buffer.readUInt8();
-        this.resourceGroup = buffer.readUInt8();
+
+        if (loadingContext.version >= 3.1) {
+            this.trackAsResource = buffer.readBool8();
+            this.doppelgangerMode = buffer.readUInt8();
+            this.resourceGroup = buffer.readUInt8();
+        }
+        else {
+            // TODO:
+            // DoppelgangerMode: 
+            // 1 for resources that are not trees
+            // 2 2 for trees
+            // 0 otherwise
+            // resourceGroup:
+            // 0 = Tree
+            // 1 = Berry
+            // 2 = Fish
+            // 3 = Stone
+            // 4 = Gold
+            // TrackAsResource:
+            // 1 for resources
+            // 0 otherwise
+
+        }
 
         if (loadingContext.version >= 3.3) {
             this.selectionOutlineFlags = buffer.readUInt8();
@@ -303,9 +323,13 @@ export class SceneryObjectPrototype {
             .integer(this.helpDialogStringId)
             .integer(this.helpPageStringId)
             .integer(this.hotkeyStringId)
-            .integer(this.trackAsResource ? 1 : 0)
-            .integer(this.doppelgangerMode)
-            .integer(this.resourceGroup)
+
+        if (savingContext.version >= 3.1) {
+            textFileWriter
+                .integer(this.trackAsResource ? 1 : 0)
+                .integer(this.doppelgangerMode)
+                .integer(this.resourceGroup)
+        }
 
         if (savingContext.version >= 3.3) {
             textFileWriter

@@ -19,6 +19,7 @@ function parseVersion(input: string) {
 }
 
 const SupportedDatVersions = [
+    2.7,
     3.1, // TODO: There are actually two different revisions of this, can it somehow be detected?
     3.2, // untested
     3.3,
