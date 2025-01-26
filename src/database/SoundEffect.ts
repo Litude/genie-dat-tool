@@ -1,7 +1,7 @@
 import BufferReader from "../BufferReader";
 import { LoadingContext } from "./LoadingContext";
 import { SavingContext } from "./SavingContext";
-import { asInt16, asUInt32, Int16, Int32, Percentage, ResourceId, UInt32 } from "./Types";
+import { asInt16, asInt32, asUInt32, Int16, Int32, Percentage, ResourceId, UInt32 } from "./Types";
 import { TextFileWriter } from "../textfile/TextFileWriter";
 import { TextFileNames } from "../textfile/TextFile";
 import { Logger } from "../Logger";
@@ -25,14 +25,16 @@ export class SoundEffect {
         }
         this.playDelay = buffer.readInt16();
         const sampleCount = buffer.readInt16();
-        this.cacheTime = buffer.readUInt32();
+        if (loadingContext.version >= 1.31) {
+            this.cacheTime = buffer.readUInt32();
+        }
 
         this.samples = [];
         for (let i = 0; i < sampleCount; ++i) {
             this.samples.push({
                 resourceFilename: buffer.readFixedSizeString(13),
-                resourceId: buffer.readInt32(),
-                playbackProbability: buffer.readInt16()
+                resourceId: loadingContext.version >= 1.31 ? buffer.readInt32() : asInt32(buffer.readInt16()),
+                playbackProbability: buffer.readInt16(),
             });
         }
     }

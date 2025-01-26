@@ -187,7 +187,6 @@ export class SceneryObjectPrototype {
             this.placementUnderlyingTerrains = [asInt16(-1), asInt16(-1)];
         }
 
-
         this.clearanceSize = {
             x: buffer.readFloat32(),
             y: buffer.readFloat32()

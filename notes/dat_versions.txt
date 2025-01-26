@@ -1,9 +1,12 @@
 DAT version changes:
 
 VER 1.3 (1996-11-26)
+- First known version
 
 VER 1.3 (1996-12-09)
-** TODO **
+- Sound effect resource id is now a 32 bit number instead of a 16 bit number
+- Sprite resource id is now a 32 but number instead of a 16 bit number
+- Actor object prototypes can now specify two different dropsites
 
 VER 1.4
 - Added support for civilization bonus effect

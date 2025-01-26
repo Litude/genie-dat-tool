@@ -3,7 +3,7 @@ import { Point } from "../geometry/Point";
 import { Rectangle } from "../geometry/Rectangle";
 import { LoadingContext } from "./LoadingContext";
 import { SavingContext } from "./SavingContext";
-import { asFloat32, asInt16, Bool8, Float32, Int16, Int32, Pointer, ResourceId, SoundEffectId, UInt8 } from "./Types";
+import { asFloat32, asInt16, asInt32, Bool8, Float32, Int16, Int32, Pointer, ResourceId, SoundEffectId, UInt8 } from "./Types";
 import { TextFileWriter } from "../textfile/TextFileWriter";
 import { TextFileNames } from "../textfile/TextFile";
 import { SoundEffect } from "./SoundEffect";
@@ -53,7 +53,7 @@ export class Sprite {
     constructor(buffer: BufferReader, id: Int16, soundEffects: SoundEffect[], loadingContext: LoadingContext) {
         this.name = buffer.readFixedSizeString(21);
         this.resourceFilename = buffer.readFixedSizeString(13);
-        this.resourceId = buffer.readInt32();
+        this.resourceId = loadingContext.version >= 1.31 ? buffer.readInt32() : asInt32(buffer.readInt16());
         this.loaded = buffer.readBool8();
         this.colorTransformType = buffer.readUInt8();
         this.layer = buffer.readUInt8();

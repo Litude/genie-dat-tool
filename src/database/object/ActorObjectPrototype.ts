@@ -25,9 +25,14 @@ export class ActorObjectPrototype extends MobileObjectPrototype {
         this.workRate = buffer.readFloat32();
 
         this.dropSites = [];
-        for (let i = 0; i < 2; ++i) {
+        const dropSiteCount = loadingContext.version >= 1.31 ? 2 : 1;
+        for (let i = 0; i < dropSiteCount; ++i) {
             this.dropSites.push(buffer.readInt16());
         }
+        for (let i = this.dropSites.length; i < 2; ++i) {
+            this.dropSites.push(asInt16(-1));
+        }
+
         this.abilitySwapGroup = buffer.readUInt8();
         this.attackSoundId = buffer.readInt16();
         if (loadingContext.version >= 3.11) {
@@ -54,7 +59,7 @@ export class ActorObjectPrototype extends MobileObjectPrototype {
             .float(this.searchRadius)
             .float(this.workRate)
             .integer(this.dropSites[0])
-            .integer(this.dropSites[1])
+            .conditional(savingContext.version >= 1.31, writer => writer.integer(this.dropSites[1]))
             .integer(this.abilitySwapGroup)
             .integer(this.attackSoundId)
             .conditional(
