@@ -1,3 +1,4 @@
+import semver from 'semver';
 import BufferReader from "../../BufferReader";
 import { TextFileNames } from "../../textfile/TextFile";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
@@ -45,7 +46,7 @@ export class Technology {
         }
         this.minimumPrerequisites = buffer.readInt16();
         this.researchLocation = buffer.readInt16();
-        if (loadingContext.version >= 1.5) {
+        if (semver.gte(loadingContext.version.numbering, "1.5.0")) {
             this.nameStringId = buffer.readInt16();
             this.researchStringId = buffer.readInt16();
         }
@@ -58,7 +59,7 @@ export class Technology {
         this.technologyType = buffer.readInt16();
         this.iconNumber = buffer.readInt16();
         this.researchButtonIndex = buffer.readUInt8();
-        if (loadingContext.version >= 2.7) {
+        if (semver.gte(loadingContext.version.numbering, "2.7.0")) {
             this.helpDialogStringId = buffer.readInt32();
             this.helpPageStringId = buffer.readInt32();
             this.hotkeyStringId = buffer.readInt32();
@@ -116,13 +117,13 @@ export function writeTechnologiesToWorldTextFile(technologies: Technology[], sav
                 .integer(cost.costDeducted ? 1 : 0);
         }
 
-        if (savingContext.version >= 1.5) {
+        if (semver.gte(savingContext.version.numbering, "1.5.0")) {
             textFileWriter
                 .integer(entry.nameStringId)
                 .integer(entry.researchStringId);
         }
 
-        if (savingContext.version >= 2.7) {
+        if (semver.gte(savingContext.version.numbering, "2.7.0")) {
             textFileWriter
                 .integer(entry.helpDialogStringId)
                 .integer(entry.helpPageStringId)

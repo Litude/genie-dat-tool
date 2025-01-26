@@ -1,10 +1,10 @@
+import semver from 'semver';
 import BufferReader from "../../BufferReader";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
 import { asInt16, asUInt8, AttributeId, Bool8, Int16, PrototypeId, UInt8 } from "../Types";
 import { CombatantObjectPrototype } from "./CombatantObjectPrototype";
-import { ObjectType } from "./ObjectType";
 
 interface ResourceCost {
     attributeId: AttributeId<Int16>;
@@ -35,7 +35,7 @@ export class AdvancedCombatantObjectPrototype extends CombatantObjectPrototype {
         this.creationDuration = buffer.readInt16();
         this.creationLocation = buffer.readInt16();
         this.creationButtonIndex = buffer.readUInt8();
-        if (loadingContext.version >= 3.2) {
+        if (semver.gte(loadingContext.version.numbering, "3.2.0")) {
             this.originalPierceArmorValue = buffer.readInt16();
         }
         else {

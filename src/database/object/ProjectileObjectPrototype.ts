@@ -4,7 +4,6 @@ import { LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
 import { asFloat32, asUInt8, Float32, Int16, UInt8 } from "../Types";
 import { CombatantObjectPrototype } from "./CombatantObjectPrototype";
-import { ObjectType } from "./ObjectType";
 
 export class ProjectileObjectPrototype extends CombatantObjectPrototype {
     projectileType: UInt8 = asUInt8(0);

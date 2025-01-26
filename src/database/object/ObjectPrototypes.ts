@@ -1,3 +1,4 @@
+import semver from 'semver';
 import BufferReader from "../../BufferReader"
 import { TextFileNames, textFileStringCompare } from "../../textfile/TextFile";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
@@ -13,7 +14,7 @@ import { BuildingObjectPrototype } from "./BuildingObjectPrototype";
 import { CombatantObjectPrototype } from "./CombatantObjectPrototype";
 import { DoppelgangerObjectPrototype } from "./DoppelgangerObjectPrototype";
 import { MobileObjectPrototype } from "./MobileObjectPrototype";
-import { ObjectType, ObjectTypes } from "./ObjectType";
+import { ObjectTypes } from "./ObjectType";
 import { ProjectileObjectPrototype } from "./ProjectileObjectPrototype";
 import { SceneryObjectPrototype } from "./SceneryObjectPrototype";
 import { TreeObjectPrototype } from "./TreeObjectPrototype";
@@ -30,7 +31,7 @@ export function readObjectPrototypesFromBuffer(buffer: BufferReader, loadingCont
         let object: SceneryObjectPrototype | null = null;
         if (validObjects[i]) {
             let objectType = buffer.readUInt8();
-            if (loadingContext.version < 2.0) {
+            if (semver.lt(loadingContext.version.numbering, "2.0.0")) {
                 objectType = asUInt8(Math.round(objectType * 10));
             }
             switch (objectType) {

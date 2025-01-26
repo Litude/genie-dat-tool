@@ -3,7 +3,6 @@ import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
 import { asFloat32, Float32, Int16 } from "../Types";
-import { ObjectType } from "./ObjectType";
 import { SceneryObjectPrototype } from "./SceneryObjectPrototype";
 
 export class AnimatedObjectPrototype extends SceneryObjectPrototype {

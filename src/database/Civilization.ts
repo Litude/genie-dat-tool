@@ -1,3 +1,4 @@
+import semver from "semver";
 import BufferReader from "../BufferReader";
 import { TextFileNames, textFileStringCompare } from "../textfile/TextFile";
 import { TextFileWriter } from "../textfile/TextFileWriter";
@@ -19,7 +20,7 @@ export class Civilization {
         this.civilizationType = buffer.readUInt8();
         this.internalName = buffer.readFixedSizeString(20);
         const attributeCount = buffer.readInt16();
-        if (loadingContext.version >= 1.4) {
+        if (semver.gte(loadingContext.version.numbering, "1.4.0")) {
             this.bonusEffect = buffer.readInt16();
         }
 
@@ -44,7 +45,7 @@ export function writeCivilizationsToWorldTextFile(civilizations: Civilization[],
             .integer(civilization.id)
             .integer(civilization.civilizationType)
             .string(civilization.internalName, 17)
-            .conditional(savingContext.version >= 1.4, writer => writer.integer(civilization.bonusEffect))
+            .conditional(semver.gte(savingContext.version.numbering, "1.4.0"), writer => writer.integer(civilization.bonusEffect))
             .integer(civilization.attributes.length)
             .integer(civilization.attributes.filter(x => x).length)
             .eol();

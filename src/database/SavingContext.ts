@@ -1,4 +1,5 @@
+import { Version } from "./Version";
 
 export interface SavingContext {
-    version: number;
+    version: Version;
 }

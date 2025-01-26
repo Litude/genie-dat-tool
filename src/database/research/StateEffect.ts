@@ -1,3 +1,4 @@
+import semver from "semver";
 import BufferReader from "../../BufferReader";
 import { TextFileNames } from "../../textfile/TextFile";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
@@ -60,17 +61,17 @@ export function writeStateEffectsToWorldTextFile(effects: StateEffect[], savingC
     const textFileWriter = new TextFileWriter(TextFileNames.StateEffects);
     textFileWriter.raw(effects.length).eol(); // Total state effect entries
     const validEntries = effects.filter(entry => entry.isValid());
-    if (savingContext.version >= 2.0) {
+    if (semver.gte(savingContext.version.numbering, "2.0.0")) {
         textFileWriter.raw(validEntries.length).eol(); // Entries that have data
     }
-    if (validEntries.length !== effects.length && savingContext.version < 2.0) {
+    if (validEntries.length !== effects.length && semver.lt(savingContext.version.numbering, "2.0.0")) {
         throw new Error("Saving dummy effect entries not implemented for version < 2.0");
     }
 
     for (let i = 0; i < validEntries.length; ++i) {
         const effect = validEntries[i];
         textFileWriter
-            .conditional(savingContext.version >= 2.0, writer => writer.integer(effect.id))
+            .conditional(semver.gte(savingContext.version.numbering, "2.0.0"), writer => writer.integer(effect.id))
             .string(effect.internalName.replaceAll(' ', '_'), 17)
             .integer(effect.commands.length)
             .eol();

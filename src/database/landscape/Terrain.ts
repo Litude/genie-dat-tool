@@ -1,3 +1,4 @@
+import semver from "semver";
 import BufferReader from "../../BufferReader";
 import { Logger } from "../../Logger";
 import { TextFileNames, textFileStringCompare } from "../../textfile/TextFile";
@@ -79,7 +80,7 @@ export class Terrain {
 
         this.internalName = buffer.readFixedSizeString(13);
         this.resourceFilename = buffer.readFixedSizeString(13);
-        if (loadingContext.version >= 2.0) {
+        if (semver.gte(loadingContext.version.numbering, "2.0.0")) {
             this.resourceId = buffer.readInt32();
         }
         else {
@@ -235,7 +236,7 @@ export function writeTerrainsToWorldTextFile(terrains: (Terrain | null)[], savin
             .integer(terrain.id)
             .string(terrain.internalName.replaceAll(" ", "_"), 17)
             .filename(terrain.resourceFilename)
-            .conditional(savingContext.version >= 2.0, writer => writer.integer(terrain.resourceId))
+            .conditional(semver.gte(savingContext.version.numbering, "2.0.0"), writer => writer.integer(terrain.resourceId))
             .integer(terrain.random ? 1 : 0)
             .integer(terrain.minimapColor2)
             .integer(terrain.minimapColor1)

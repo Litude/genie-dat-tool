@@ -1,3 +1,4 @@
+import semver from "semver";
 import BufferReader from "../../BufferReader";
 import { Point3D } from "../../geometry/Point";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
@@ -5,7 +6,6 @@ import { LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
 import { asFloat32, asInt16, asUInt8, Float32, HabitatId, Int16, Percentage, PrototypeId, SpriteId, UInt8 } from "../Types";
 import { ActorObjectPrototype } from "./ActorObjectPrototype";
-import { ObjectType } from "./ObjectType";
 
 interface DamageValue {
     type: Int16;
@@ -73,7 +73,7 @@ export class CombatantObjectPrototype extends ActorObjectPrototype {
         this.blastAttackLevel = buffer.readUInt8();
         this.minRange = buffer.readFloat32();
         this.attackSpriteId = buffer.readInt16();
-        if (loadingContext.version >= 3.2) {
+        if (semver.gte(loadingContext.version.numbering, "3.2.0")) {
             this.originalArmorValue = buffer.readInt16();
             this.originalAttackValue = buffer.readInt16();
             this.originalRangeValue = buffer.readFloat32();

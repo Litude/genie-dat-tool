@@ -1,3 +1,4 @@
+import semver from 'semver';
 import BufferReader from "../../BufferReader";
 import { TextFileNames } from "../../textfile/TextFile";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
@@ -111,7 +112,7 @@ export class TribeRandomMap {
 
 export function readTribeRandomMapData(randomMapCount: number, buffer: BufferReader, terrains: (Terrain | null)[], borders: (Border | null)[], loadingContext: LoadingContext): TribeRandomMap[] {
     const result: TribeRandomMap[] = [];
-    if (loadingContext.version < 2.0) {
+    if (semver.lt(loadingContext.version.numbering, "2.0.0")) {
         for (let i = 0; i < randomMapCount; ++i) {
             const randomMap = new TribeRandomMap();
             randomMap.readFromBuffer(buffer, asInt16(i), terrains, borders, loadingContext);

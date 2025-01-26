@@ -1,3 +1,4 @@
+import semver from "semver";
 import BufferReader from "../BufferReader";
 import { LoadingContext } from "./LoadingContext";
 import { SavingContext } from "./SavingContext";
@@ -25,7 +26,7 @@ export class SoundEffect {
         }
         this.playDelay = buffer.readInt16();
         const sampleCount = buffer.readInt16();
-        if (loadingContext.version >= 1.31) {
+        if (semver.gte(loadingContext.version.numbering, "1.3.1")) {
             this.cacheTime = buffer.readUInt32();
         }
 
@@ -33,7 +34,7 @@ export class SoundEffect {
         for (let i = 0; i < sampleCount; ++i) {
             this.samples.push({
                 resourceFilename: buffer.readFixedSizeString(13),
-                resourceId: loadingContext.version >= 1.31 ? buffer.readInt32() : asInt32(buffer.readInt16()),
+                resourceId: semver.gte(loadingContext.version.numbering, "1.3.1") ? buffer.readInt32() : asInt32(buffer.readInt16()),
                 playbackProbability: buffer.readInt16(),
             });
         }

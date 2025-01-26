@@ -1,23 +1,29 @@
 DAT version changes:
+The DAT file header version unfortunately is not always enough to detect a specific version... There are two different known VER 1.3, VER 1.4 and VER 3.1.
 
-VER 1.3 (1996-11-26)
+VER 1.3 REV 0 (1996-11-26)
 - First known version
 
-VER 1.3 (1996-12-09)
+VER 1.3 REV 1 (1996-12-09)
 - Sound effect resource id is now a 32 bit number instead of a 16 bit number
 - Sprite resource id is now a 32 but number instead of a 16 bit number
 - Actor object prototypes can now specify two different dropsites
+- Sound effects now specify a caching time
 
-VER 1.4
+VER 1.4 REV 0 (1997-01-02)
 - Added support for civilization bonus effect
 - Added support for specfiying underlying terrain for object prototypes
 
-VER 1.5
+VER 1.4 MICKEY (1997-01-02)
+** MICKEY.DAT: This is a special version that has changes not present in any other version**
+- Each border tile type now has 13 different frame entries instead of the regular 12 (The last entry is new). Also the final padding byte pair of the border structure is missing.
+
+VER 1.5 REV 0 (1997-02-02)
 - Added support for creation string id to object prototypes
 - Added support for technology name string id to technologies
 - Added support for researching string id to technologies
 
-VER 2.0
+VER 2.0 REV 0 (1997-??-??)
 ** This is a total guess, there are no known VER 1.6-2.6 DAT files **
 - Added terrain resource/slp id field to terrains
 - Added border resource/slp id field to borders
@@ -27,7 +33,7 @@ VER 2.0
 - Removed legacy random maps
 - Removed legacy Ai
 
-VER 2.7
+VER 2.7 REV 0 (1997-04-24)
 ** Changes here might have happened earlier, VER 1.6-2.6 are unknown **
 - Added support for specfiying help text string id for object prototypes
 - Added support for specifying help page string id for object prototypes
@@ -37,7 +43,7 @@ VER 2.7
 - Added support for specifying help page string id for technologies
 - Added support for specifying hotkey string id for technologies
 
-VER 3.1
+VER 3.1 REV 0 (1997-05-29)
 ** Some of these changes likely happended in VER 2.8-VER 3.0**
 - Support for track as resource boolean for objects
 - Support for resource group for objects
@@ -46,25 +52,25 @@ VER 3.1
 VER 3.1 REV 1 (1997-07-03)
 - Actor objects can now have a different move and attack sound
 
-VER 3.2 (1997-07-08)
+VER 3.2 REV 0 (1997-07-08)
 ** No known DAT files, information based on decoding loading functions **
 - Support for objects having separately stored original unupgraded attack, armor, range and attack speed values for soldiers
 
-VER 3.3 (1997-07-16)
+VER 3.3 REV 0 (1997-07-16)
 - Support for objects having a selection outline radius size that differs from the collision outline radius
 - Support for object selection outline flags (disable hitpoints bar and always show outline in editor)
 - Support for objects having a specific outline color in the editor
 
-VER 3.4 (1997-07-25)
+VER 3.4 REV 0 (1997-07-25)
 - No known differences
 
-VER 3.5 (1997-08-14)
+VER 3.5 REV 0 (1997-08-14)
 - Added support for keeping track of the original unupgraded unit id for objects (copy id)
 
-VER 3.6
+VER 3.6 REV 0 (1997-??-??)
 ** No known DAT files **
 
-VER 3.7
+VER 3.7 REV 0 (1997-09-17)
 ** One of these changes probably happened in VER 3.6 and the other one in VER 3.7**
 - The DAT file now includes an array of spriteCount bool32 values before the actual entries indicating which of the entries actually have data in the file (previously all entries were always stored)
 - The DAT file tile properties (all 19 of them) now have an additional yDelta int16 value stored and an additional padding int16 value now follows the tile properties array

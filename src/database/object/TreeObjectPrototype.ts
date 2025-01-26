@@ -1,7 +1,6 @@
 import BufferReader from "../../BufferReader";
 import { LoadingContext } from "../LoadingContext";
 import { Int16 } from "../Types";
-import { ObjectType } from "./ObjectType";
 import { SceneryObjectPrototype } from "./SceneryObjectPrototype";
 
 export class TreeObjectPrototype extends SceneryObjectPrototype {

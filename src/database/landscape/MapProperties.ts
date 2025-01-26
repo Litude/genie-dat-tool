@@ -1,3 +1,4 @@
+import semver from 'semver';
 import BufferReader from "../../BufferReader";
 import { Point } from "../../geometry/Point";
 import { LoadingContext } from "../LoadingContext";
@@ -97,10 +98,10 @@ export class MapProperties {
             this.tileProperties.push({
                 width: buffer.readInt16(),
                 height: buffer.readInt16(),
-                yDelta: loadingContext.version >= 3.7 ? buffer.readInt16() : DefaultYDelta[i],
+                yDelta: semver.gte(loadingContext.version.numbering, "3.7.0") ? buffer.readInt16() : DefaultYDelta[i],
             });
         }
-        if (loadingContext.version >= 3.7) {
+        if (semver.gte(loadingContext.version.numbering, "3.7.0")) {
             this.padding008A = buffer.readUInt16();
         }
     }
@@ -124,7 +125,7 @@ export class MapProperties {
         this.blockEndColumn = buffer.readInt16();
         this.anyFrameChange = buffer.readBool8();
 
-        if (loadingContext.version < 2.0) {
+        if (semver.lt(loadingContext.version.numbering, "2.0.0")) {
             this.zoneMap = [];
             for (let i = 0; i < 255; ++i) {
                 this.zoneMap.push(buffer.readUInt8());
@@ -138,7 +139,7 @@ export class MapProperties {
         this.searchMapPointer = buffer.readPointer();
         this.searchMapRowsPointer = buffer.readPointer();
 
-        if (loadingContext.version < 2.0) {
+        if (semver.lt(loadingContext.version.numbering, "2.0.0")) {
             this.tribeRandomMapGeneratorPointer = buffer.readPointer();
         }
 
@@ -146,7 +147,7 @@ export class MapProperties {
         this.fogEnabled = buffer.readBool8();
         this.padding8DBA = buffer.readUInt16();
 
-        if (loadingContext.version >= 2.0) {
+        if (semver.gte(loadingContext.version.numbering, "2.0.0")) {
             this.randomMapGeneratorPointer = buffer.readPointer();
             this.gameStatePointer = buffer.readPointer();
             this.mapZonesPointer = buffer.readPointer();
@@ -156,7 +157,7 @@ export class MapProperties {
     }
 
     readQuaterniaryDataFromBuffer(buffer: BufferReader, loadingContext: LoadingContext): void {
-        if (loadingContext.version >= 2.0) {
+        if (semver.gte(loadingContext.version.numbering, "2.0.0")) {
             this.randomMapEntriesPointer = buffer.readPointer();
         }
     }

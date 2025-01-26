@@ -1,9 +1,10 @@
+import semver from "semver";
 import BufferReader from "../BufferReader";
 import { Point } from "../geometry/Point";
 import { Rectangle } from "../geometry/Rectangle";
 import { LoadingContext } from "./LoadingContext";
 import { SavingContext } from "./SavingContext";
-import { asFloat32, asInt16, asInt32, Bool8, Float32, Int16, Int32, Pointer, ResourceId, SoundEffectId, UInt8 } from "./Types";
+import { asInt16, asInt32, Bool8, Float32, Int16, Int32, Pointer, ResourceId, SoundEffectId, UInt8 } from "./Types";
 import { TextFileWriter } from "../textfile/TextFileWriter";
 import { TextFileNames } from "../textfile/TextFile";
 import { SoundEffect } from "./SoundEffect";
@@ -53,7 +54,7 @@ export class Sprite {
     constructor(buffer: BufferReader, id: Int16, soundEffects: SoundEffect[], loadingContext: LoadingContext) {
         this.name = buffer.readFixedSizeString(21);
         this.resourceFilename = buffer.readFixedSizeString(13);
-        this.resourceId = loadingContext.version >= 1.31 ? buffer.readInt32() : asInt32(buffer.readInt16());
+        this.resourceId = semver.gte(loadingContext.version.numbering, "1.3.1") ? buffer.readInt32() : asInt32(buffer.readInt16());
         this.loaded = buffer.readBool8();
         this.colorTransformType = buffer.readUInt8();
         this.layer = buffer.readUInt8();
@@ -136,7 +137,7 @@ export function readSprites(buffer: BufferReader, soundEffects: SoundEffect[], l
     const validSprites: boolean[] = [];
     const spriteCount = buffer.readInt16();
 
-    if (loadingContext.version >= 3.7) {
+    if (semver.gte(loadingContext.version.numbering, "3.7.0")) {
         for (let i = 0; i < spriteCount; ++i) {
             validSprites.push(Boolean(buffer.readBool32()))
         }
@@ -242,7 +243,7 @@ export function writeSpritesToWorldTextFile(sprites: (Sprite | null)[], savingCo
                 }
             }
         }
-        else if (savingContext.version < 3.7) {
+        else if (semver.lt(savingContext.version.numbering, "3.7.0")) {
             throw new Error("Saving dummy entries for older versons not implemented!");
         }
 

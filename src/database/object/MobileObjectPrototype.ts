@@ -4,7 +4,6 @@ import { LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
 import { asFloat32, asInt16, asUInt8, Float32, Int16, PrototypeId, SpriteId, UInt8 } from "../Types";
 import { AnimatedObjectPrototype } from "./AnimatedObjectPrototype";
-import { ObjectType } from "./ObjectType";
 
 export class MobileObjectPrototype extends AnimatedObjectPrototype {
     walkingSpriteId: SpriteId<Int16> = asInt16(-1);

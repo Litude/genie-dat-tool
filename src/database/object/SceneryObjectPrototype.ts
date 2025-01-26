@@ -1,3 +1,4 @@
+import semver from 'semver';
 import BufferReader from "../../BufferReader";
 import { Point, Point3D } from "../../geometry/Point";
 import { Logger } from "../../Logger";
@@ -5,7 +6,7 @@ import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
 import { asBool8, asFloat32, asInt16, asInt32, asUInt8, AttributeId, Bool8, Float32, HabitatId, Int16, Int32, PaletteIndex, PrototypeId, SoundEffectId, SpriteId, StringId, TerrainId, UInt8 } from "../Types";
-import { ObjectClass, ObjectClasses } from "./ObjectClass";
+import { ObjectClasses } from "./ObjectClass";
 import { ObjectType, ObjectTypes } from "./ObjectType";
 
 interface AttributeStorage {
@@ -139,7 +140,7 @@ export class SceneryObjectPrototype {
             Logger.warn(`Mismatch between stored Object id ${this.id} and ordering ${id}, data might be corrupt!`);
         }
         this.nameStringId = buffer.readInt16();
-        if (loadingContext.version >= 1.5) {
+        if (semver.gte(loadingContext.version.numbering, "1.5.0")) {
             this.creationStringId = buffer.readInt16();
         }
         else {
@@ -175,7 +176,7 @@ export class SceneryObjectPrototype {
         }
         this.placementNeighbouringTerrains = requiredNeighbouringTerrains;
 
-        if (loadingContext.version >= 1.4) {
+        if (semver.gte(loadingContext.version.numbering, "1.4.0")) {
             const requiredUnderlyingTerrains: TerrainId<Int16>[] = [];
             this.placementUnderlyingTerrains = [];
             for (let i = 0; i < 2; ++i) {
@@ -209,7 +210,7 @@ export class SceneryObjectPrototype {
         this.multipleAttributeMode = buffer.readFloat32();
         this.minimapColor = buffer.readUInt8();
 
-        if (loadingContext.version >= 2.7) {
+        if (semver.gte(loadingContext.version.numbering, "2.7.0")) {
             this.helpDialogStringId = buffer.readInt32();
             this.helpPageStringId = buffer.readInt32();
             this.hotkeyStringId = buffer.readInt32();
@@ -223,32 +224,13 @@ export class SceneryObjectPrototype {
         }
 
         // The fallbacks for these are later because they need attributes which have not yet been read
-        if (loadingContext.version >= 3.1) {
+        if (semver.gte(loadingContext.version.numbering, "3.1.0")) {
             this.trackAsResource = buffer.readBool8();
             this.doppelgangerMode = buffer.readUInt8();
             this.resourceGroup = buffer.readUInt8();
         }
-        else {
-            this.trackAsResource = isTrackedAsResource(this);
 
-            // TODO:
-            // DoppelgangerMode: 
-            // 1 for resources that are not trees
-            // 2 2 for trees
-            // 0 otherwise
-            // resourceGroup:
-            // 0 = Tree
-            // 1 = Berry
-            // 2 = Fish
-            // 3 = Stone
-            // 4 = Gold
-            // TrackAsResource:
-            // 1 for resources
-            // 0 otherwise
-
-        }
-
-        if (loadingContext.version >= 3.3) {
+        if (semver.gte(loadingContext.version.numbering, "3.3.0")) {
             this.selectionOutlineFlags = buffer.readUInt8();
             this.editorSelectionOutlineColor = buffer.readUInt8();
             this.selectionOutlineRadius = {
@@ -302,7 +284,7 @@ export class SceneryObjectPrototype {
         this.convertTerrain = buffer.readBool8();
 
         this.internalName = nameLength > 0 ? buffer.readFixedSizeString(nameLength) : "";
-        if (loadingContext.version >= 3.5) {
+        if (semver.gte(loadingContext.version.numbering, "3.5.0")) {
             this.upgradeUnitPrototypeId = buffer.readInt16();
             if (this.upgradeUnitPrototypeId !== this.id) {
                 Logger.warn(`Mismatch between stored Object id ${this.id} and upgrade id ${this.upgradeUnitPrototypeId}, data might be corrupt!`);
@@ -312,7 +294,7 @@ export class SceneryObjectPrototype {
             this.upgradeUnitPrototypeId = this.id;
         }
 
-        if (loadingContext.version < 3.1) {
+        if (semver.lt(loadingContext.version.numbering, "3.1.0")) {
             this.trackAsResource = isTrackedAsResource(this);
             this.resourceGroup = asUInt8(this.trackAsResource ? getResourceGatherGroup(this) : 0);
             this.doppelgangerMode = getResourceDoppelgangerMode(this);
@@ -324,13 +306,13 @@ export class SceneryObjectPrototype {
     writeToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext) {
         textFileWriter.eol();
 
-        if (savingContext.version < 2.0 && this.objectType % 10 !== 0) {
+        if (semver.lt(savingContext.version.numbering, "2.0.0") && this.objectType % 10 !== 0) {
             throw new Error(`${this.objectType} is not supported by version ${savingContext.version}`);
         }
 
         textFileWriter
             .indent(2)
-            .integer(savingContext.version < 2.0 ? this.objectType / 10 : this.objectType)
+            .integer(semver.lt(savingContext.version.numbering, "2.0.0") ? this.objectType / 10 : this.objectType)
             .integer(this.id)
             .eol();
 
@@ -338,7 +320,7 @@ export class SceneryObjectPrototype {
             .indent(4)
             .string(this.internalName, 26)
             .integer(this.nameStringId)
-            .conditional(savingContext.version >= 1.5, writer => writer.integer(this.creationStringId))
+            .conditional(semver.gte(savingContext.version.numbering, "1.5.0"), writer => writer.integer(this.creationStringId))
             .integer(this.objectClass)
             .integer(this.idleSpriteId)
             .integer(this.deathSpriteId)
@@ -367,7 +349,7 @@ export class SceneryObjectPrototype {
             .indent(4)
             .integer(this.placementNeighbouringTerrains[0])
             .integer(this.placementNeighbouringTerrains[1])
-            .conditional(savingContext.version >= 1.4, writer => writer
+            .conditional(semver.gte(savingContext.version.numbering, "1.4.0"), writer => writer
                 .integer(this.placementUnderlyingTerrains[0])
                 .integer(this.placementUnderlyingTerrains[1])
             )
@@ -392,21 +374,21 @@ export class SceneryObjectPrototype {
             .integer(this.interfaceType)
             .integer(this.minimapColor)
 
-        if (savingContext.version >= 2.7) {
+        if (semver.gte(savingContext.version.numbering, "2.7.0")) {
             textFileWriter
                 .integer(this.helpDialogStringId)
                 .integer(this.helpPageStringId)
                 .integer(this.hotkeyStringId)
         }
 
-        if (savingContext.version >= 3.1) {
+        if (semver.gte(savingContext.version.numbering, "3.1.0")) {
             textFileWriter
                 .integer(this.trackAsResource ? 1 : 0)
                 .integer(this.doppelgangerMode)
                 .integer(this.resourceGroup)
         }
 
-        if (savingContext.version >= 3.3) {
+        if (semver.gte(savingContext.version.numbering, "3.3.0")) {
             textFileWriter
                 .integer(this.selectionOutlineFlags)
                 .integer(this.editorSelectionOutlineColor)
@@ -447,4 +429,3 @@ export class SceneryObjectPrototype {
     }
 
 }
-

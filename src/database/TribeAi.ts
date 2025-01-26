@@ -1,3 +1,4 @@
+import semver from "semver";
 import BufferReader from "../BufferReader";
 import { TextFileNames } from "../textfile/TextFile";
 import { TextFileWriter } from "../textfile/TextFileWriter";
@@ -78,7 +79,7 @@ export class TribeAi {
     paddingD6: UInt16 = asUInt16(0);
 
     readFromBuffer(buffer: BufferReader, id: Int16, loadingContext: LoadingContext): void {
-        if (loadingContext.version >= 2.0) {
+        if (semver.gte(loadingContext.version.numbering, "2.0.0")) {
             return;
         }
         this.id = id;
@@ -185,7 +186,7 @@ export class TribeAi {
 
 export function readTribeAiFromBuffer(buffer: BufferReader, loadingContext: LoadingContext): (TribeAi | null)[] {
     const result: (TribeAi | null)[] = [];
-    if (loadingContext.version < 2.0) {
+    if (semver.lt(loadingContext.version.numbering, "2.0.0")) {
         const aiEntryCount = buffer.readInt16();
         const validAis: boolean[] = [];
         for (let i = 0; i < aiEntryCount; ++i) {

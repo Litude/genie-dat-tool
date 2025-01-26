@@ -1,3 +1,4 @@
+import semver from "semver";
 import BufferReader from "../BufferReader";
 import { Border, readMainBorderData, readSecondaryBorderData, writeBordersToWorldTextFile } from "./landscape/Border";
 import { Colormap, readColormaps, writeColormapsToWorldTextFile } from "./Colormap";
@@ -13,8 +14,6 @@ import { Civilization, writeCivilizationsToWorldTextFile } from "./Civilization"
 import { SceneryObjectPrototype } from "./object/SceneryObjectPrototype";
 import { readObjectPrototypesFromBuffer, writObjectPrototypesToWorldTextFile } from "./object/ObjectPrototypes";
 import { readTechnologiesFromBuffer, Technology, writeTechnologiesToWorldTextFile } from "./research/Technology";
-import { createWriteStream } from "fs";
-import { EOL } from "node:os";
 import { SavingContext } from "./SavingContext";
 import { asInt16 } from "./Types";
 import { TextFileWriter } from "../textfile/TextFileWriter";
@@ -104,7 +103,7 @@ export class WorldDatabase {
         writeOverlaysToWorldTextFile(this.overlays, savingContext);
         writeBordersToWorldTextFile(this.borders, savingContext);
         writeTribeRandomMapsToWorldTextFile(this.tribeRandomMaps, savingContext);
-        if (savingContext.version >= 2.0) {
+        if (semver.gte(savingContext.version.numbering, "2.0.0")) {
             writeRandomMapsToWorldTextFile(this.randomMaps, savingContext);
         }
         writeStateEffectsToWorldTextFile(this.stateEffects, savingContext);
@@ -128,7 +127,7 @@ export class WorldDatabase {
             .string(TextFileNames.StateEffects, 13).eol()
             .string(TextFileNames.TerrainObjects, 13).eol()
 
-        if (savingContext.version >= 2.0) {
+        if (semver.gte(savingContext.version.numbering, "2.0.0")) {
             textFileWriter
                 .string(TextFileNames.RandomMapDefinitons, 13).eol()
                 .string(TextFileNames.RandomMapBaseLands, 13).eol()
@@ -142,7 +141,7 @@ export class WorldDatabase {
             .integer(this.mapProperties.elevationHeightPx).eol()
             .raw(TextFileNames.Technologies).eol();
 
-        if (savingContext.version < 2.0) {
+        if (semver.lt(savingContext.version.numbering, "2.0.0")) {
             textFileWriter
                 .raw(TextFileNames.TribeAi).eol();
         }

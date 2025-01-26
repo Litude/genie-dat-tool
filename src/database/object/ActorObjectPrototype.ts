@@ -1,3 +1,4 @@
+import semver from 'semver';
 import BufferReader from "../../BufferReader";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { LoadingContext } from "../LoadingContext";
@@ -5,7 +6,6 @@ import { SavingContext } from "../SavingContext";
 import { AbilityId, asFloat32, asInt16, asUInt8, Float32, Int16, PrototypeId, SoundEffectId, UInt8 } from "../Types";
 import { Ability } from "./Ability";
 import { MobileObjectPrototype } from "./MobileObjectPrototype";
-import { ObjectType } from "./ObjectType";
 
 export class ActorObjectPrototype extends MobileObjectPrototype {
     defaultAbility: AbilityId<Int16> = asInt16(-1);
@@ -25,7 +25,7 @@ export class ActorObjectPrototype extends MobileObjectPrototype {
         this.workRate = buffer.readFloat32();
 
         this.dropSites = [];
-        const dropSiteCount = loadingContext.version >= 1.31 ? 2 : 1;
+        const dropSiteCount = semver.gte(loadingContext.version.numbering, "1.3.1") ? 2 : 1;
         for (let i = 0; i < dropSiteCount; ++i) {
             this.dropSites.push(buffer.readInt16());
         }
@@ -35,7 +35,7 @@ export class ActorObjectPrototype extends MobileObjectPrototype {
 
         this.abilitySwapGroup = buffer.readUInt8();
         this.attackSoundId = buffer.readInt16();
-        if (loadingContext.version >= 3.11) {
+        if (semver.gte(loadingContext.version.numbering, "3.1.1")) {
             this.moveSoundId = buffer.readInt16();
         }
         else {
@@ -59,11 +59,11 @@ export class ActorObjectPrototype extends MobileObjectPrototype {
             .float(this.searchRadius)
             .float(this.workRate)
             .integer(this.dropSites[0])
-            .conditional(savingContext.version >= 1.31, writer => writer.integer(this.dropSites[1]))
+            .conditional(semver.gte(savingContext.version.numbering, "1.3.1"), writer => writer.integer(this.dropSites[1]))
             .integer(this.abilitySwapGroup)
             .integer(this.attackSoundId)
             .conditional(
-                savingContext.version >= 3.11,
+                semver.gte(savingContext.version.numbering, "3.1.1"),
                 writer => writer.integer(this.moveSoundId)
             )
             .integer(this.runPattern)

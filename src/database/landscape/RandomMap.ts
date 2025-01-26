@@ -1,3 +1,4 @@
+import semver from "semver";
 import BufferReader from "../../BufferReader";
 import { Point } from "../../geometry/Point";
 import { Rectangle } from "../../geometry/Rectangle";
@@ -241,7 +242,7 @@ export class RandomMap {
 
 export function readRandomMapData(randomMapCount: number, buffer: BufferReader, terrains: (Terrain | null)[], loadingContext: LoadingContext): RandomMap[] {
     const result: RandomMap[] = [];
-    if (loadingContext.version >= 2.0) {
+    if (semver.gte(loadingContext.version.numbering, "2.0.0")) {
         const preMapData: PreMapData[] = [];
         for (let i = 0; i < randomMapCount; ++i) {
             preMapData.push({

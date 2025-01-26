@@ -1,3 +1,4 @@
+import semver from 'semver';
 import BufferReader from "../../BufferReader";
 import { Logger } from "../../Logger";
 import { TextFileNames, textFileStringCompare } from "../../textfile/TextFile";
@@ -8,7 +9,6 @@ import { LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
 import { SoundEffect } from "../SoundEffect";
 import { asBool16, asBool8, asFloat32, asInt16, asInt32, asUInt8, Bool16, Bool8, Float32, Int16, Int32, NullPointer, PaletteIndex, Pointer, ResourceId, SoundEffectId, TerrainId, UInt8 } from "../Types";
-import { Terrain } from "./Terrain";
 
 interface FrameMap {
     frameCount: Int16;
@@ -50,7 +50,7 @@ export class Overlay {
 
         this.internalName = buffer.readFixedSizeString(13);
         this.resourceFilename = buffer.readFixedSizeString(13);
-        if (loadingContext.version >= 2.0) {
+        if (semver.gte(loadingContext.version.numbering, "2.0.0")) {
             this.resourceId = buffer.readInt32();
         }
         else {
@@ -102,7 +102,7 @@ export class Overlay {
 
 export function readMainOverlayData(buffer: BufferReader, soundEffects: SoundEffect[], loadingContext: LoadingContext): (Overlay | null)[] {
     const result: (Overlay | null)[] = [];
-    if (loadingContext.version < 2.0) {
+    if (semver.lt(loadingContext.version.numbering, "2.0.0")) {
         for (let i = 0; i < 16; ++i) {
             const overlay = new Overlay();
             overlay.readFromBuffer(buffer, asInt16(i), soundEffects, loadingContext);
@@ -113,7 +113,7 @@ export function readMainOverlayData(buffer: BufferReader, soundEffects: SoundEff
 }
 
 export function readSecondaryOverlayData(overlays: (Overlay | null)[], buffer: BufferReader, loadingContext: LoadingContext) {
-    if (loadingContext.version < 2.0) {
+    if (semver.lt(loadingContext.version.numbering, "2.0.0")) {
         const overlayCount = buffer.readInt16();
         if (overlayCount !== overlays.filter(isDefined).length) {
             Logger.warn(`Mismatch between enabled overlays and overlay count, DAT might be corrupt!`)
@@ -131,7 +131,7 @@ export function writeOverlaysToWorldTextFile(overlays: (Overlay | null)[], savin
             .integer(overlay.id)
             .string(overlay.internalName.replaceAll(" ", "_"), 17)
             .filename(overlay.resourceFilename)
-            .conditional(savingContext.version >= 2.0, writer => writer.integer(overlay.resourceId))
+            .conditional(semver.gte(savingContext.version.numbering, "2.0.0"), writer => writer.integer(overlay.resourceId))
             .integer(overlay.random ? 1 : 0)
             .integer(overlay.minimapColor2)
             .integer(overlay.minimapColor1)

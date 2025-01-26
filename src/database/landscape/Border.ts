@@ -1,3 +1,4 @@
+import semver from 'semver';
 import BufferReader from "../../BufferReader";
 import { Logger } from "../../Logger";
 import { TextFileNames, textFileStringCompare } from "../../textfile/TextFile";
@@ -60,7 +61,7 @@ export class Border {
 
         this.internalName = buffer.readFixedSizeString(13);
         this.resourceFilename = buffer.readFixedSizeString(13);
-        if (loadingContext.version >= 2.0) {
+        if (semver.gte(loadingContext.version.numbering, "2.0.0")) {
             this.resourceId = buffer.readInt32();
         }
         else {
@@ -88,12 +89,14 @@ export class Border {
         this.animationUpdateTime = buffer.readFloat32();
         this.frameChanged = buffer.readBool8();
 
-        this.drawCount = buffer.readUInt8();        
+        this.drawCount = buffer.readUInt8();
+
+        const shapesPerTile = (semver.eq(loadingContext.version.numbering, "1.4.0") && loadingContext.version.flavor === "mickey") ? 13 : 12;
 
         this.frameMaps = [];
         for (let i = 0; i < 19; ++i) {
             this.frameMaps.push([]);
-            for (let j = 0; j < 12; ++j) {
+            for (let j = 0; j < shapesPerTile; ++j) {
                 this.frameMaps[i].push({
                     frameCount: buffer.readInt16(),
                     animationFrames: buffer.readInt16(),
@@ -105,11 +108,13 @@ export class Border {
         this.padding59B = buffer.readUInt8();
         this.passabilityTerrainId = buffer.readInt16();
         this.passabilityTerrainType = getEntryOrLogWarning(terrains, this.passabilityTerrainId, "Terrain");
-        if (loadingContext.version >= 2.0) {
+        if (semver.gte(loadingContext.version.numbering, "2.0.0")) {
             this.overlayBorder = buffer.readBool16();
         }
         else {
-            this.padding59E = buffer.readUInt16();
+            if (loadingContext.version.flavor !== "mickey") {
+                this.padding59E = buffer.readUInt16();
+            }
         }
     }
 
@@ -145,7 +150,7 @@ export function writeBordersToWorldTextFile(borders: (Border | null)[], savingCo
             .integer(border.id)
             .string(border.internalName.replaceAll(" ", "_"), 17)
             .filename(border.resourceFilename)
-            .conditional(savingContext.version >= 2.0, writer => writer.integer(border.resourceId))
+            .conditional(semver.gte(savingContext.version.numbering, "2.0.0"), writer => writer.integer(border.resourceId))
             .integer(border.random ? 1 : 0)
             .integer(border.minimapColor2)
             .integer(border.minimapColor1)
@@ -157,9 +162,12 @@ export function writeBordersToWorldTextFile(borders: (Border | null)[], savingCo
             .float(border.animationReplayDelay)
             .integer(border.drawTerrain ? 1 : 0)
             .integer(border.passabilityTerrainId)
-            .conditional(savingContext.version >= 2.0, writer =>writer.integer(border.overlayBorder ? 1 : 0));
+            .conditional(semver.gte(savingContext.version.numbering, "2.0.0"), writer =>writer.integer(border.overlayBorder ? 1 : 0));
+
+            
+        const shapesPerTile = (semver.eq(savingContext.version.numbering, "1.4.0") && savingContext.version.flavor === "mickey") ? 13 : 12;
         for (let j = 0; j < 19; ++j) {
-            for (let k = 0; k < 12; ++k) {
+            for (let k = 0; k < shapesPerTile; ++k) {
                 textFileWriter
                     .integer(border.frameMaps[j][k].frameCount)
                     .integer(border.frameMaps[j][k].animationFrames);
