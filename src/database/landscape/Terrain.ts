@@ -250,8 +250,8 @@ export function writeTerrainsToWorldTextFile(terrains: (Terrain | null)[], savin
             .integer(terrain.terrainPatternWidth)
             .integer(terrain.minimapCliffColor1)
             .integer(terrain.minimapCliffColor2)
-            .integer(terrain.impassableTerrainId)
-            .integer(terrain.passableTerrainId)
+            .integer(terrain.impassableTerrainId === 255 ? -1 : terrain.impassableTerrainId)
+            .integer(terrain.passableTerrainId === 255 ? -1 : terrain.passableTerrainId)
             .integer(borderCount);
         for (let j = 0; j < 19; ++j) {
             textFileWriter

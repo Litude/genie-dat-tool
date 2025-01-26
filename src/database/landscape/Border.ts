@@ -7,7 +7,7 @@ import { getEntryOrLogWarning } from "../../util";
 import { LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
 import { SoundEffect } from "../SoundEffect";
-import { asBool16, asBool8, asFloat32, asInt16, asInt32, asUInt8, Bool16, Bool8, Float32, Int16, Int32, NullPointer, PaletteIndex, Pointer, ResourceId, SoundEffectId, TerrainId, UInt8 } from "../Types";
+import { asBool16, asBool8, asFloat32, asInt16, asInt32, asUInt16, asUInt8, Bool16, Bool8, Float32, Int16, Int32, NullPointer, PaletteIndex, Pointer, ResourceId, SoundEffectId, TerrainId, UInt16, UInt8 } from "../Types";
 import { Terrain } from "./Terrain";
 
 interface FrameMap {
@@ -51,6 +51,7 @@ export class Border {
     passabilityTerrainId: TerrainId<Int16> = asInt16(-1);
     passabilityTerrainType: Terrain | null = null;
     overlayBorder: Bool16 = asBool16(false);
+    padding59E: UInt16 = asUInt16(0);
 
     readFromBuffer(buffer: BufferReader, id: Int16, soundEffects: SoundEffect[], terrains: (Terrain | null)[], loadingContext: LoadingContext): void {
         this.id = id
@@ -104,7 +105,12 @@ export class Border {
         this.padding59B = buffer.readUInt8();
         this.passabilityTerrainId = buffer.readInt16();
         this.passabilityTerrainType = getEntryOrLogWarning(terrains, this.passabilityTerrainId, "Terrain");
-        this.overlayBorder = buffer.readBool16();
+        if (loadingContext.version >= 2.0) {
+            this.overlayBorder = buffer.readBool16();
+        }
+        else {
+            this.padding59E = buffer.readUInt16();
+        }
     }
 
     toString() {
@@ -151,7 +157,7 @@ export function writeBordersToWorldTextFile(borders: (Border | null)[], savingCo
             .float(border.animationReplayDelay)
             .integer(border.drawTerrain ? 1 : 0)
             .integer(border.passabilityTerrainId)
-            .integer(border.overlayBorder ? 1 : 0);
+            .conditional(savingContext.version >= 2.0, writer =>writer.integer(border.overlayBorder ? 1 : 0));
         for (let j = 0; j < 19; ++j) {
             for (let k = 0; k < 12; ++k) {
                 textFileWriter

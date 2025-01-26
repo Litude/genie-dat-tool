@@ -19,7 +19,6 @@ VER 2.0
 - Removed legacy random maps
 - Removed legacy Ai
 
-
 VER 2.7
 ** Changes here might have happened earlier, VER 1.6-2.6 are unknown **
 - Added support for specfiying help text string id for object prototypes
@@ -58,7 +57,6 @@ VER 3.6
 ** No known DAT files **
 
 VER 3.7
-** Some of these changes likely happended in VER 3.6**
+** One of these changes probably happened in VER 3.6 and the other one in VER 3.7**
 - The DAT file now includes an array of spriteCount bool32 values before the actual entries indicating which of the entries actually have data in the file (previously all entries were always stored)
-- The DAT file tile properties (all 19 of them) now have an additional yDelta int16 value stored
-- An additional padding int16 value now follows the tile properties array
+- The DAT file tile properties (all 19 of them) now have an additional yDelta int16 value stored and an additional padding int16 value now follows the tile properties array

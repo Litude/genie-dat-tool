@@ -314,9 +314,13 @@ export class SceneryObjectPrototype {
     writeToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext) {
         textFileWriter.eol();
 
+        if (savingContext.version < 2.0 && this.objectType % 10 !== 0) {
+            throw new Error(`${this.objectType} is not supported by version ${savingContext.version}`);
+        }
+
         textFileWriter
             .indent(2)
-            .integer(this.objectType)
+            .integer(savingContext.version < 2.0 ? this.objectType / 10 : this.objectType)
             .integer(this.id)
             .eol();
 
