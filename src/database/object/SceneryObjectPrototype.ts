@@ -175,12 +175,18 @@ export class SceneryObjectPrototype {
         }
         this.placementNeighbouringTerrains = requiredNeighbouringTerrains;
 
-        const requiredUnderlyingTerrains: TerrainId<Int16>[] = [];
-        this.placementUnderlyingTerrains = [];
-        for (let i = 0; i < 2; ++i) {
-            requiredUnderlyingTerrains.push(buffer.readInt16());
+        if (loadingContext.version >= 1.4) {
+            const requiredUnderlyingTerrains: TerrainId<Int16>[] = [];
+            this.placementUnderlyingTerrains = [];
+            for (let i = 0; i < 2; ++i) {
+                requiredUnderlyingTerrains.push(buffer.readInt16());
+            }
+            this.placementUnderlyingTerrains = requiredUnderlyingTerrains;
         }
-        this.placementUnderlyingTerrains = requiredUnderlyingTerrains;
+        else {
+            this.placementUnderlyingTerrains = [asInt16(-1), asInt16(-1)];
+        }
+
 
         this.clearanceSize = {
             x: buffer.readFloat32(),
@@ -362,8 +368,10 @@ export class SceneryObjectPrototype {
             .indent(4)
             .integer(this.placementNeighbouringTerrains[0])
             .integer(this.placementNeighbouringTerrains[1])
-            .integer(this.placementUnderlyingTerrains[0])
-            .integer(this.placementUnderlyingTerrains[1])
+            .conditional(savingContext.version >= 1.4, writer => writer
+                .integer(this.placementUnderlyingTerrains[0])
+                .integer(this.placementUnderlyingTerrains[1])
+            )
             .float(this.clearanceSize.x)
             .float(this.clearanceSize.y)
             .integer(this.elevationMode)

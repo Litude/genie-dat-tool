@@ -45,9 +45,9 @@ export class Terrain {
     minimapColor3: PaletteIndex = asUInt8(0);
     minimapCliffColor1: PaletteIndex = asUInt8(0);
     minimapCliffColor2: PaletteIndex = asUInt8(0);
-    passableTerrainId: TerrainId<UInt8> = asUInt8(0);
+    passableTerrainId: TerrainId<UInt8> = asUInt8(0); // TODO: Make this an Int16 so none is -1 like everywhere else
     passableTerrain: Terrain | null = null;
-    impassableTerrainId: TerrainId<UInt8> = asUInt8(0);
+    impassableTerrainId: TerrainId<UInt8> = asUInt8(0); // TODO: Make this an Int16 so none is -1 like everywhere else
     impassableTerrain: Terrain | null = null;
 
     // TODO: Move animation stuff to common interface?

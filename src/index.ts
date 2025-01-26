@@ -19,6 +19,7 @@ function parseVersion(input: string) {
 }
 
 const SupportedDatVersions = [
+    1.3,
     1.4,
     1.5,
     2.7,

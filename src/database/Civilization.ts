@@ -19,7 +19,9 @@ export class Civilization {
         this.civilizationType = buffer.readUInt8();
         this.internalName = buffer.readFixedSizeString(20);
         const attributeCount = buffer.readInt16();
-        this.bonusEffect = buffer.readInt16();
+        if (loadingContext.version >= 1.4) {
+            this.bonusEffect = buffer.readInt16();
+        }
 
         this.attributes = [];
         for (let i = 0; i < attributeCount; ++i) {
@@ -42,7 +44,7 @@ export function writeCivilizationsToWorldTextFile(civilizations: Civilization[],
             .integer(civilization.id)
             .integer(civilization.civilizationType)
             .string(civilization.internalName, 17)
-            .integer(civilization.bonusEffect)
+            .conditional(savingContext.version >= 1.4, writer => writer.integer(civilization.bonusEffect))
             .integer(civilization.attributes.length)
             .integer(civilization.attributes.filter(x => x).length)
             .eol();
