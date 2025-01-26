@@ -5,7 +5,7 @@ import { isDefined } from "../../ts/ts-utils";
 import { Civilization } from "../Civilization";
 import { LoadingContext } from "../LoadingContext"
 import { SavingContext } from "../SavingContext";
-import { asInt16, asInt32, Bool32 } from "../Types";
+import { asInt16, asInt32, asUInt8, Bool32 } from "../Types";
 import { ActorObjectPrototype } from "./ActorObjectPrototype";
 import { AdvancedCombatantObjectPrototype } from "./AdvancedCombatantObjectPrototype";
 import { AnimatedObjectPrototype } from "./AnimatedObjectPrototype";
@@ -13,7 +13,7 @@ import { BuildingObjectPrototype } from "./BuildingObjectPrototype";
 import { CombatantObjectPrototype } from "./CombatantObjectPrototype";
 import { DoppelgangerObjectPrototype } from "./DoppelgangerObjectPrototype";
 import { MobileObjectPrototype } from "./MobileObjectPrototype";
-import { ObjectType } from "./ObjectType";
+import { ObjectType, ObjectTypes } from "./ObjectType";
 import { ProjectileObjectPrototype } from "./ProjectileObjectPrototype";
 import { SceneryObjectPrototype } from "./SceneryObjectPrototype";
 import { TreeObjectPrototype } from "./TreeObjectPrototype";
@@ -29,37 +29,40 @@ export function readObjectPrototypesFromBuffer(buffer: BufferReader, loadingCont
     for (let i = 0; i < objectCount; ++i) {
         let object: SceneryObjectPrototype | null = null;
         if (validObjects[i]) {
-            const objectType = buffer.readUInt8();
+            let objectType = buffer.readUInt8();
+            if (loadingContext.version < 2.0) {
+                objectType = asUInt8(Math.round(objectType * 10));
+            }
             switch (objectType) {
-                case ObjectType.Scenery:
+                case ObjectTypes.Scenery:
                     object = new SceneryObjectPrototype();
                     break;
-                case ObjectType.Animated:
+                case ObjectTypes.Animated:
                     object = new AnimatedObjectPrototype();
                     break;
-                case ObjectType.Doppelganger:
+                case ObjectTypes.Doppelganger:
                     object = new DoppelgangerObjectPrototype();
                     break;
-                case ObjectType.Mobile:
+                case ObjectTypes.Mobile:
                     object = new MobileObjectPrototype();
                     break;
-                case ObjectType.Actor:
+                case ObjectTypes.Actor:
                     object = new ActorObjectPrototype();
                     break;
-                case ObjectType.Combatant:
+                case ObjectTypes.Combatant:
                     object = new CombatantObjectPrototype();
                     break;
-                case ObjectType.Projectile:
+                case ObjectTypes.Projectile:
                     object = new ProjectileObjectPrototype();
                     break;
-                case ObjectType.AdvancedCombatant:
+                case ObjectTypes.AdvancedCombatant:
                     object = new AdvancedCombatantObjectPrototype();
                     break;
-                case ObjectType.Building:
+                case ObjectTypes.Building:
                     object = new BuildingObjectPrototype();
                     break;
-                case ObjectType.TreeAoE:
-                case ObjectType.TreeAoK:
+                case ObjectTypes.TreeAoE:
+                case ObjectTypes.TreeAoK:
                     object = new TreeObjectPrototype();
                     break;
                 default:
@@ -69,8 +72,8 @@ export function readObjectPrototypesFromBuffer(buffer: BufferReader, loadingCont
                 throw new Error(`Received unknown object type ${objectType} when reading units!`);
             }
             else {
-                object.readFromBuffer(buffer, asInt16(i), loadingContext);
                 object.objectType = objectType;
+                object.readFromBuffer(buffer, asInt16(i), loadingContext);
             }
         }
         result.push(object);

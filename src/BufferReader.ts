@@ -75,7 +75,7 @@ export default class BufferReader {
         return value as Float64;
     }
 
-    // Pointer should not be stored, but AOE does it anyway :)
+    // Pointers should not be stored, but AOE does it anyway :)
     readPointer(): Pointer {
         const value = this.buffer.readUInt32LE(this.offset);
         this.offset += 4;

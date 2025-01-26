@@ -20,6 +20,9 @@ import { asInt16 } from "./Types";
 import { TextFileWriter } from "../textfile/TextFileWriter";
 import { TextFileNames } from "../textfile/TextFile";
 import { Attribute, readAttributesFromJsonFile } from "./Attributes";
+import { Overlay, readMainOverlayData, readSecondaryOverlayData, writeOverlaysToWorldTextFile } from "./landscape/Overlay";
+import { readTribeRandomMapData, TribeRandomMap, writeTribeRandomMapsToWorldTextFile } from "./landscape/TribeRandomMap";
+import { readTribeAiFromBuffer, TribeAi, writeTribeAiToWorldTextFile } from "./TribeAi";
 
 export class WorldDatabase {
     attributes: Attribute[];
@@ -29,12 +32,15 @@ export class WorldDatabase {
     sprites: (Sprite | null)[];
     mapProperties: MapProperties;
     terrains: (Terrain | null)[];
+    overlays: (Overlay | null)[];
     borders: (Border | null)[];
+    tribeRandomMaps: TribeRandomMap[];
     randomMaps: RandomMap[];
     stateEffects: StateEffect[];
     civilizations: Civilization[];
     objects: (SceneryObjectPrototype | null)[][];
     technologies: Technology[];
+    tribeAi: (TribeAi | null)[];
 
     constructor(buffer: BufferReader, loadingContext: LoadingContext) {
         this.attributes = readAttributesFromJsonFile("./data/attributes.json");
@@ -46,19 +52,19 @@ export class WorldDatabase {
         this.mapProperties = new MapProperties();
         this.mapProperties.readMainDataFromBuffer(buffer, loadingContext);
         this.terrains = readMainTerrainData(buffer, this.soundEffects, loadingContext);
-        // todo: overlays are here
+        this.overlays = readMainOverlayData(buffer, this.soundEffects, loadingContext);
         this.borders = readMainBorderData(buffer, this.soundEffects, this.terrains, loadingContext);
 
         this.mapProperties.readSecondaryDataFromBuffer(buffer, loadingContext);
         readSecondaryTerrainData(this.terrains, buffer, loadingContext);
-        // todo: overlays are here
+        readSecondaryOverlayData(this.overlays, buffer, loadingContext);
         readSecondaryBorderData(this.borders, buffer, loadingContext);
 
         this.mapProperties.readTertiaryDataFromBuffer(buffer, loadingContext);
 
         const randomMapCount = buffer.readInt32();
         this.mapProperties.readQuaterniaryDataFromBuffer(buffer, loadingContext);
-        // TODO: tribe random maps are here
+        this.tribeRandomMaps = readTribeRandomMapData(randomMapCount, buffer, this.terrains, this.borders, loadingContext);
         this.randomMaps = readRandomMapData(randomMapCount, buffer, this.terrains, loadingContext);
 
         this.stateEffects = readStateEffects(buffer, loadingContext);
@@ -74,7 +80,7 @@ export class WorldDatabase {
         }
 
         this.technologies = readTechnologiesFromBuffer(buffer, loadingContext);
-        // TODO: tribe AI is here
+        this.tribeAi = readTribeAiFromBuffer(buffer, loadingContext);
 
         if (buffer.endOfBuffer()) {
             console.log(`Buffer completely parsed!`)
@@ -95,12 +101,15 @@ export class WorldDatabase {
         writeSoundEffectsToWorldTextFile(this.soundEffects, savingContext);
         writeSpritesToWorldTextFile(this.sprites, savingContext);
         writeTerrainsToWorldTextFile(this.terrains, savingContext);
+        writeOverlaysToWorldTextFile(this.overlays, savingContext);
         writeBordersToWorldTextFile(this.borders, savingContext);
+        writeTribeRandomMapsToWorldTextFile(this.tribeRandomMaps, savingContext);
         writeRandomMapsToWorldTextFile(this.randomMaps, savingContext);
         writeStateEffectsToWorldTextFile(this.stateEffects, savingContext);
         writeCivilizationsToWorldTextFile(this.civilizations, this.attributes, savingContext);
         writObjectPrototypesToWorldTextFile(this.civilizations, this.objects, savingContext);
         writeTechnologiesToWorldTextFile(this.technologies, savingContext);
+        writeTribeAiToWorldTextFile(this.tribeAi, savingContext);
 
         const textFileWriter = new TextFileWriter(TextFileNames.MainFile);
         textFileWriter
@@ -116,14 +125,26 @@ export class WorldDatabase {
             .string(TextFileNames.Objects, 13).eol()
             .string(TextFileNames.StateEffects, 13).eol()
             .string(TextFileNames.TerrainObjects, 13).eol()
-            .string(TextFileNames.RandomMapDefinitons, 13).eol()
-            .string(TextFileNames.RandomMapBaseLands, 13).eol()
-            .string(TextFileNames.RandomMapTerrains, 13).eol()
-            .string(TextFileNames.RandomMapObjects, 13).eol()
+
+        if (savingContext.version >= 2.0) {
+            textFileWriter
+                .string(TextFileNames.RandomMapDefinitons, 13).eol()
+                .string(TextFileNames.RandomMapBaseLands, 13).eol()
+                .string(TextFileNames.RandomMapTerrains, 13).eol()
+                .string(TextFileNames.RandomMapObjects, 13).eol()
+        }
+
+        textFileWriter
             .integer(this.mapProperties.tileWidthPx).eol()
             .integer(this.mapProperties.tileHeightPx).eol()
             .integer(this.mapProperties.elevationHeightPx).eol()
             .raw(TextFileNames.Technologies).eol();
+
+        if (savingContext.version < 2.0) {
+            textFileWriter
+                .raw(TextFileNames.TribeAi).eol();
+        }
+
         textFileWriter.close();
 
     }

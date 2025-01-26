@@ -3,14 +3,14 @@ import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
 import { AbilityId, ActionId, asBool8, asFloat32, asInt16, asUInt8, AttributeId, Bool8, Float32, Int16, PrototypeId, SoundEffectId, SpriteId, TerrainId, UInt8 } from "../Types";
-import { ObjectClass } from "./ObjectClass";
+import { ObjectClass, ObjectClasses } from "./ObjectClass";
 
 export class Ability {
     abilityType: AbilityId<Int16> = asInt16(1); // always 1;
     index: Int16 = asInt16(-1);
     defaultAbility: Bool8 = asBool8(false);
     actionType: ActionId<Int16> = asInt16(0);
-    objectClass: Int16 = ObjectClass.None;
+    objectClass: ObjectClass = ObjectClasses.None;
     objectPrototypeId: PrototypeId<Int16> = asInt16(-1);
     terrainId: TerrainId<Int16> = asInt16(-1);
     attributeType1: AttributeId<Int16> = asInt16(-1);

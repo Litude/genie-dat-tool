@@ -16,13 +16,7 @@ interface FrameMap {
     frameIndex: Int16;
 }
 
-const internalFields: (keyof Border)[] = [
-    "graphicPointer",
-    "padding59B",
-    "drawCount"
-];
-
-export class Border {
+export class Overlay {
     id: Int16 = asInt16(-1);
     enabled: Bool8 = asBool8(false);
     random: Bool8 = asBool8(false);
@@ -48,11 +42,8 @@ export class Border {
     frameMaps: FrameMap[][] = [];
     drawTerrain: Bool8 = asBool8(false);
     padding59B: UInt8 = asUInt8(0);
-    passabilityTerrainId: TerrainId<Int16> = asInt16(-1);
-    passabilityTerrainType: Terrain | null = null;
-    overlayBorder: Bool16 = asBool16(false);
 
-    readFromBuffer(buffer: BufferReader, id: Int16, soundEffects: SoundEffect[], terrains: (Terrain | null)[], loadingContext: LoadingContext): void {
+    readFromBuffer(buffer: BufferReader, id: Int16, soundEffects: SoundEffect[], loadingContext: LoadingContext): void {
         this.id = id
         this.enabled = buffer.readBool8();
         this.random = buffer.readBool8();
@@ -66,9 +57,9 @@ export class Border {
             this.resourceId = asInt32(-1);
         }
 
-        this.graphicPointer = buffer.readPointer(); // overwritten quickly by the game
         this.soundEffectId = buffer.readInt32();
         this.soundEffect = getEntryOrLogWarning(soundEffects, this.soundEffectId, "SoundEffect");
+        this.graphicPointer = buffer.readPointer(); // overwritten quickly by the game
 
         this.minimapColor1 = buffer.readUInt8();
         this.minimapColor2 = buffer.readUInt8();
@@ -92,7 +83,7 @@ export class Border {
         this.frameMaps = [];
         for (let i = 0; i < 19; ++i) {
             this.frameMaps.push([]);
-            for (let j = 0; j < 12; ++j) {
+            for (let j = 0; j < 16; ++j) {
                 this.frameMaps[i].push({
                     frameCount: buffer.readInt16(),
                     animationFrames: buffer.readInt16(),
@@ -102,9 +93,6 @@ export class Border {
         }
         this.drawTerrain = buffer.readBool8();
         this.padding59B = buffer.readUInt8();
-        this.passabilityTerrainId = buffer.readInt16();
-        this.passabilityTerrainType = getEntryOrLogWarning(terrains, this.passabilityTerrainId, "Terrain");
-        this.overlayBorder = buffer.readBool16();
     }
 
     toString() {
@@ -112,51 +100,53 @@ export class Border {
     }
 }
 
-export function readMainBorderData(buffer: BufferReader, soundEffects: SoundEffect[], terrains: (Terrain | null)[], loadingContext: LoadingContext): (Border | null)[] {
-    const result: (Border | null)[] = [];
-    for (let i = 0; i < 16; ++i) {
-        const border = new Border();
-        border.readFromBuffer(buffer, asInt16(i), soundEffects, terrains, loadingContext);
-        result.push(border.enabled ? border : null);
+export function readMainOverlayData(buffer: BufferReader, soundEffects: SoundEffect[], loadingContext: LoadingContext): (Overlay | null)[] {
+    const result: (Overlay | null)[] = [];
+    if (loadingContext.version < 2.0) {
+        for (let i = 0; i < 16; ++i) {
+            const overlay = new Overlay();
+            overlay.readFromBuffer(buffer, asInt16(i), soundEffects, loadingContext);
+            result.push(overlay.enabled ? overlay : null);
+        }
     }
     return result;
 }
 
-export function readSecondaryBorderData(borders: (Border | null)[], buffer: BufferReader, loadingContext: LoadingContext) {
-    const borderCount = buffer.readInt16();
-    if (borderCount !== borders.filter(isDefined).length) {
-        Logger.warn(`Mismatch between enabled borders and border count, DAT might be corrupt!`)
+export function readSecondaryOverlayData(overlays: (Overlay | null)[], buffer: BufferReader, loadingContext: LoadingContext) {
+    if (loadingContext.version < 2.0) {
+        const overlayCount = buffer.readInt16();
+        if (overlayCount !== overlays.filter(isDefined).length) {
+            Logger.warn(`Mismatch between enabled overlays and overlay count, DAT might be corrupt!`)
+        }
     }
 }
 
 
-export function writeBordersToWorldTextFile(borders: (Border | null)[], savingContext: SavingContext) {
-    const textFileWriter = new TextFileWriter(TextFileNames.Borders);
-    textFileWriter.raw(borders.filter(isDefined).length).eol(); // Total terrain entries
-    const sortedBorders = [...borders].filter(isDefined).sort((a, b) => textFileStringCompare(a.internalName, b.internalName));
-    sortedBorders.forEach(border => {
+export function writeOverlaysToWorldTextFile(overlays: (Overlay | null)[], savingContext: SavingContext) {
+    const textFileWriter = new TextFileWriter(TextFileNames.Overlays);
+    textFileWriter.raw(overlays.filter(isDefined).length).eol(); // Total overlay entries
+    const sortedOverlays = [...overlays].filter(isDefined).sort((a, b) => textFileStringCompare(a.internalName, b.internalName));
+    sortedOverlays.forEach(overlay => {
         textFileWriter
-            .integer(border.id)
-            .string(border.internalName.replaceAll(" ", "_"), 17)
-            .filename(border.resourceFilename)
-            .conditional(savingContext.version >= 2.0, writer => writer.integer(border.resourceId))
-            .integer(border.random ? 1 : 0)
-            .integer(border.minimapColor2)
-            .integer(border.minimapColor1)
-            .integer(border.minimapColor3)
-            .integer(border.soundEffectId)
-            .integer(border.animated ? 1 : 0)
-            .integer(border.animationFrameCount)
-            .float(border.animationFrameDelay)
-            .float(border.animationReplayDelay)
-            .integer(border.drawTerrain ? 1 : 0)
-            .integer(border.passabilityTerrainId)
-            .integer(border.overlayBorder ? 1 : 0);
+            .integer(overlay.id)
+            .string(overlay.internalName.replaceAll(" ", "_"), 17)
+            .filename(overlay.resourceFilename)
+            .conditional(savingContext.version >= 2.0, writer => writer.integer(overlay.resourceId))
+            .integer(overlay.random ? 1 : 0)
+            .integer(overlay.minimapColor2)
+            .integer(overlay.minimapColor1)
+            .integer(overlay.minimapColor3)
+            .integer(overlay.soundEffectId)
+            .integer(overlay.animated ? 1 : 0)
+            .integer(overlay.animationFrameCount)
+            .float(overlay.animationFrameDelay)
+            .float(overlay.animationReplayDelay)
+            .integer(overlay.drawTerrain ? 1 : 0)
         for (let j = 0; j < 19; ++j) {
-            for (let k = 0; k < 12; ++k) {
+            for (let k = 0; k < 16; ++k) {
                 textFileWriter
-                    .integer(border.frameMaps[j][k].frameCount)
-                    .integer(border.frameMaps[j][k].animationFrames);
+                    .integer(overlay.frameMaps[j][k].frameCount)
+                    .integer(overlay.frameMaps[j][k].animationFrames);
             }
         }
         textFileWriter.eol();

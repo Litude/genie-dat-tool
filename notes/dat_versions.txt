@@ -9,8 +9,26 @@ VER 1.4
 VER 1.5
 ** TODO **
 
+VER 2.0
+** This is a total guess, there are no known VER 1.6-2.6 DAT files **
+- Added terrain resource/slp id field to terrains
+- Added border resource/slp id field to borders
+- Added new types of random map data
+- Changes to dummy data stored in map properties
+- Removed overlays
+- Removed legacy random maps
+- Removed legacy Ai
+
+
 VER 2.7
-** TODO **
+** Changes here might have happened earlier, VER 1.6-2.6 are unknown **
+- Added support for specfiying help text string id for object prototypes
+- Added support for specifying help page string id for object prototypes
+- Added support for specifying hotkey string id for object prototypes
+- Object prototypes now store a variable indicating whether the object can be reused/recycled
+- Added support for specfiying help text string id for technologies
+- Added support for specifying help page string id for technologies
+- Added support for specifying hotkey string id for technologies
 
 VER 3.1
 ** Some of these changes likely happended in VER 2.8-VER 3.0**
@@ -18,7 +36,7 @@ VER 3.1
 - Support for resource group for objects
 - Support for specifying doppelganer type for objects
 
-VER 3.1 REV 2 (1997-07-03)
+VER 3.1 REV 1 (1997-07-03)
 - Actor objects can now have a different move and attack sound
 
 VER 3.2 (1997-07-08)
@@ -30,7 +48,7 @@ VER 3.3 (1997-07-16)
 - Support for object selection outline flags (disable hitpoints bar and always show outline in editor)
 - Support for objects having a specific outline color in the editor
 
-VER 3.40 (1997-07-25)
+VER 3.4 (1997-07-25)
 - No known differences
 
 VER 3.5 (1997-08-14)
@@ -40,6 +58,7 @@ VER 3.6
 ** No known DAT files **
 
 VER 3.7
+** Some of these changes likely happended in VER 3.6**
 - The DAT file now includes an array of spriteCount bool32 values before the actual entries indicating which of the entries actually have data in the file (previously all entries were always stored)
 - The DAT file tile properties (all 19 of them) now have an additional yDelta int16 value stored
 - An additional padding int16 value now follows the tile properties array

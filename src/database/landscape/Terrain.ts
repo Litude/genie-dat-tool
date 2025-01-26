@@ -38,6 +38,7 @@ export class Terrain {
     resourceFilename: string = "";
     resourceId: ResourceId<Int32> = asInt32(-1);
     graphicPointer: Pointer = NullPointer;
+    soundEffectId: SoundEffectId<Int32> = asInt32(-1);
     soundEffect: SoundEffect | null = null;
     minimapColor1: PaletteIndex = asUInt8(0);
     minimapColor2: PaletteIndex = asUInt8(0);
@@ -78,11 +79,16 @@ export class Terrain {
 
         this.internalName = buffer.readFixedSizeString(13);
         this.resourceFilename = buffer.readFixedSizeString(13);
-        this.resourceId = buffer.readInt32();
+        if (loadingContext.version >= 2.0) {
+            this.resourceId = buffer.readInt32();
+        }
+        else {
+            this.resourceId = asInt32(-1);
+        }
 
         this.graphicPointer = buffer.readPointer(); // overwritten by the game
-        const soundEffectId = buffer.readInt32();
-        this.soundEffect = getEntryOrLogWarning(soundEffects, soundEffectId, "SoundEffect");
+        this.soundEffectId = buffer.readInt32();
+        this.soundEffect = getEntryOrLogWarning(soundEffects, this.soundEffectId, "SoundEffect");
 
         this.minimapColor1 = buffer.readUInt8();
         this.minimapColor2 = buffer.readUInt8();
@@ -147,6 +153,7 @@ export class Terrain {
                 centralize: placementObjectCentralize[i]
             });
         }
+        
         this.padding0196 = buffer.readUInt16();
 
     }
@@ -167,13 +174,13 @@ export class Terrain {
 }
 
 export function readMainTerrainData(buffer: BufferReader, soundEffects: SoundEffect[], loadingContext: LoadingContext): (Terrain | null)[] {
-    const result: Terrain[] = [];
+    const result: (Terrain | null)[] = [];
     for (let i = 0; i < 32; ++i) {
         const terrain = new Terrain();
         terrain.readFromBuffer(buffer, asInt16(i), soundEffects, loadingContext);
-        result.push(terrain);
+        result.push(terrain.enabled ? terrain : null);
     }
-    return result.map(result => result.enabled ? result : null);
+    return result;
 }
 
 export function readSecondaryTerrainData(terrains: (Terrain | null)[], buffer: BufferReader, loadingContext: LoadingContext) {
@@ -228,23 +235,23 @@ export function writeTerrainsToWorldTextFile(terrains: (Terrain | null)[], savin
             .integer(terrain.id)
             .string(terrain.internalName.replaceAll(" ", "_"), 17)
             .filename(terrain.resourceFilename)
-            .integer(terrain.resourceId)
+            .conditional(savingContext.version >= 2.0, writer => writer.integer(terrain.resourceId))
             .integer(terrain.random ? 1 : 0)
             .integer(terrain.minimapColor2)
             .integer(terrain.minimapColor1)
             .integer(terrain.minimapColor3)
-            .integer(terrain.soundEffect?.id ?? -1)
+            .integer(terrain.soundEffectId)
             .integer(terrain.animated ? 1 : 0)
             .integer(terrain.animationFrameCount)
             .float(terrain.animationFrameDelay)
             .float(terrain.animationReplayDelay)
-            .integer(terrain.renderedTerrain?.id ?? -1)
+            .integer(terrain.renderedTerrainId)
             .integer(terrain.terrainPatternHeight)
             .integer(terrain.terrainPatternWidth)
             .integer(terrain.minimapCliffColor1)
             .integer(terrain.minimapCliffColor2)
-            .integer(terrain.impassableTerrain?.id ?? 255)
-            .integer(terrain.passableTerrain?.id ?? 255)
+            .integer(terrain.impassableTerrainId)
+            .integer(terrain.passableTerrainId)
             .integer(borderCount);
         for (let j = 0; j < 19; ++j) {
             textFileWriter

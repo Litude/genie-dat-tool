@@ -72,6 +72,7 @@ export type Percentage<T> = T;
 
 // Special types (Most of these can't have size restricted types because the game is very inconsistent in what underlying type is used)
 export type PrototypeId<T> = T;
+export type ObjectId<T> = T;
 export type ColorId = Int16;
 export type PaletteIndex = UInt8; // are these always uint8?
 export type ResourceId<T> = T;
@@ -89,6 +90,7 @@ export type OverlayId<T> = T;
 export type StateEffectId<T> = T;
 export type TechnologyId<T> = T;
 export type ArchitectureStyleId<T> = T;
+export type AgeId<T> = T;
 
 function createBrandedInteger<T extends string>(
     value: number,

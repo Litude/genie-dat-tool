@@ -241,37 +241,38 @@ export class RandomMap {
 
 export function readRandomMapData(randomMapCount: number, buffer: BufferReader, terrains: (Terrain | null)[], loadingContext: LoadingContext): RandomMap[] {
     const result: RandomMap[] = [];
-
-    const preMapData: PreMapData[] = [];
-    for (let i = 0; i < randomMapCount; ++i) {
-        preMapData.push({
-            mapTypeId: buffer.readInt32(),
-            border: {
-                left: buffer.readInt32(),
-                top: buffer.readInt32(),
-                right: buffer.readInt32(),
-                bottom: buffer.readInt32()
-            },
-            borderEdgeFade: buffer.readInt32(),
-            waterShapeLandPlacementEdge: buffer.readInt32(),
-            baseTerrain: buffer.readInt32(),
-            landCover: buffer.readInt32(),
-            landId: buffer.readInt32(),
-            baseLandDataEntryCount: buffer.readInt32(),
-            baseLandDataPointer: buffer.readPointer(),
-            terrainDataEntryCount: buffer.readInt32(),
-            terrainDataPointer: buffer.readPointer(),
-            objectDataEntryCount: buffer.readInt32(),
-            objectDataPointer: buffer.readPointer(),
-            elevationDataEntryCount: buffer.readInt32(),
-            elevationDataPointer: buffer.readPointer()
-        })
-    }
-
-    for (let i = 0; i < randomMapCount; ++i) {
-        const randomMap = new RandomMap();
-        randomMap.readFromBuffer(buffer, terrains, loadingContext, preMapData[i]);
-        result.push(randomMap);
+    if (loadingContext.version >= 2.0) {
+        const preMapData: PreMapData[] = [];
+        for (let i = 0; i < randomMapCount; ++i) {
+            preMapData.push({
+                mapTypeId: buffer.readInt32(),
+                border: {
+                    left: buffer.readInt32(),
+                    top: buffer.readInt32(),
+                    right: buffer.readInt32(),
+                    bottom: buffer.readInt32()
+                },
+                borderEdgeFade: buffer.readInt32(),
+                waterShapeLandPlacementEdge: buffer.readInt32(),
+                baseTerrain: buffer.readInt32(),
+                landCover: buffer.readInt32(),
+                landId: buffer.readInt32(),
+                baseLandDataEntryCount: buffer.readInt32(),
+                baseLandDataPointer: buffer.readPointer(),
+                terrainDataEntryCount: buffer.readInt32(),
+                terrainDataPointer: buffer.readPointer(),
+                objectDataEntryCount: buffer.readInt32(),
+                objectDataPointer: buffer.readPointer(),
+                elevationDataEntryCount: buffer.readInt32(),
+                elevationDataPointer: buffer.readPointer()
+            })
+        }
+    
+        for (let i = 0; i < randomMapCount; ++i) {
+            const randomMap = new RandomMap();
+            randomMap.readFromBuffer(buffer, terrains, loadingContext, preMapData[i]);
+            result.push(randomMap);
+        }
     }
 
     return result;

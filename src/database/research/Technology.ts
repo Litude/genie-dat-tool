@@ -52,9 +52,11 @@ export class Technology {
         this.technologyType = buffer.readInt16();
         this.iconNumber = buffer.readInt16();
         this.researchButtonIndex = buffer.readUInt8();
-        this.helpDialogStringId = buffer.readInt32();
-        this.helpPageStringId = buffer.readInt32();
-        this.hotkeyStringId = buffer.readInt32();
+        if (loadingContext.version >= 2.7) {
+            this.helpDialogStringId = buffer.readInt32();
+            this.helpPageStringId = buffer.readInt32();
+            this.hotkeyStringId = buffer.readInt32();
+        }
         this.internalName = buffer.readPascalString16();
     }
 
@@ -107,13 +109,19 @@ export function writeTechnologiesToWorldTextFile(technologies: Technology[], sav
                 .integer(cost.amount)
                 .integer(cost.costDeducted ? 1 : 0);
         }
-
+        
         textFileWriter
             .integer(entry.nameStringId)
-            .integer(entry.researchStringId)
-            .integer(entry.helpDialogStringId)
-            .integer(entry.helpPageStringId)
-            .integer(entry.hotkeyStringId)
+            .integer(entry.researchStringId);
+
+        if (savingContext.version >= 2.7) {
+            textFileWriter
+                .integer(entry.helpDialogStringId)
+                .integer(entry.helpPageStringId)
+                .integer(entry.hotkeyStringId);
+        }
+
+        textFileWriter
             .eol();
     });
     textFileWriter.close();

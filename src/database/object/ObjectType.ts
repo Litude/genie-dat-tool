@@ -1,7 +1,9 @@
-import { asUInt8 } from "../Types";
+import { asUInt8, UInt8 } from "../Types";
+
+export type ObjectType = UInt8;
 
 // Note: In early versions, these values are divided by 10 as the middle types do not exist!
-export const ObjectType = {
+export const ObjectTypes = {
     None: asUInt8(0),
     Scenery: asUInt8(10),
     TreeAoK: asUInt8(15),

@@ -1,7 +1,7 @@
 import BufferReader from "../../BufferReader";
 import { Point } from "../../geometry/Point";
 import { LoadingContext } from "../LoadingContext";
-import { asBool8, asInt16, asInt32, asUInt16, asUInt8, Bool8, Int16, Int32, NullPointer, Pointer, UInt16, UInt8 } from "../Types";
+import { asBool8, asInt16, asInt32, asUInt16, asUInt8, Bool8, Int16, Int32, NullPointer, Pointer, TerrainId, UInt16, UInt8 } from "../Types";
 
 interface TileProperty {
     width: Int16;
@@ -63,11 +63,15 @@ export class MapProperties {
     blockEndColumn: Int16 = asInt16(0);
 
     anyFrameChange: Bool8 = asBool8(false); // This is NOT overwritten on load?!
+    zoneMap: TerrainId<UInt8>[] = [];
     padding8DAD: UInt8 = asUInt8(0); // 1 byte
     padding8DAE: UInt16 = asUInt16(0); // 2 bytes
 
     searchMapPointer: Pointer = NullPointer;
     searchMapRowsPointer: Pointer = NullPointer;
+
+    tribeRandomMapGeneratorPointer: Pointer = NullPointer;
+
     mapVisible: Bool8 = asBool8(false);
     fogEnabled: Bool8 = asBool8(false);
 
@@ -119,23 +123,42 @@ export class MapProperties {
         this.blockStartColumn = buffer.readInt16();
         this.blockEndColumn = buffer.readInt16();
         this.anyFrameChange = buffer.readBool8();
-        this.padding8DAD = buffer.readUInt8();
+
+        if (loadingContext.version < 2.0) {
+            this.zoneMap = [];
+            for (let i = 0; i < 255; ++i) {
+                this.zoneMap.push(buffer.readUInt8());
+            }
+        }
+        else {
+            this.padding8DAD = buffer.readUInt8();
+        }
         this.padding8DAE = buffer.readUInt16();
 
         this.searchMapPointer = buffer.readPointer();
         this.searchMapRowsPointer = buffer.readPointer();
+
+        if (loadingContext.version < 2.0) {
+            this.tribeRandomMapGeneratorPointer = buffer.readPointer();
+        }
+
         this.mapVisible = buffer.readBool8();
         this.fogEnabled = buffer.readBool8();
         this.padding8DBA = buffer.readUInt16();
-        this.randomMapGeneratorPointer = buffer.readPointer();
-        this.gameStatePointer = buffer.readPointer();
-        this.mapZonesPointer = buffer.readPointer();
-        this.mapVisibilityManagerPointer = buffer.readPointer();
-        this.unitVisibilityManagerPointer = buffer.readPointer();
+
+        if (loadingContext.version >= 2.0) {
+            this.randomMapGeneratorPointer = buffer.readPointer();
+            this.gameStatePointer = buffer.readPointer();
+            this.mapZonesPointer = buffer.readPointer();
+            this.mapVisibilityManagerPointer = buffer.readPointer();
+            this.unitVisibilityManagerPointer = buffer.readPointer();
+        }
     }
 
     readQuaterniaryDataFromBuffer(buffer: BufferReader, loadingContext: LoadingContext): void {
-        this.randomMapEntriesPointer = buffer.readPointer();
+        if (loadingContext.version >= 2.0) {
+            this.randomMapEntriesPointer = buffer.readPointer();
+        }
     }
 
     toString() {

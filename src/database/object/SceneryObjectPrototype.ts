@@ -5,8 +5,8 @@ import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
 import { asBool8, asFloat32, asInt16, asInt32, asUInt8, AttributeId, Bool8, Float32, HabitatId, Int16, Int32, PaletteIndex, PrototypeId, SoundEffectId, SpriteId, StringId, TerrainId, UInt8 } from "../Types";
-import { ObjectClass } from "./ObjectClass";
-import { ObjectType } from "./ObjectType";
+import { ObjectClass, ObjectClasses } from "./ObjectClass";
+import { ObjectType, ObjectTypes } from "./ObjectType";
 
 interface AttributeStorage {
     attributeId: AttributeId<Int16>;
@@ -21,13 +21,52 @@ interface DamageSprite {
     applyMode: UInt8;
 }
 
+function isTrackedAsResource(prototype: SceneryObjectPrototype) {
+    return asBool8([ObjectClasses.Fish, ObjectClasses.ForageFruit, ObjectClasses.StoneOrGoldMine, ObjectClasses.StoneMine, ObjectClasses.GoldMine, ObjectClasses.Tree].includes(prototype.objectClass));
+}
+
+function getResourceGatherGroup(prototype: SceneryObjectPrototype) {
+    switch (prototype.objectClass) {
+        case ObjectClasses.Tree:
+            return 0;
+        case ObjectClasses.ForageFruit:
+            return 1;
+        case ObjectClasses.Fish:
+            return 2;
+        case ObjectClasses.StoneOrGoldMine:
+            if (prototype.attributesStored.some(attribute => attribute.attributeId === 2)) {
+                return 3;
+            }
+            else if (prototype.attributesStored.some(attribute => attribute.attributeId === 3)) {
+                return 4;
+            }
+            else {
+                Logger.warn(`Could not determine mine type ${prototype.id} resource group`)
+            }
+            break;
+        default:
+            Logger.warn(`Tried to get resourceGatherGroup but ${prototype.id} is not a resource`)
+            break;
+    }
+    return 0;
+}
+
+function getResourceDoppelgangerMode(prototype: SceneryObjectPrototype) {
+    if (isTrackedAsResource(prototype)) {
+        return asUInt8(prototype.objectClass == ObjectClasses.Tree ? 2 : 1);
+    }
+    else {
+        return asUInt8(0);
+    }
+}
+
 export class SceneryObjectPrototype {
     id: PrototypeId<Int16> = asInt16(-1);
     internalName: string = "";
-    objectType: UInt8 = ObjectType.None;
+    objectType: ObjectType = ObjectTypes.None;
     nameStringId: StringId<Int16> = asInt16(-1);
     creationStringId: StringId<Int16> = asInt16(-1);
-    objectClass: Int16 = ObjectClass.None;
+    objectClass: Int16 = ObjectClasses.None;
     idleSpriteId: SpriteId<Int16> = asInt16(-1);
     deathSpriteId: SpriteId<Int16> = asInt16(-1);
     undeathSpriteId: SpriteId<Int16> = asInt16(-1);
@@ -160,18 +199,28 @@ export class SceneryObjectPrototype {
         this.multipleAttributeMode = buffer.readFloat32();
         this.minimapColor = buffer.readUInt8();
 
-        this.helpDialogStringId = buffer.readInt32();
-        this.helpPageStringId = buffer.readInt32();
-        this.hotkeyStringId = buffer.readInt32();
+        if (loadingContext.version >= 2.7) {
+            this.helpDialogStringId = buffer.readInt32();
+            this.helpPageStringId = buffer.readInt32();
+            this.hotkeyStringId = buffer.readInt32();
+            this.reusable = buffer.readBool8();
+        }
+        else {
+            this.helpDialogStringId = asInt32(this.nameStringId >= 5000 ? this.nameStringId + 100000 : 0);
+            this.helpPageStringId = asInt32(this.nameStringId >= 5000 ? this.nameStringId + 150000 : 0);
+            this.hotkeyStringId = asInt32(this.nameStringId >= 5000 && this.creationStringId > 0 ? this.nameStringId + 11001 : 0);
+            this.reusable = asBool8(this.objectClass === ObjectClasses.Miscellaneous || this.objectType == ObjectTypes.Doppelganger);
+        }
 
-        this.reusable = buffer.readBool8();
-
+        // The fallbacks for these are later because they need attributes which have not yet been read
         if (loadingContext.version >= 3.1) {
             this.trackAsResource = buffer.readBool8();
             this.doppelgangerMode = buffer.readUInt8();
             this.resourceGroup = buffer.readUInt8();
         }
         else {
+            this.trackAsResource = isTrackedAsResource(this);
+
             // TODO:
             // DoppelgangerMode: 
             // 1 for resources that are not trees
@@ -253,6 +302,12 @@ export class SceneryObjectPrototype {
             this.upgradeUnitPrototypeId = this.id;
         }
 
+        if (loadingContext.version < 3.1) {
+            this.trackAsResource = isTrackedAsResource(this);
+            this.resourceGroup = asUInt8(this.trackAsResource ? getResourceGatherGroup(this) : 0);
+            this.doppelgangerMode = getResourceDoppelgangerMode(this);
+        }
+
     }
 
 
@@ -320,9 +375,13 @@ export class SceneryObjectPrototype {
             .integer(this.minimapMode)
             .integer(this.interfaceType)
             .integer(this.minimapColor)
-            .integer(this.helpDialogStringId)
-            .integer(this.helpPageStringId)
-            .integer(this.hotkeyStringId)
+
+        if (savingContext.version >= 2.7) {
+            textFileWriter
+                .integer(this.helpDialogStringId)
+                .integer(this.helpPageStringId)
+                .integer(this.hotkeyStringId)
+        }
 
         if (savingContext.version >= 3.1) {
             textFileWriter

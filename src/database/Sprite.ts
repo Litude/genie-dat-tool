@@ -3,7 +3,7 @@ import { Point } from "../geometry/Point";
 import { Rectangle } from "../geometry/Rectangle";
 import { LoadingContext } from "./LoadingContext";
 import { SavingContext } from "./SavingContext";
-import { asInt16, Bool8, Float32, Int16, Int32, Pointer, ResourceId, SoundEffectId, UInt8 } from "./Types";
+import { asFloat32, asInt16, Bool8, Float32, Int16, Int32, Pointer, ResourceId, SoundEffectId, UInt8 } from "./Types";
 import { TextFileWriter } from "../textfile/TextFileWriter";
 import { TextFileNames } from "../textfile/TextFile";
 import { SoundEffect } from "./SoundEffect";
@@ -161,7 +161,9 @@ export function readSprites(buffer: BufferReader, soundEffects: SoundEffect[], l
 export function writeSpritesToWorldTextFile(sprites: (Sprite | null)[], savingContext: SavingContext) {
     const textFileWriter = new TextFileWriter(TextFileNames.Sprites);
     textFileWriter.raw(sprites.length).eol(); // Total sprites entries
+    // TODO: versions older than 3.7 MUST always have the same amount of entries!
     textFileWriter.raw(sprites.filter(sprite => sprite?.name).length).eol(); // Entries that have data here
+    let dummyEntryNumber = 1;
 
     for (let i = 0; i < sprites.length; ++i) {
         const sprite = sprites[i]
@@ -239,6 +241,9 @@ export function writeSpritesToWorldTextFile(sprites: (Sprite | null)[], savingCo
                     }
                 }
             }
+        }
+        else if (savingContext.version < 3.7) {
+            throw new Error("Saving dummy entries for older versons not implemented!");
         }
 
     }
