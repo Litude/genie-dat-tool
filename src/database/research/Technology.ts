@@ -45,8 +45,14 @@ export class Technology {
         }
         this.minimumPrerequisites = buffer.readInt16();
         this.researchLocation = buffer.readInt16();
-        this.nameStringId = buffer.readInt16();
-        this.researchStringId = buffer.readInt16();
+        if (loadingContext.version >= 1.5) {
+            this.nameStringId = buffer.readInt16();
+            this.researchStringId = buffer.readInt16();
+        }
+        else {
+            this.nameStringId = asInt16(-1);
+            this.researchStringId = asInt16(-1);
+        }
         this.researchDuration = buffer.readInt16();
         this.stateEffectId = buffer.readInt16();
         this.technologyType = buffer.readInt16();
@@ -109,10 +115,12 @@ export function writeTechnologiesToWorldTextFile(technologies: Technology[], sav
                 .integer(cost.amount)
                 .integer(cost.costDeducted ? 1 : 0);
         }
-        
-        textFileWriter
-            .integer(entry.nameStringId)
-            .integer(entry.researchStringId);
+
+        if (savingContext.version >= 1.5) {
+            textFileWriter
+                .integer(entry.nameStringId)
+                .integer(entry.researchStringId);
+        }
 
         if (savingContext.version >= 2.7) {
             textFileWriter

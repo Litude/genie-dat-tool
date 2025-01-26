@@ -7,7 +7,9 @@ VER 1.4
 ** TODO **
 
 VER 1.5
-** TODO **
+- Added support for creation string id to object prototypes
+- Added support for technology name string id to technologies
+- Added support for researching string id to technologies
 
 VER 2.0
 ** This is a total guess, there are no known VER 1.6-2.6 DAT files **

@@ -104,7 +104,9 @@ export class WorldDatabase {
         writeOverlaysToWorldTextFile(this.overlays, savingContext);
         writeBordersToWorldTextFile(this.borders, savingContext);
         writeTribeRandomMapsToWorldTextFile(this.tribeRandomMaps, savingContext);
-        writeRandomMapsToWorldTextFile(this.randomMaps, savingContext);
+        if (savingContext.version >= 2.0) {
+            writeRandomMapsToWorldTextFile(this.randomMaps, savingContext);
+        }
         writeStateEffectsToWorldTextFile(this.stateEffects, savingContext);
         writeCivilizationsToWorldTextFile(this.civilizations, this.attributes, savingContext);
         writObjectPrototypesToWorldTextFile(this.civilizations, this.objects, savingContext);

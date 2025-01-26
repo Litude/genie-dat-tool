@@ -139,7 +139,12 @@ export class SceneryObjectPrototype {
             Logger.warn(`Mismatch between stored Object id ${this.id} and ordering ${id}, data might be corrupt!`);
         }
         this.nameStringId = buffer.readInt16();
-        this.creationStringId = buffer.readInt16();
+        if (loadingContext.version >= 1.5) {
+            this.creationStringId = buffer.readInt16();
+        }
+        else {
+            this.creationStringId = asInt16(-1);
+        }
         this.objectClass = buffer.readInt16();
         this.idleSpriteId = buffer.readInt16();
         this.deathSpriteId = buffer.readInt16();
@@ -328,7 +333,7 @@ export class SceneryObjectPrototype {
             .indent(4)
             .string(this.internalName, 26)
             .integer(this.nameStringId)
-            .integer(this.creationStringId)
+            .conditional(savingContext.version >= 1.5, writer => writer.integer(this.creationStringId))
             .integer(this.objectClass)
             .integer(this.idleSpriteId)
             .integer(this.deathSpriteId)
