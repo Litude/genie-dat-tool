@@ -4,11 +4,12 @@ import { Logger } from "../../Logger";
 import { TextFileNames, textFileStringCompare } from "../../textfile/TextFile";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { isDefined } from "../../ts/ts-utils";
-import { getEntryOrLogWarning } from "../../util";
+import { getDataEntry } from "../../util";
 import { LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
 import { SoundEffect } from "../SoundEffect";
 import { asBool16, asBool8, asFloat32, asInt16, asInt32, asUInt8, Bool16, Bool8, Float32, Int16, Int32, NullPointer, PaletteIndex, Pointer, ResourceId, SoundEffectId, TerrainId, UInt8 } from "../Types";
+import { onParsingError } from '../Error';
 
 interface FrameMap {
     frameCount: Int16;
@@ -17,6 +18,7 @@ interface FrameMap {
 }
 
 export class Overlay {
+    referenceId: string = "";
     id: Int16 = asInt16(-1);
     enabled: Bool8 = asBool8(false);
     random: Bool8 = asBool8(false);
@@ -49,6 +51,7 @@ export class Overlay {
         this.random = buffer.readBool8();
 
         this.internalName = buffer.readFixedSizeString(13);
+        this.referenceId = this.internalName;
         this.resourceFilename = buffer.readFixedSizeString(13);
         if (semver.gte(loadingContext.version.numbering, "2.0.0")) {
             this.resourceId = buffer.readInt32();
@@ -58,7 +61,7 @@ export class Overlay {
         }
 
         this.soundEffectId = buffer.readInt32();
-        this.soundEffect = getEntryOrLogWarning(soundEffects, this.soundEffectId, "SoundEffect");
+        this.soundEffect = getDataEntry(soundEffects, this.soundEffectId, "SoundEffect", this.referenceId, loadingContext);
         this.graphicPointer = buffer.readPointer(); // overwritten quickly by the game
 
         this.minimapColor1 = buffer.readUInt8();
@@ -116,7 +119,7 @@ export function readSecondaryOverlayData(overlays: (Overlay | null)[], buffer: B
     if (semver.lt(loadingContext.version.numbering, "2.0.0")) {
         const overlayCount = buffer.readInt16();
         if (overlayCount !== overlays.filter(isDefined).length) {
-            Logger.warn(`Mismatch between enabled overlays and overlay count, DAT might be corrupt!`)
+            onParsingError(`Mismatch between enabled overlays and overlay count, DAT might be corrupt!`, loadingContext)
         }
     }
 }

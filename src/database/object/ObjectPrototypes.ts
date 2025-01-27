@@ -18,6 +18,7 @@ import { ObjectTypes } from "./ObjectType";
 import { ProjectileObjectPrototype } from "./ProjectileObjectPrototype";
 import { SceneryObjectPrototype } from "./SceneryObjectPrototype";
 import { TreeObjectPrototype } from "./TreeObjectPrototype";
+import { ParsingError } from '../Error';
 
 export function readObjectPrototypesFromBuffer(buffer: BufferReader, loadingContext: LoadingContext) {
     const result: (SceneryObjectPrototype | null)[] = [];
@@ -70,7 +71,7 @@ export function readObjectPrototypesFromBuffer(buffer: BufferReader, loadingCont
                     break;
             }
             if (!object) {
-                throw new Error(`Received unknown object type ${objectType} when reading units!`);
+                throw new ParsingError(`Received unknown object type ${objectType} when reading units!`);
             }
             else {
                 object.objectType = objectType;

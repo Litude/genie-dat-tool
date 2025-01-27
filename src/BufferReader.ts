@@ -107,6 +107,10 @@ export default class BufferReader {
         return this.buffer.length;
     }
 
+    seek(offset: number) {
+        this.offset = offset;
+    }
+
     endOfBuffer(): boolean {
         return this.offset === this.buffer.length;
     }

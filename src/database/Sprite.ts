@@ -9,7 +9,8 @@ import { TextFileWriter } from "../textfile/TextFileWriter";
 import { TextFileNames } from "../textfile/TextFile";
 import { SoundEffect } from "./SoundEffect";
 import { Logger } from "../Logger";
-import { getEntryOrLogWarning } from "../util";
+import { getDataEntry } from "../util";
+import { onParsingError } from "./Error";
 
 interface SpriteOverlay {
     spriteId: Int16;
@@ -28,6 +29,7 @@ interface SpriteAngleSoundEffect {
 }
 
 export class Sprite {
+    referenceId: string;
     id: Int16; // todo: check if this matches index?
     name: string;
     resourceFilename: string;
@@ -53,6 +55,7 @@ export class Sprite {
 
     constructor(buffer: BufferReader, id: Int16, soundEffects: SoundEffect[], loadingContext: LoadingContext) {
         this.name = buffer.readFixedSizeString(21);
+        this.referenceId = this.name;
         this.resourceFilename = buffer.readFixedSizeString(13);
         this.resourceId = semver.gte(loadingContext.version.numbering, "1.3.1") ? buffer.readInt32() : asInt32(buffer.readInt16());
         this.loaded = buffer.readBool8();
@@ -70,7 +73,7 @@ export class Sprite {
         const overlayCount = buffer.readInt16();
 
         this.soundEffectId = buffer.readInt16();
-        this.soundEffect = getEntryOrLogWarning(soundEffects, this.soundEffectId, "SoundEffect");
+        this.soundEffect = getDataEntry(soundEffects, this.soundEffectId, "SoundEffect", this.referenceId, loadingContext);
         this.angleSoundEffectsEnabled = buffer.readBool8();
         this.framesPerAngle = buffer.readInt16();
         this.angleCount = buffer.readInt16();
@@ -80,7 +83,7 @@ export class Sprite {
         this.spriteType = buffer.readUInt8();
         this.id = buffer.readInt16();
         if (this.id !== id) {
-            Logger.warn(`Mismatch between stored Sprite id ${this.id} and ordering ${id}, data might be corrupt!`);
+            onParsingError(`Mismatch between stored Sprite id ${this.id} and ordering ${id}, data might be corrupt!`, loadingContext);
         }
         this.mirroringMode = buffer.readUInt8();
 
@@ -243,9 +246,10 @@ export function writeSpritesToWorldTextFile(sprites: (Sprite | null)[], savingCo
                 }
             }
         }
-        else if (semver.lt(savingContext.version.numbering, "3.7.0")) {
-            throw new Error("Saving dummy entries for older versons not implemented!");
-        }
+        // else if (semver.lt(savingContext.version.numbering, "3.7.0")) {
+        //     console.log(sprites);
+        //     throw new Error("Saving dummy entries for older versons not implemented!");
+        // }
 
     }
     textFileWriter.close();

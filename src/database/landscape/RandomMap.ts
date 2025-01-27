@@ -4,10 +4,10 @@ import { Point } from "../../geometry/Point";
 import { Rectangle } from "../../geometry/Rectangle";
 import { LoadingContext } from "../LoadingContext";
 import { Optional } from "../../ts/ts-utils";
-import { asInt32, Bool8, Int32, NullPointer, Percentage, PlayerId, Pointer, PrototypeId, TerrainId, UInt16, UInt8 } from "../Types";
+import { asInt16, asInt32, Bool8, Int16, Int32, NullPointer, Percentage, PlayerId, Pointer, PrototypeId, TerrainId, UInt16, UInt8 } from "../Types";
 import { SavingContext } from "../SavingContext";
 import { Terrain } from "./Terrain";
-import { getEntryOrLogWarning } from "../../util";
+import { getDataEntry } from "../../util";
 import { SceneryObjectPrototype } from "../object/SceneryObjectPrototype";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { TextFileNames } from "../../textfile/TextFile";
@@ -98,6 +98,8 @@ const internalFields: (keyof RandomMap)[] = [
 ]
 
 export class RandomMap {
+    id: Int16 = asInt16(-1);
+    referenceId: string = "";
     mapTypeId: Int32 = asInt32(-1);
     preMapData: Omit<PreMapData, 'mapTypeId'> | null = null;
     border: Rectangle<Int32> = {
@@ -121,7 +123,9 @@ export class RandomMap {
     objectDataPointer: Pointer = NullPointer;
     elevationDataPointer: Pointer = NullPointer;
 
-    readFromBuffer(buffer: BufferReader, terrains: (Terrain | null)[], loadingContext: LoadingContext, preMapData: PreMapData): void {
+    readFromBuffer(buffer: BufferReader, id: Int16, terrains: (Terrain | null)[], loadingContext: LoadingContext, preMapData: PreMapData): void {
+        this.id = id;
+        this.referenceId = `RandomMap_${this.id}`;
         this.mapTypeId = preMapData.mapTypeId;
         const copiedMapData: Optional<PreMapData, 'mapTypeId'> = { ...preMapData };
         delete copiedMapData.mapTypeId;
@@ -162,7 +166,7 @@ export class RandomMap {
                 edgeFade: buffer.readInt32(),
                 clumpinessFactor: buffer.readInt32()
             };
-            landEntry.terrain = getEntryOrLogWarning(terrains, landEntry.terrainId, "Terrain");
+            landEntry.terrain = getDataEntry(terrains, landEntry.terrainId, "Terrain", this.referenceId, loadingContext);
             this.baseLandData.push(landEntry);
         }
 
@@ -180,8 +184,8 @@ export class RandomMap {
                 replacedTerrain: null,
                 clumpinessFactor: buffer.readInt32()
             }
-            terrainDataEntry.terrain = getEntryOrLogWarning(terrains, terrainDataEntry.terrainId, "Terrain"),
-            terrainDataEntry.replacedTerrain = getEntryOrLogWarning(terrains, terrainDataEntry.replacedTerrainId, "Terrain"),
+            terrainDataEntry.terrain = getDataEntry(terrains, terrainDataEntry.terrainId, "Terrain", this.referenceId, loadingContext),
+            terrainDataEntry.replacedTerrain = getDataEntry(terrains, terrainDataEntry.replacedTerrainId, "Terrain", this.referenceId, loadingContext),
             this.terrainData.push(terrainDataEntry);
         }
 
@@ -206,7 +210,7 @@ export class RandomMap {
                 minDistanceToPlayers: buffer.readInt32(),
                 maxDistanceToPlayers: buffer.readInt32()
             };
-            objectData.placementTerrain = getEntryOrLogWarning(terrains, objectData.placementTerrainId, "Terrain");
+            objectData.placementTerrain = getDataEntry(terrains, objectData.placementTerrainId, "Terrain", this.referenceId, loadingContext);
             this.objectData.push(objectData);
         }
 
@@ -223,15 +227,15 @@ export class RandomMap {
                 placementTerrain: null,
                 placementElevation: buffer.readInt32()
             }
-            elevationData.placementTerrain = getEntryOrLogWarning(terrains, elevationData.placementTerrainId, "Terrain");
+            elevationData.placementTerrain = getDataEntry(terrains, elevationData.placementTerrainId, "Terrain", this.referenceId, loadingContext);
             this.elevationData.push(elevationData);
         }
 
     }
     
-    linkOtherData(objects: (SceneryObjectPrototype | null)[]) {
+    linkOtherData(objects: (SceneryObjectPrototype | null)[], loadingContext: LoadingContext) {
         this.objectData.forEach(object => {
-            object.objectPrototype = getEntryOrLogWarning(objects, object.prototypeId, "ObjectPrototype");
+            object.objectPrototype = getDataEntry(objects, object.prototypeId, "ObjectPrototype", this.referenceId, loadingContext);
         })
     }
 
@@ -271,7 +275,7 @@ export function readRandomMapData(randomMapCount: number, buffer: BufferReader, 
     
         for (let i = 0; i < randomMapCount; ++i) {
             const randomMap = new RandomMap();
-            randomMap.readFromBuffer(buffer, terrains, loadingContext, preMapData[i]);
+            randomMap.readFromBuffer(buffer, asInt16(i), terrains, loadingContext, preMapData[i]);
             result.push(randomMap);
         }
     }

@@ -5,6 +5,7 @@ import { Terrain } from './Terrain';
 import { SavingContext } from "../SavingContext";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { TextFileNames, textFileStringCompare } from "../../textfile/TextFile";
+import { getDataEntry } from "../../util";
 
 interface TerrainData {
     terrainId: TerrainId<Int16>;
@@ -12,11 +13,13 @@ interface TerrainData {
     multiplier: Float32;
 }
 export class Habitat {
+    referenceId: string = "";
     id: Int16 = asInt16(-1); 
     terrainData: TerrainData[] = [];
 
-    constructor(id: number, terrainCount: number, buffer?: BufferReader) {
+    readFromBuffer(buffer: BufferReader, id: Int16, terrainCount: number) {
         this.id = asInt16(id);
+        this.referenceId = `Habitat_${this.id}`;
         this.terrainData = [];
         for (let i = 0; i < terrainCount; ++i) {
             if (buffer) {
@@ -29,9 +32,9 @@ export class Habitat {
         }
     }
 
-    linkTerrains(terrains: (Terrain | null)[]) {
+    linkTerrains(terrains: (Terrain | null)[], loadingContext: LoadingContext) {
         for (let i = 0; i < this.terrainData.length; ++i) {
-            this.terrainData[i].terrain = terrains[this.terrainData[i].terrainId];
+            this.terrainData[i].terrain = getDataEntry(terrains, this.terrainData[i].terrainId, "Terrain", this.referenceId, loadingContext);
         }
     }
 
@@ -78,7 +81,9 @@ export function readHabitats(buffer: BufferReader, loadingContext: LoadingContex
     }
     for (let i = 0; i < habitatCount; ++i) {
         if (validHabitats[i]) {
-            habitats.push(new Habitat(i, terrainCount, buffer));
+            const habitat = new Habitat();
+            habitat.readFromBuffer(buffer, asInt16(i), terrainCount);
+            habitats.push(habitat);
         }
         else {
             habitats.push(null);

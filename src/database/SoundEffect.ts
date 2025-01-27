@@ -5,7 +5,7 @@ import { SavingContext } from "./SavingContext";
 import { asInt16, asInt32, asUInt32, Int16, Int32, Percentage, ResourceId, UInt32 } from "./Types";
 import { TextFileWriter } from "../textfile/TextFileWriter";
 import { TextFileNames } from "../textfile/TextFile";
-import { Logger } from "../Logger";
+import { onParsingError } from "./Error";
 
 interface SoundSample {
     resourceFilename: string;
@@ -14,20 +14,23 @@ interface SoundSample {
 }
 
 export class SoundEffect {
-    id: Int16; // todo: check if this matches index?
+    id: Int16 = asInt16(-1);
     playDelay: Int16 = asInt16(0);
-    samples: SoundSample[];
+    samples: SoundSample[] = [];
     cacheTime: UInt32 = asUInt32(0);
 
-    constructor(buffer: BufferReader, id: Int16, loadingContext: LoadingContext) {
+    readFromBuffer(buffer: BufferReader, id: Int16, loadingContext: LoadingContext) {
         this.id = buffer.readInt16();
         if (this.id !== id) {
-            Logger.warn(`Mismatch between stored Sound Effect id ${this.id} and ordering ${id}, data might be corrupt!`);
+            onParsingError(`Mismatch between stored Sound Effect id ${this.id} and ordering ${id}, data might be corrupt!`, loadingContext);
         }
         this.playDelay = buffer.readInt16();
         const sampleCount = buffer.readInt16();
         if (semver.gte(loadingContext.version.numbering, "1.3.1")) {
             this.cacheTime = buffer.readUInt32();
+        }
+        else {
+            this.cacheTime = asUInt32(300000);
         }
 
         this.samples = [];
@@ -49,7 +52,9 @@ export function readSoundEffects(buffer: BufferReader, loadingContext: LoadingCo
     const result: SoundEffect[] = [];
     const soundEffectCount = buffer.readInt16();
     for (let i = 0; i < soundEffectCount; ++i) {
-        result.push(new SoundEffect(buffer, asInt16(i), loadingContext));
+        const soundEffect = new SoundEffect();
+        soundEffect.readFromBuffer(buffer, asInt16(i), loadingContext);
+        result.push(soundEffect);
     }
     return result;
 }

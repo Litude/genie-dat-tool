@@ -4,7 +4,7 @@ import { SavingContext } from "./SavingContext";
 import { asInt16, asUInt8, ColorId, Int16, PaletteIndex, ResourceId } from "./Types";
 import { TextFileWriter } from "../textfile/TextFileWriter";
 import { TextFileNames, textFileStringCompare } from "../textfile/TextFile";
-import { Logger } from "../Logger";
+import { onParsingError } from "./Error";
 
 const enum ColormapType {
     Default = 0,
@@ -13,17 +13,17 @@ const enum ColormapType {
 }
 
 export class Colormap {
-    id: ColorId = asInt16(0); // todo: check if this matches index?
+    id: ColorId = asInt16(0);
     resourceFilename: string = ""; // includes extension
     resourceId: ResourceId<Int16> = asInt16(-1);
     minimapColor: PaletteIndex = asUInt8(0);
     type: ColormapType = ColormapType.Default;
 
-    constructor(buffer: BufferReader, id: Int16, loadingContext: LoadingContext) {
+    readFromBuffer(buffer: BufferReader, id: Int16, loadingContext: LoadingContext) {
         this.resourceFilename = buffer.readFixedSizeString(30);
         this.id = buffer.readInt16();
         if (this.id !== id) {
-            Logger.warn(`Mismatch between stored Colormap id ${this.id} and ordering ${id}, data might be corrupt!`);
+            onParsingError(`Mismatch between stored Colormap id ${this.id} and ordering ${id}, data might be corrupt!`, loadingContext);
         }
         this.resourceId = buffer.readInt16();
         this.minimapColor = buffer.readUInt8();
@@ -39,7 +39,9 @@ export function readColormaps(buffer: BufferReader, loadingContext: LoadingConte
     const result: Colormap[] = [];
     const colormapCount = buffer.readInt16();
     for (let i = 0; i < colormapCount; ++i) {
-        result.push(new Colormap(buffer, asInt16(i), loadingContext));
+        const colormap = new Colormap();
+        colormap.readFromBuffer(buffer, asInt16(i), loadingContext);
+        result.push(colormap);
     }
     return result;
 }

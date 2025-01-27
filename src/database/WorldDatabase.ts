@@ -22,76 +22,89 @@ import { Attribute, readAttributesFromJsonFile } from "./Attributes";
 import { Overlay, readMainOverlayData, readSecondaryOverlayData, writeOverlaysToWorldTextFile } from "./landscape/Overlay";
 import { readTribeRandomMapData, TribeRandomMap, writeTribeRandomMapsToWorldTextFile } from "./landscape/TribeRandomMap";
 import { readTribeAiFromBuffer, TribeAi, writeTribeAiToWorldTextFile } from "./TribeAi";
+import { Logger } from "../Logger";
+import { onParsingError, ParsingError } from "./Error";
 
 export class WorldDatabase {
-    attributes: Attribute[];
-    habitats: (Habitat | null)[];
-    colormaps: Colormap[];
-    soundEffects: SoundEffect[];
-    sprites: (Sprite | null)[];
-    mapProperties: MapProperties;
-    terrains: (Terrain | null)[];
-    overlays: (Overlay | null)[];
-    borders: (Border | null)[];
-    tribeRandomMaps: TribeRandomMap[];
-    randomMaps: RandomMap[];
-    stateEffects: StateEffect[];
-    civilizations: Civilization[];
-    objects: (SceneryObjectPrototype | null)[][];
-    technologies: Technology[];
-    tribeAi: (TribeAi | null)[];
+    attributes: Attribute[] = [];
+    habitats: (Habitat | null)[] = [];
+    colormaps: Colormap[] = [];
+    soundEffects: SoundEffect[] = [];
+    sprites: (Sprite | null)[] = [];
+    mapProperties: MapProperties = new MapProperties();
+    terrains: (Terrain | null)[] = [];
+    overlays: (Overlay | null)[] = [];
+    borders: (Border | null)[] = [];
+    tribeRandomMaps: TribeRandomMap[] = [];
+    randomMaps: RandomMap[] = [];
+    stateEffects: StateEffect[] = [];
+    civilizations: Civilization[] = [];
+    objects: (SceneryObjectPrototype | null)[][] = [];
+    technologies: Technology[] = [];
+    tribeAi: (TribeAi | null)[] = [];
 
-    constructor(buffer: BufferReader, loadingContext: LoadingContext) {
-        this.attributes = readAttributesFromJsonFile("./data/attributes.json");
-        this.habitats = readHabitats(buffer, loadingContext);
-        this.colormaps = readColormaps(buffer, loadingContext);
-        this.soundEffects = readSoundEffects(buffer, loadingContext);
-        this.sprites = readSprites(buffer, this.soundEffects, loadingContext);
-
-        this.mapProperties = new MapProperties();
-        this.mapProperties.readMainDataFromBuffer(buffer, loadingContext);
-        this.terrains = readMainTerrainData(buffer, this.soundEffects, loadingContext);
-        this.overlays = readMainOverlayData(buffer, this.soundEffects, loadingContext);
-        this.borders = readMainBorderData(buffer, this.soundEffects, this.terrains, loadingContext);
-
-        this.mapProperties.readSecondaryDataFromBuffer(buffer, loadingContext);
-        readSecondaryTerrainData(this.terrains, buffer, loadingContext);
-        readSecondaryOverlayData(this.overlays, buffer, loadingContext);
-        readSecondaryBorderData(this.borders, buffer, loadingContext);
-
-        this.mapProperties.readTertiaryDataFromBuffer(buffer, loadingContext);
-
-        const randomMapCount = buffer.readInt32();
-        this.mapProperties.readQuaterniaryDataFromBuffer(buffer, loadingContext);
-        this.tribeRandomMaps = readTribeRandomMapData(randomMapCount, buffer, this.terrains, this.borders, loadingContext);
-        this.randomMaps = readRandomMapData(randomMapCount, buffer, this.terrains, loadingContext);
-
-        this.stateEffects = readStateEffects(buffer, loadingContext);
-
-        const civilizationCount = buffer.readInt16();
-        this.civilizations = [];
-        this.objects = [];
-        for (let i = 0; i < civilizationCount; ++i) {
-            const civilization = new Civilization();
-            civilization.readFromBuffer(buffer, asInt16(i), loadingContext);
-            this.civilizations.push(civilization);
-            this.objects.push(readObjectPrototypesFromBuffer(buffer, loadingContext));
+    readFromBuffer(buffer: BufferReader, loadingContext: LoadingContext) {
+        try {
+            this.attributes = readAttributesFromJsonFile("./data/attributes.json");
+            this.habitats = readHabitats(buffer, loadingContext);
+            this.colormaps = readColormaps(buffer, loadingContext);
+            this.soundEffects = readSoundEffects(buffer, loadingContext);
+            this.sprites = readSprites(buffer, this.soundEffects, loadingContext);
+    
+            this.mapProperties = new MapProperties();
+            this.mapProperties.readMainDataFromBuffer(buffer, loadingContext);
+            this.terrains = readMainTerrainData(buffer, this.soundEffects, loadingContext);
+            this.overlays = readMainOverlayData(buffer, this.soundEffects, loadingContext);
+            this.borders = readMainBorderData(buffer, this.soundEffects, this.terrains, loadingContext);
+    
+            this.mapProperties.readSecondaryDataFromBuffer(buffer, loadingContext);
+            readSecondaryTerrainData(this.terrains, buffer, loadingContext);
+            readSecondaryOverlayData(this.overlays, buffer, loadingContext);
+            readSecondaryBorderData(this.borders, buffer, loadingContext);
+    
+            this.mapProperties.readTertiaryDataFromBuffer(buffer, loadingContext);
+    
+            const randomMapCount = buffer.readInt32();
+            this.mapProperties.readQuaterniaryDataFromBuffer(buffer, loadingContext);
+            this.tribeRandomMaps = readTribeRandomMapData(randomMapCount, buffer, this.terrains, this.borders, loadingContext);
+            this.randomMaps = readRandomMapData(randomMapCount, buffer, this.terrains, loadingContext);
+    
+            this.stateEffects = readStateEffects(buffer, loadingContext);
+    
+            const civilizationCount = buffer.readInt16();
+            this.civilizations = [];
+            this.objects = [];
+            for (let i = 0; i < civilizationCount; ++i) {
+                const civilization = new Civilization();
+                civilization.readFromBuffer(buffer, asInt16(i), loadingContext);
+                this.civilizations.push(civilization);
+                this.objects.push(readObjectPrototypesFromBuffer(buffer, loadingContext));
+            }
+    
+            this.technologies = readTechnologiesFromBuffer(buffer, loadingContext);
+            this.tribeAi = readTribeAiFromBuffer(buffer, loadingContext);
+            
+    
+            this.habitats.forEach(habitat => habitat?.linkTerrains(this.terrains, loadingContext));
+            this.terrains.forEach(terrain => terrain?.linkOtherData(this.terrains, this.borders, this.objects[0], loadingContext));
+            // TODO: What if gaia is missing stuff...? This should really link with a merged base object or something?
+            this.randomMaps.forEach(randomMap => randomMap.linkOtherData(this.objects[0], loadingContext))
+    
+            if (buffer.endOfBuffer()) {
+                return true;
+            }
+            else {
+                onParsingError(`Buffer still has unparsed data! Offset is ${buffer.tell()} and size is ${buffer.size()}`, loadingContext);
+                return false;
+            }
+        } catch (err: unknown) {
+            if (err instanceof ParsingError && loadingContext.abortOnError === true) {
+                return false;
+            }
+            else {
+                throw err;
+            }
         }
-
-        this.technologies = readTechnologiesFromBuffer(buffer, loadingContext);
-        this.tribeAi = readTribeAiFromBuffer(buffer, loadingContext);
-
-        if (buffer.endOfBuffer()) {
-            console.log(`Buffer completely parsed!`)
-        }
-        else {
-            console.log(`Buffer offset is ${buffer.tell()} and size is ${buffer.size()}`)
-        }
-
-        this.habitats.forEach(habitat => habitat?.linkTerrains(this.terrains));
-        this.terrains.forEach(terrain => terrain?.linkOtherData(this.terrains, this.borders, this.objects[0]));
-        // TODO: What if gaia is missing stuff...? This should really link with a merged base object or something?
-        this.randomMaps.forEach(randomMap => randomMap.linkOtherData(this.objects[0]))
     }
 
     writeToWorldTextFile(savingContext: SavingContext) {

@@ -1,12 +1,17 @@
+import { onParsingError } from "./database/Error";
 import { Logger } from "./Logger";
 
-export function getEntryOrLogWarning<T>(entries: T[], index: number, resourceType: string) {
+export function getDataEntry<T>(entries: T[], index: number, resourceType: string, referencingResource: string, loadingContext: { abortOnError: boolean }) {
     if (index >= 0) {
         if (index < entries.length) {
-            return entries[index];
+            const result = entries[index];
+            if (!result && (resourceType !== "Border" || index !== 0)) {
+                Logger.info(`INFO: ${referencingResource} references ${resourceType} with id ${index} but no such entry exists!`);
+            }
+            return result;
         }
         else {
-            Logger.warn(`Could not find ${resourceType} id ${index} (entry count is ${entries.length}). File might be corrupt.`)
+            onParsingError(`Out of bounds access when looking for ${resourceType} id ${index} (entry count is ${entries.length}). File might be corrupt.`, loadingContext);
         }
     }
     return null;

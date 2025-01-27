@@ -1,4 +1,4 @@
 export interface Version {
     numbering: string;
-    flavor?: "mickey";
+    flavor?: string; // "mickey" is the only flavor recognized for now
 }

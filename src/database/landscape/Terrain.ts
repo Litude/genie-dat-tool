@@ -4,13 +4,14 @@ import { Logger } from "../../Logger";
 import { TextFileNames, textFileStringCompare } from "../../textfile/TextFile";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { isDefined } from "../../ts/ts-utils";
-import { getEntryOrLogWarning } from "../../util";
+import { getDataEntry } from "../../util";
 import { LoadingContext } from "../LoadingContext";
 import { SceneryObjectPrototype } from "../object/SceneryObjectPrototype";
 import { SavingContext } from "../SavingContext";
 import { SoundEffect } from "../SoundEffect";
 import { asBool8, asFloat32, asInt16, asInt32, asUInt16, asUInt8, Bool8, BorderId, Float32, Int16, Int32, NullPointer, PaletteIndex, Pointer, PrototypeId, ResourceId, SoundEffectId, TerrainId, UInt16, UInt8 } from "../Types";
 import { Border } from "./Border";
+import { onParsingError } from "../Error";
 
 interface FrameMap {
     frameCount: Int16;
@@ -32,6 +33,7 @@ const internalFields: (keyof Terrain)[] = [
 ];
 
 export class Terrain {
+    referenceId: string = "";
     id: Int16 = asInt16(-1);
     enabled: Bool8 = asBool8(false);
     random: Bool8 = asBool8(false);
@@ -46,9 +48,9 @@ export class Terrain {
     minimapColor3: PaletteIndex = asUInt8(0);
     minimapCliffColor1: PaletteIndex = asUInt8(0);
     minimapCliffColor2: PaletteIndex = asUInt8(0);
-    passableTerrainId: TerrainId<UInt8> = asUInt8(0); // TODO: Make this an Int16 so none is -1 like everywhere else
+    passableTerrainId: TerrainId<Int16> = asInt16(-1); // Note! This is stored as 8 bits in the data!
     passableTerrain: Terrain | null = null;
-    impassableTerrainId: TerrainId<UInt8> = asUInt8(0); // TODO: Make this an Int16 so none is -1 like everywhere else
+    impassableTerrainId: TerrainId<Int16> = asInt16(-1); // Note! This is stored as 8 bits in the data!
     impassableTerrain: Terrain | null = null;
 
     // TODO: Move animation stuff to common interface?
@@ -79,6 +81,7 @@ export class Terrain {
         this.random = buffer.readBool8();
 
         this.internalName = buffer.readFixedSizeString(13);
+        this.referenceId = this.internalName;
         this.resourceFilename = buffer.readFixedSizeString(13);
         if (semver.gte(loadingContext.version.numbering, "2.0.0")) {
             this.resourceId = buffer.readInt32();
@@ -89,7 +92,7 @@ export class Terrain {
 
         this.graphicPointer = buffer.readPointer(); // overwritten by the game
         this.soundEffectId = buffer.readInt32();
-        this.soundEffect = getEntryOrLogWarning(soundEffects, this.soundEffectId, "SoundEffect");
+        this.soundEffect = getDataEntry(soundEffects, this.soundEffectId, "SoundEffect", this.referenceId, loadingContext);
 
         this.minimapColor1 = buffer.readUInt8();
         this.minimapColor2 = buffer.readUInt8();
@@ -97,8 +100,10 @@ export class Terrain {
         this.minimapCliffColor1 = buffer.readUInt8();
         this.minimapCliffColor2 = buffer.readUInt8();
 
-        this.passableTerrainId = buffer.readUInt8();
-        this.impassableTerrainId = buffer.readUInt8();
+        const rawPassableTerrainId = buffer.readUInt8()
+        this.passableTerrainId = asInt16(rawPassableTerrainId === 255 ? -1 : rawPassableTerrainId);
+        const rawImpassableTerrainId = buffer.readUInt8();
+        this.impassableTerrainId = asInt16(rawImpassableTerrainId === 255 ? -1 : rawImpassableTerrainId);
 
         this.animated = buffer.readBool8();
         this.animationFrameCount = buffer.readInt16();
@@ -159,13 +164,13 @@ export class Terrain {
 
     }
 
-    linkOtherData(terrains: (Terrain | null)[], borders: (Border | null)[], objects: (SceneryObjectPrototype | null)[]) {
-        this.passableTerrain = this.passableTerrainId !== 255 ? getEntryOrLogWarning(terrains, this.passableTerrainId, "Terrain") : null;
-        this.impassableTerrain = this.impassableTerrainId !== 255 ? getEntryOrLogWarning(terrains, this.impassableTerrainId, "Terrain") : null;
-        this.renderedTerrain = getEntryOrLogWarning(terrains, this.renderedTerrainId, "Terrain");
-        this.borderTypes = this.borderTypeIds.map(borderId => getEntryOrLogWarning(borders, borderId, "Border"));
+    linkOtherData(terrains: (Terrain | null)[], borders: (Border | null)[], objects: (SceneryObjectPrototype | null)[], loadingContext: LoadingContext) {
+        this.passableTerrain = this.passableTerrainId !== 255 ? getDataEntry(terrains, this.passableTerrainId, "Terrain", this.referenceId, loadingContext) : null;
+        this.impassableTerrain = this.impassableTerrainId !== 255 ? getDataEntry(terrains, this.impassableTerrainId, "Terrain", this.referenceId, loadingContext) : null;
+        this.renderedTerrain = getDataEntry(terrains, this.renderedTerrainId, "Terrain", this.referenceId, loadingContext);
+        this.borderTypes = this.borderTypeIds.map(borderId => getDataEntry(borders, borderId, "Border", this.referenceId, loadingContext));
         this.objectPlacements.forEach(placement => {
-            placement.object = getEntryOrLogWarning(objects, placement.prototypeId, "ObjectPrototype");
+            placement.object = getDataEntry(objects, placement.prototypeId, "ObjectPrototype", this.referenceId, loadingContext);
         });
     }
 
@@ -187,7 +192,7 @@ export function readMainTerrainData(buffer: BufferReader, soundEffects: SoundEff
 export function readSecondaryTerrainData(terrains: (Terrain | null)[], buffer: BufferReader, loadingContext: LoadingContext) {
     const terrainCount = buffer.readInt16();
     if (terrainCount !== terrains.filter(x => x).length) {
-        Logger.warn(`Mismatch between enabled terrains and terrain count, DAT might be corrupt!`)
+        onParsingError(`Mismatch between enabled terrains and terrain count, DAT might be corrupt!`, loadingContext);
     }
 }
 
@@ -221,7 +226,7 @@ export function writeTerrainsToWorldTextFile(terrains: (Terrain | null)[], savin
     for (let i = 0; i < sortedTerrains.length; ++i) {
         const terrain = sortedTerrains[i];
         const borderEntries = terrain.borderTypes.map((border, id) => ({
-            terrain: border ? getEntryOrLogWarning(terrains, id, "Terrain") : null,
+            terrain: border ? getDataEntry(terrains, id, "Terrain", terrain.referenceId, { abortOnError: false }) : null,
             border
         })).sort((a, b) => {
             if (a.terrain && b.terrain) {
@@ -251,8 +256,8 @@ export function writeTerrainsToWorldTextFile(terrains: (Terrain | null)[], savin
             .integer(terrain.terrainPatternWidth)
             .integer(terrain.minimapCliffColor1)
             .integer(terrain.minimapCliffColor2)
-            .integer(terrain.impassableTerrainId === 255 ? -1 : terrain.impassableTerrainId)
-            .integer(terrain.passableTerrainId === 255 ? -1 : terrain.passableTerrainId)
+            .integer(terrain.impassableTerrainId)
+            .integer(terrain.passableTerrainId)
             .integer(borderCount);
         for (let j = 0; j < 19; ++j) {
             textFileWriter
