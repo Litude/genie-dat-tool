@@ -12,6 +12,7 @@ import { SoundEffect } from "../SoundEffect";
 import { asBool8, asFloat32, asInt16, asInt32, asUInt16, asUInt8, Bool8, BorderId, Float32, Int16, Int32, NullPointer, PaletteIndex, Pointer, PrototypeId, ResourceId, SoundEffectId, TerrainId, UInt16, UInt8 } from "../Types";
 import { Border } from "./Border";
 import { onParsingError } from "../Error";
+import path from "path";
 
 interface FrameMap {
     frameCount: Int16;
@@ -196,8 +197,8 @@ export function readSecondaryTerrainData(terrains: (Terrain | null)[], buffer: B
     }
 }
 
-function writeTerrainObjectsToWorldTextFile(terrains: (Terrain | null)[], savingContext: SavingContext) {
-    const textFileWriter = new TextFileWriter(TextFileNames.TerrainObjects);
+function writeTerrainObjectsToWorldTextFile(outputDirectory: string, terrains: (Terrain | null)[], savingContext: SavingContext) {
+    const textFileWriter = new TextFileWriter(path.join(outputDirectory, TextFileNames.TerrainObjects));
     const parsedEntries = [...terrains]
         .filter(isDefined)
         .sort((a, b) => textFileStringCompare(a.internalName, b.internalName))
@@ -217,8 +218,8 @@ function writeTerrainObjectsToWorldTextFile(terrains: (Terrain | null)[], saving
     textFileWriter.close();
 }
 
-export function writeTerrainsToWorldTextFile(terrains: (Terrain | null)[], savingContext: SavingContext) {
-    const textFileWriter = new TextFileWriter(TextFileNames.Terrains);
+export function writeTerrainsToWorldTextFile(outputDirectory: string, terrains: (Terrain | null)[], savingContext: SavingContext) {
+    const textFileWriter = new TextFileWriter(path.join(outputDirectory, TextFileNames.Terrains));
     textFileWriter.raw(terrains.filter(isDefined).length).eol(); // Total terrain entries
     const sortedTerrains = [...terrains].filter(isDefined).sort((a, b) => textFileStringCompare(a.internalName, b.internalName));
 
@@ -277,5 +278,5 @@ export function writeTerrainsToWorldTextFile(terrains: (Terrain | null)[], savin
     }
 
     textFileWriter.close();
-    writeTerrainObjectsToWorldTextFile(terrains, savingContext);
+    writeTerrainObjectsToWorldTextFile(outputDirectory, terrains, savingContext);
 }

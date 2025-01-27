@@ -12,7 +12,7 @@ import { readMainTerrainData, readSecondaryTerrainData, Terrain, writeTerrainsTo
 import { readStateEffects, StateEffect, writeStateEffectsToWorldTextFile } from "./research/StateEffect";
 import { Civilization, writeCivilizationsToWorldTextFile } from "./Civilization";
 import { SceneryObjectPrototype } from "./object/SceneryObjectPrototype";
-import { readObjectPrototypesFromBuffer, writObjectPrototypesToWorldTextFile } from "./object/ObjectPrototypes";
+import { readObjectPrototypesFromBuffer, writeObjectPrototypesToWorldTextFile } from "./object/ObjectPrototypes";
 import { readTechnologiesFromBuffer, Technology, writeTechnologiesToWorldTextFile } from "./research/Technology";
 import { SavingContext } from "./SavingContext";
 import { asInt16 } from "./Types";
@@ -24,6 +24,7 @@ import { readTribeRandomMapData, TribeRandomMap, writeTribeRandomMapsToWorldText
 import { readTribeAiFromBuffer, TribeAi, writeTribeAiToWorldTextFile } from "./TribeAi";
 import { Logger } from "../Logger";
 import { onParsingError, ParsingError } from "./Error";
+import path from "path";
 
 export class WorldDatabase {
     attributes: Attribute[] = [];
@@ -87,8 +88,8 @@ export class WorldDatabase {
     
             this.habitats.forEach(habitat => habitat?.linkTerrains(this.terrains, loadingContext));
             this.terrains.forEach(terrain => terrain?.linkOtherData(this.terrains, this.borders, this.objects[0], loadingContext));
-            // TODO: What if gaia is missing stuff...? This should really link with a merged base object or something?
-            this.randomMaps.forEach(randomMap => randomMap.linkOtherData(this.objects[0], loadingContext))
+            const mergedObjects = this.objects[0].map((object, index) => object ? object : this.objects.find(objectList => objectList[index])?.[index] ?? null);
+            this.randomMaps.forEach(randomMap => randomMap.linkOtherData(mergedObjects, loadingContext))
     
             if (buffer.endOfBuffer()) {
                 return true;
@@ -107,25 +108,27 @@ export class WorldDatabase {
         }
     }
 
-    writeToWorldTextFile(savingContext: SavingContext) {
-        writeHabitatsToWorldTextFile(this.habitats, this.terrains.filter(x => x).length, savingContext);
-        writeColormapsToWorldTextFile(this.colormaps, savingContext);
-        writeSoundEffectsToWorldTextFile(this.soundEffects, savingContext);
-        writeSpritesToWorldTextFile(this.sprites, savingContext);
-        writeTerrainsToWorldTextFile(this.terrains, savingContext);
-        writeOverlaysToWorldTextFile(this.overlays, savingContext);
-        writeBordersToWorldTextFile(this.borders, savingContext);
-        writeTribeRandomMapsToWorldTextFile(this.tribeRandomMaps, savingContext);
+    writeToWorldTextFile(outputDirectory: string, savingContext: SavingContext) {
+        writeHabitatsToWorldTextFile(outputDirectory, this.habitats, this.terrains.filter(x => x).length, savingContext);
+        writeColormapsToWorldTextFile(outputDirectory, this.colormaps, savingContext);
+        writeSoundEffectsToWorldTextFile(outputDirectory, this.soundEffects, savingContext);
+        writeSpritesToWorldTextFile(outputDirectory, this.sprites, savingContext);
+        writeTerrainsToWorldTextFile(outputDirectory, this.terrains, savingContext);
+        writeOverlaysToWorldTextFile(outputDirectory, this.overlays, savingContext);
+        writeBordersToWorldTextFile(outputDirectory, this.borders, savingContext);
+        writeTribeRandomMapsToWorldTextFile(outputDirectory, this.tribeRandomMaps, savingContext);
         if (semver.gte(savingContext.version.numbering, "2.0.0")) {
-            writeRandomMapsToWorldTextFile(this.randomMaps, savingContext);
+            writeRandomMapsToWorldTextFile(outputDirectory, this.randomMaps, savingContext);
         }
-        writeStateEffectsToWorldTextFile(this.stateEffects, savingContext);
-        writeCivilizationsToWorldTextFile(this.civilizations, this.attributes, savingContext);
-        writObjectPrototypesToWorldTextFile(this.civilizations, this.objects, savingContext);
-        writeTechnologiesToWorldTextFile(this.technologies, savingContext);
-        writeTribeAiToWorldTextFile(this.tribeAi, savingContext);
+        writeStateEffectsToWorldTextFile(outputDirectory, this.stateEffects, savingContext);
+        writeCivilizationsToWorldTextFile(outputDirectory, this.civilizations, this.attributes, savingContext);
+        writeObjectPrototypesToWorldTextFile(outputDirectory, this.civilizations, this.objects, savingContext);
+        writeTechnologiesToWorldTextFile(outputDirectory, this.technologies, savingContext);
+        if (semver.lt(savingContext.version.numbering, "2.0.0")) {
+            writeTribeAiToWorldTextFile(outputDirectory, this.tribeAi, savingContext);
+        }
 
-        const textFileWriter = new TextFileWriter(TextFileNames.MainFile);
+        const textFileWriter = new TextFileWriter(path.join(outputDirectory, TextFileNames.MainFile));
         textFileWriter
             .string(TextFileNames.Habitats, 13).eol()
             .string(TextFileNames.Colormaps, 13).eol()
@@ -136,7 +139,7 @@ export class WorldDatabase {
             .string(TextFileNames.TribeRandomMaps, 13).eol()
             .string(TextFileNames.Sprites, 13).eol()
             .string(TextFileNames.Civilizations, 13).eol()
-            .string(TextFileNames.Objects, 13).eol()
+            .string(TextFileNames.ObjectPrototypes, 13).eol()
             .string(TextFileNames.StateEffects, 13).eol()
             .string(TextFileNames.TerrainObjects, 13).eol()
 

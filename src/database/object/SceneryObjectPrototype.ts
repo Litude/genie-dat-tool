@@ -45,6 +45,8 @@ function getResourceGatherGroup(prototype: SceneryObjectPrototype) {
                 Logger.warn(`Could not determine mine type ${prototype.id} resource group`)
             }
             break;
+        case ObjectClasses.GoldMine:
+            return 4;
         default:
             Logger.warn(`Tried to get resourceGatherGroup but ${prototype.id} is not a resource`)
             break;

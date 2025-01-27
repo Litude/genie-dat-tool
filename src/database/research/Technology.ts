@@ -5,6 +5,7 @@ import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
 import { asInt16, asInt32, asUInt8, AttributeId, Bool8, Int16, Int32, PrototypeId, StateEffectId, StringId, TechnologyId, UInt8 } from "../Types";
+import path from 'path';
 
 interface TechnologyResourceCost {
     attributeId: AttributeId<Int16>;
@@ -88,8 +89,8 @@ export function readTechnologiesFromBuffer(buffer: BufferReader, loadingContext:
     return result;
 }
 
-export function writeTechnologiesToWorldTextFile(technologies: Technology[], savingContext: SavingContext) {
-    const textFileWriter = new TextFileWriter(TextFileNames.Technologies);
+export function writeTechnologiesToWorldTextFile(outputDirectory: string, technologies: Technology[], savingContext: SavingContext) {
+    const textFileWriter = new TextFileWriter(path.join(outputDirectory, TextFileNames.Technologies));
     textFileWriter.raw(technologies.length).eol(); // Total technology entries
     const validEntries = technologies.filter(entry => entry.isValid());
     textFileWriter.raw(validEntries.length).eol(); // Entries that have data

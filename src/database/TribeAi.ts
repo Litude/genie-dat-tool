@@ -6,6 +6,7 @@ import { LoadingContext } from "./LoadingContext";
 import { ObjectClass } from "./object/ObjectClass";
 import { SavingContext } from "./SavingContext";
 import { AgeId, asBool16, asBool8, asFloat32, asInt16, asUInt16, asUInt32, asUInt8, Bool16, Bool8, Float32, Int16, Int32, NullPointer, Percentage, Pointer, PrototypeId, UInt16, UInt32, UInt8 } from "./Types";
+import path from "path";
 
 // Many entries have exactly 8 entries in an array... Perhaps these correspond to 1 for each age in very early stages of development when there were 8 ages
 // For exampla the object state type as 8 entries for target units and target percents, perhaps to allow specifying how many of that unit the AI should
@@ -203,8 +204,8 @@ export function readTribeAiFromBuffer(buffer: BufferReader, loadingContext: Load
     return result;
 }
 
-export function writeTribeAiToWorldTextFile(aiEntries: (TribeAi | null)[], savingContext: SavingContext) {
-    const textFileWriter = new TextFileWriter(TextFileNames.TribeAi);
+export function writeTribeAiToWorldTextFile(outputDirectory: string, aiEntries: (TribeAi | null)[], savingContext: SavingContext) {
+    const textFileWriter = new TextFileWriter(path.join(outputDirectory, TextFileNames.TribeAi));
     textFileWriter.raw(aiEntries.length).eol();
 
     aiEntries.forEach(aiEntry => {

@@ -10,6 +10,7 @@ import { SavingContext } from "../SavingContext";
 import { SoundEffect } from "../SoundEffect";
 import { asBool16, asBool8, asFloat32, asInt16, asInt32, asUInt8, Bool16, Bool8, Float32, Int16, Int32, NullPointer, PaletteIndex, Pointer, ResourceId, SoundEffectId, TerrainId, UInt8 } from "../Types";
 import { onParsingError } from '../Error';
+import path from 'path';
 
 interface FrameMap {
     frameCount: Int16;
@@ -125,8 +126,8 @@ export function readSecondaryOverlayData(overlays: (Overlay | null)[], buffer: B
 }
 
 
-export function writeOverlaysToWorldTextFile(overlays: (Overlay | null)[], savingContext: SavingContext) {
-    const textFileWriter = new TextFileWriter(TextFileNames.Overlays);
+export function writeOverlaysToWorldTextFile(outputDirectory: string, overlays: (Overlay | null)[], savingContext: SavingContext) {
+    const textFileWriter = new TextFileWriter(path.join(outputDirectory, TextFileNames.Overlays));
     textFileWriter.raw(overlays.filter(isDefined).length).eol(); // Total overlay entries
     const sortedOverlays = [...overlays].filter(isDefined).sort((a, b) => textFileStringCompare(a.internalName, b.internalName));
     sortedOverlays.forEach(overlay => {

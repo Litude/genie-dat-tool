@@ -6,6 +6,7 @@ import { Attribute, createDefaultAttribute } from "./Attributes";
 import { LoadingContext } from "./LoadingContext";
 import { SavingContext } from "./SavingContext";
 import { ArchitectureStyleId, asInt16, asUInt8, Float32, Int16, StateEffectId, UInt8 } from "./Types";
+import path from "path";
 
 export class Civilization {
     id: Int16 = asInt16(-1);
@@ -32,8 +33,8 @@ export class Civilization {
     }
 }
 
-export function writeCivilizationsToWorldTextFile(civilizations: Civilization[], attributes: Attribute[], savingContext: SavingContext) {
-    const textFileWriter = new TextFileWriter(TextFileNames.Civilizations);
+export function writeCivilizationsToWorldTextFile(outputDirectory: string, civilizations: Civilization[], attributes: Attribute[], savingContext: SavingContext) {
+    const textFileWriter = new TextFileWriter(path.join(outputDirectory, TextFileNames.Civilizations));
 
     textFileWriter.raw(civilizations.length).eol(); // Total civilization entries
     textFileWriter.raw(civilizations.length).eol(); // Entries that have data here (these should always match because there are no null civilization entries)

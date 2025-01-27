@@ -5,6 +5,7 @@ import { asInt16, asUInt8, ColorId, Int16, PaletteIndex, ResourceId } from "./Ty
 import { TextFileWriter } from "../textfile/TextFileWriter";
 import { TextFileNames, textFileStringCompare } from "../textfile/TextFile";
 import { onParsingError } from "./Error";
+import path from "path";
 
 const enum ColormapType {
     Default = 0,
@@ -46,8 +47,8 @@ export function readColormaps(buffer: BufferReader, loadingContext: LoadingConte
     return result;
 }
 
-export function writeColormapsToWorldTextFile(colormaps: Colormap[], savingContext: SavingContext) {
-    const textFileWriter = new TextFileWriter(TextFileNames.Colormaps);
+export function writeColormapsToWorldTextFile(outputDirectory: string, colormaps: Colormap[], savingContext: SavingContext) {
+    const textFileWriter = new TextFileWriter(path.join(outputDirectory, TextFileNames.Colormaps));
     textFileWriter.raw(colormaps.length).eol(); // Total colormap entries
     textFileWriter.raw(colormaps.length).eol(); // Entries that have data here (these should always match anyway...)
 

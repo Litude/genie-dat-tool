@@ -5,6 +5,7 @@ import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
 import { asInt16, Float32, Int16, UInt8 } from "../Types";
+import path from "path";
 
 interface EffectCommand {
     commandType: UInt8;
@@ -57,8 +58,8 @@ export function readStateEffects(buffer: BufferReader, loadingContext: LoadingCo
 }
 
 // this format has changed a lot since the alpha days...
-export function writeStateEffectsToWorldTextFile(effects: StateEffect[], savingContext: SavingContext) { 
-    const textFileWriter = new TextFileWriter(TextFileNames.StateEffects);
+export function writeStateEffectsToWorldTextFile(outputDirectory: string, effects: StateEffect[], savingContext: SavingContext) { 
+    const textFileWriter = new TextFileWriter(path.join(outputDirectory, TextFileNames.StateEffects));
     textFileWriter.raw(effects.length).eol(); // Total state effect entries
     const validEntries = effects.filter(entry => entry.isValid());
     if (semver.gte(savingContext.version.numbering, "2.0.0")) {

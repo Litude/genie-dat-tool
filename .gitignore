@@ -1,5 +1,6 @@
 node_modules/
 build/
+output/
 *.dat
 *.ucr
 tr_*.txt

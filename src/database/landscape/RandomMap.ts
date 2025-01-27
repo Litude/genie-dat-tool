@@ -11,6 +11,7 @@ import { getDataEntry } from "../../util";
 import { SceneryObjectPrototype } from "../object/SceneryObjectPrototype";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { TextFileNames } from "../../textfile/TextFile";
+import path from "path";
 
 interface PreMapData {
     mapTypeId: Int32;
@@ -283,8 +284,8 @@ export function readRandomMapData(randomMapCount: number, buffer: BufferReader, 
     return result;
 }
 
-function writeRandomMapDefinitionsToWorldTextFile(randomMaps: RandomMap[], savingContext: SavingContext) {
-    const textFileWriter = new TextFileWriter(TextFileNames.RandomMapDefinitons);
+function writeRandomMapDefinitionsToWorldTextFile(outputDirectory: string, randomMaps: RandomMap[], savingContext: SavingContext) {
+    const textFileWriter = new TextFileWriter(path.join(outputDirectory, TextFileNames.RandomMapDefinitons));
     textFileWriter.raw(randomMaps.length).eol(); // Total map entries
 
     for (let i = 0; i < randomMaps.length; ++i) {
@@ -295,8 +296,8 @@ function writeRandomMapDefinitionsToWorldTextFile(randomMaps: RandomMap[], savin
     textFileWriter.close();
 }
 
-function writeRandomMapBaseLandDataToWorldTextFile(randomMaps: RandomMap[], savingContext: SavingContext) {
-    const textFileWriter = new TextFileWriter(TextFileNames.RandomMapBaseLands);
+function writeRandomMapBaseLandDataToWorldTextFile(outputDirectory: string, randomMaps: RandomMap[], savingContext: SavingContext) {
+    const textFileWriter = new TextFileWriter(path.join(outputDirectory, TextFileNames.RandomMapBaseLands));
     textFileWriter.raw(randomMaps.length).eol(); // Total map entries
 
     for (let i = 0; i < randomMaps.length; ++i) {
@@ -335,8 +336,8 @@ function writeRandomMapBaseLandDataToWorldTextFile(randomMaps: RandomMap[], savi
     textFileWriter.close();
 }
 
-function writeRandomMapTerrainPlacementDataToWorldTextFile(randomMaps: RandomMap[], savingContext: SavingContext) {
-    const textFileWriter = new TextFileWriter(TextFileNames.RandomMapTerrains);
+function writeRandomMapTerrainPlacementDataToWorldTextFile(outputDirectory: string, randomMaps: RandomMap[], savingContext: SavingContext) {
+    const textFileWriter = new TextFileWriter(path.join(outputDirectory, TextFileNames.RandomMapTerrains));
     textFileWriter.raw(randomMaps.length).eol(); // Total map entries
 
     for (let i = 0; i < randomMaps.length; ++i) {
@@ -360,8 +361,8 @@ function writeRandomMapTerrainPlacementDataToWorldTextFile(randomMaps: RandomMap
     textFileWriter.close();
 }
 
-function writeRandomMapObjectPlacementDataToWorldTextFile(randomMaps: RandomMap[], savingContext: SavingContext) {
-    const textFileWriter = new TextFileWriter(TextFileNames.RandomMapObjects);
+function writeRandomMapObjectPlacementDataToWorldTextFile(outputDirectory: string, randomMaps: RandomMap[], savingContext: SavingContext) {
+    const textFileWriter = new TextFileWriter(path.join(outputDirectory, TextFileNames.RandomMapObjects));
     textFileWriter.raw(randomMaps.length).eol(); // Total map entries
 
     for (let i = 0; i < randomMaps.length; ++i) {
@@ -392,9 +393,9 @@ function writeRandomMapObjectPlacementDataToWorldTextFile(randomMaps: RandomMap[
     textFileWriter.close();
 }
 
-export function writeRandomMapsToWorldTextFile(randomMaps: RandomMap[], savingContext: SavingContext) {
-    writeRandomMapDefinitionsToWorldTextFile(randomMaps, savingContext);
-    writeRandomMapBaseLandDataToWorldTextFile(randomMaps, savingContext);
-    writeRandomMapTerrainPlacementDataToWorldTextFile(randomMaps, savingContext);
-    writeRandomMapObjectPlacementDataToWorldTextFile(randomMaps, savingContext);
+export function writeRandomMapsToWorldTextFile(outputDirectory: string, randomMaps: RandomMap[], savingContext: SavingContext) {
+    writeRandomMapDefinitionsToWorldTextFile(outputDirectory, randomMaps, savingContext);
+    writeRandomMapBaseLandDataToWorldTextFile(outputDirectory, randomMaps, savingContext);
+    writeRandomMapTerrainPlacementDataToWorldTextFile(outputDirectory, randomMaps, savingContext);
+    writeRandomMapObjectPlacementDataToWorldTextFile(outputDirectory, randomMaps, savingContext);
 }

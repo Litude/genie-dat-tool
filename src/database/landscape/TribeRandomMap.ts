@@ -7,6 +7,7 @@ import { SavingContext } from "../SavingContext";
 import { asBool32, asInt16, asInt32, Bool32, BorderId, Int16, Int32, PrototypeId, TerrainId } from "../Types";
 import { Border } from "./Border";
 import { Terrain } from "./Terrain";
+import path from 'path';
 
 interface TerrainPlacementData {
     unusedTerrainId: TerrainId<Int32>; // Seems this is some field that was skipped when the text file was parsed by the game and is thus not included in the DAT file data
@@ -123,8 +124,8 @@ export function readTribeRandomMapData(randomMapCount: number, buffer: BufferRea
 }
 
 
-export function writeTribeRandomMapsToWorldTextFile(maps: TribeRandomMap[], savingContext: SavingContext) {
-    const textFileWriter = new TextFileWriter(TextFileNames.TribeRandomMaps);
+export function writeTribeRandomMapsToWorldTextFile(outputDirectory: string, maps: TribeRandomMap[], savingContext: SavingContext) {
+    const textFileWriter = new TextFileWriter(path.join(outputDirectory, TextFileNames.TribeRandomMaps));
     textFileWriter.raw(maps.length).eol();
     maps.forEach(map => {
         textFileWriter

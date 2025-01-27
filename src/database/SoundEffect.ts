@@ -6,6 +6,7 @@ import { asInt16, asInt32, asUInt32, Int16, Int32, Percentage, ResourceId, UInt3
 import { TextFileWriter } from "../textfile/TextFileWriter";
 import { TextFileNames } from "../textfile/TextFile";
 import { onParsingError } from "./Error";
+import path from "path";
 
 interface SoundSample {
     resourceFilename: string;
@@ -59,8 +60,8 @@ export function readSoundEffects(buffer: BufferReader, loadingContext: LoadingCo
     return result;
 }
 
-export function writeSoundEffectsToWorldTextFile(soundEffects: SoundEffect[], savingContext: SavingContext) {
-    const textFileWriter = new TextFileWriter(TextFileNames.SoundEffects);
+export function writeSoundEffectsToWorldTextFile(outputDirectory: string, soundEffects: SoundEffect[], savingContext: SavingContext) {
+    const textFileWriter = new TextFileWriter(path.join(outputDirectory, TextFileNames.SoundEffects));
     textFileWriter.raw(soundEffects.length).eol(); // Total sound effect entries
     textFileWriter.raw(soundEffects.length).eol(); // Entries that have data here (these should always match because there are no null sound entries)
 

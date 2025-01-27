@@ -11,6 +11,7 @@ import { SoundEffect } from "./SoundEffect";
 import { Logger } from "../Logger";
 import { getDataEntry } from "../util";
 import { onParsingError } from "./Error";
+import path from "path";
 
 interface SpriteOverlay {
     spriteId: Int16;
@@ -162,10 +163,10 @@ export function readSprites(buffer: BufferReader, soundEffects: SoundEffect[], l
     return result;
 }
 
-export function writeSpritesToWorldTextFile(sprites: (Sprite | null)[], savingContext: SavingContext) {
-    const textFileWriter = new TextFileWriter(TextFileNames.Sprites);
+export function writeSpritesToWorldTextFile(outputDirectory: string, sprites: (Sprite | null)[], savingContext: SavingContext) {
+    const textFileWriter = new TextFileWriter(path.join(outputDirectory, TextFileNames.Sprites));
     textFileWriter.raw(sprites.length).eol(); // Total sprites entries
-    // TODO: versions older than 3.7 MUST always have the same amount of entries!
+    // TODO: versions older than 3.7 MUST(?) always have the same amount of entries!
     textFileWriter.raw(sprites.filter(sprite => sprite?.name).length).eol(); // Entries that have data here
     let dummyEntryNumber = 1;
 

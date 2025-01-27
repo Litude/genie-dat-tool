@@ -6,6 +6,7 @@ import { SavingContext } from "../SavingContext";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { TextFileNames, textFileStringCompare } from "../../textfile/TextFile";
 import { getDataEntry } from "../../util";
+import path from "path";
 
 interface TerrainData {
     terrainId: TerrainId<Int16>;
@@ -92,8 +93,8 @@ export function readHabitats(buffer: BufferReader, loadingContext: LoadingContex
     return habitats;
 }
 
-export function writeHabitatsToWorldTextFile(habitats: (Habitat | null)[], terrainCount: number, savingContext: SavingContext) {
-    const textFileWriter = new TextFileWriter(TextFileNames.Habitats);
+export function writeHabitatsToWorldTextFile(outputDirectory: string, habitats: (Habitat | null)[], terrainCount: number, savingContext: SavingContext) {
+    const textFileWriter = new TextFileWriter(path.join(outputDirectory, TextFileNames.Habitats));
 
     textFileWriter.raw(habitats.length).eol();
     textFileWriter.raw(terrainCount).eol();

@@ -11,6 +11,7 @@ import { SoundEffect } from "../SoundEffect";
 import { asBool16, asBool8, asFloat32, asInt16, asInt32, asUInt16, asUInt8, Bool16, Bool8, Float32, Int16, Int32, NullPointer, PaletteIndex, Pointer, ResourceId, SoundEffectId, TerrainId, UInt16, UInt8 } from "../Types";
 import { Terrain } from "./Terrain";
 import { onParsingError } from '../Error';
+import path from 'path';
 
 interface FrameMap {
     frameCount: Int16;
@@ -144,8 +145,8 @@ export function readSecondaryBorderData(borders: (Border | null)[], buffer: Buff
 }
 
 
-export function writeBordersToWorldTextFile(borders: (Border | null)[], savingContext: SavingContext) {
-    const textFileWriter = new TextFileWriter(TextFileNames.Borders);
+export function writeBordersToWorldTextFile(outputDirectory: string, borders: (Border | null)[], savingContext: SavingContext) {
+    const textFileWriter = new TextFileWriter(path.join(outputDirectory, TextFileNames.Borders));
     textFileWriter.raw(borders.filter(isDefined).length).eol(); // Total terrain entries
     const sortedBorders = [...borders].filter(isDefined).sort((a, b) => textFileStringCompare(a.internalName, b.internalName));
     sortedBorders.forEach(border => {

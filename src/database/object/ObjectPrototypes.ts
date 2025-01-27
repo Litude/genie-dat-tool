@@ -19,6 +19,7 @@ import { ProjectileObjectPrototype } from "./ProjectileObjectPrototype";
 import { SceneryObjectPrototype } from "./SceneryObjectPrototype";
 import { TreeObjectPrototype } from "./TreeObjectPrototype";
 import { ParsingError } from '../Error';
+import path from 'path';
 
 export function readObjectPrototypesFromBuffer(buffer: BufferReader, loadingContext: LoadingContext) {
     const result: (SceneryObjectPrototype | null)[] = [];
@@ -84,8 +85,8 @@ export function readObjectPrototypesFromBuffer(buffer: BufferReader, loadingCont
 }
 
 
-export function writObjectPrototypesToWorldTextFile(civilizations: Civilization[], prototypes: (SceneryObjectPrototype | null)[][], savingContext: SavingContext) {
-    const textFileWriter = new TextFileWriter(TextFileNames.Objects);
+export function writeObjectPrototypesToWorldTextFile(outputDirectory: string, civilizations: Civilization[], prototypes: (SceneryObjectPrototype | null)[][], savingContext: SavingContext) {
+    const textFileWriter = new TextFileWriter(path.join(outputDirectory, TextFileNames.ObjectPrototypes));
     textFileWriter.raw(civilizations.length).eol(); // civilization count
     const civilizationObjects = civilizations.map((civilization, index) => ({
         civilization,
