@@ -6,6 +6,10 @@ import { LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
 import { asInt16, Float32, Int16, UInt8 } from "../Types";
 import path from "path";
+import { clearDirectory } from "../../files/file-utils";
+import { createJson, createSafeFilenameStem, writeJsonFileIndex } from "../../json/filenames";
+import { isDefined } from "../../ts/ts-utils";
+import { writeFileSync } from "fs";
 
 interface EffectCommand {
     commandType: UInt8;
@@ -16,6 +20,7 @@ interface EffectCommand {
 }
 
 export class StateEffect {
+    referenceId: string = "";
     id: Int16 = asInt16(-1);
     internalName: string = "";
     commands: EffectCommand[] = [];
@@ -23,6 +28,8 @@ export class StateEffect {
     readFromBuffer(buffer: BufferReader, id: Int16, loadingContext: LoadingContext): void {
         this.id = id;
         this.internalName = buffer.readFixedSizeString(31);
+        // TODO: Some other way of generating a reference id since all original names have been lost?
+        this.referenceId = createSafeFilenameStem(this.internalName);
         const commandCount = buffer.readInt16();
         this.commands = [];
         for (let i = 0; i < commandCount; ++i) {
@@ -40,28 +47,35 @@ export class StateEffect {
         return this.internalName !== "";
     }
 
+    writeToJsonFile(directory: string, savingContext: SavingContext) {
+        writeFileSync(path.join(directory, `${this.referenceId}.json`), createJson({
+            internalName: this.internalName,
+            commands: this.commands,
+        }));
+    }
+
     toString() {
         return JSON.stringify(this);
     }
 }
 
-export function readStateEffects(buffer: BufferReader, loadingContext: LoadingContext): StateEffect[] {
-    const result: StateEffect[] = [];
+export function readStateEffects(buffer: BufferReader, loadingContext: LoadingContext): (StateEffect | null)[] {
+    const result: (StateEffect | null)[] = [];
     const effectCount = buffer.readInt32();
     for (let i = 0; i < effectCount; ++i) {
         const stateEffect = new StateEffect();
         stateEffect.readFromBuffer(buffer, asInt16(i), loadingContext);
-        result.push(stateEffect);
+        result.push(stateEffect.isValid() ? stateEffect : null);
     }
 
     return result;
 }
 
 // this format has changed a lot since the alpha days...
-export function writeStateEffectsToWorldTextFile(outputDirectory: string, effects: StateEffect[], savingContext: SavingContext) { 
+export function writeStateEffectsToWorldTextFile(outputDirectory: string, effects: (StateEffect | null)[], savingContext: SavingContext) { 
     const textFileWriter = new TextFileWriter(path.join(outputDirectory, TextFileNames.StateEffects));
     textFileWriter.raw(effects.length).eol(); // Total state effect entries
-    const validEntries = effects.filter(entry => entry.isValid());
+    const validEntries = effects.filter(isDefined);
     if (semver.gte(savingContext.version.numbering, "2.0.0")) {
         textFileWriter.raw(validEntries.length).eol(); // Entries that have data
     }
@@ -90,4 +104,15 @@ export function writeStateEffectsToWorldTextFile(outputDirectory: string, effect
         }
     }
     textFileWriter.close();
+}
+
+export function writeStateEffectsToJsonFiles(outputDirectory: string, stateEffects: (StateEffect | null)[], savingContext: SavingContext) {
+    const stateEffectDirectory = path.join(outputDirectory, "effects");
+    clearDirectory(stateEffectDirectory);
+
+    stateEffects.forEach(stateEffect => {
+        stateEffect?.writeToJsonFile(stateEffectDirectory, savingContext)
+    });
+    
+    writeJsonFileIndex(stateEffectDirectory, stateEffects);
 }

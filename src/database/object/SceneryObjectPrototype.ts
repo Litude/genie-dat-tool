@@ -8,6 +8,7 @@ import { SavingContext } from "../SavingContext";
 import { asBool8, asFloat32, asInt16, asInt32, asUInt8, AttributeId, Bool8, Float32, HabitatId, Int16, Int32, PaletteIndex, PrototypeId, SoundEffectId, SpriteId, StringId, TerrainId, UInt8 } from "../Types";
 import { ObjectClasses } from "./ObjectClass";
 import { ObjectType, ObjectTypes } from "./ObjectType";
+import { createSafeFilenameStem } from '../../json/filenames';
 
 interface AttributeStorage {
     attributeId: AttributeId<Int16>;
@@ -64,6 +65,7 @@ function getResourceDoppelgangerMode(prototype: SceneryObjectPrototype) {
 }
 
 export class SceneryObjectPrototype {
+    referenceId: string = "";
     id: PrototypeId<Int16> = asInt16(-1);
     internalName: string = "";
     objectType: ObjectType = ObjectTypes.None;
@@ -286,6 +288,7 @@ export class SceneryObjectPrototype {
         this.convertTerrain = buffer.readBool8();
 
         this.internalName = nameLength > 0 ? buffer.readFixedSizeString(nameLength) : "";
+        this.referenceId = createSafeFilenameStem(this.internalName);
         if (semver.gte(loadingContext.version.numbering, "3.5.0")) {
             this.upgradeUnitPrototypeId = buffer.readInt16();
             if (this.upgradeUnitPrototypeId !== this.id) {

@@ -3,7 +3,7 @@ import BufferReader from "../../BufferReader";
 import { Logger } from "../../Logger";
 import { TextFileNames, textFileStringCompare } from "../../textfile/TextFile";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
-import { isDefined } from "../../ts/ts-utils";
+import { isDefined, pick } from "../../ts/ts-utils";
 import { getDataEntry } from "../../util";
 import { LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
@@ -12,6 +12,9 @@ import { asBool16, asBool8, asFloat32, asInt16, asInt32, asUInt16, asUInt8, Bool
 import { Terrain } from "./Terrain";
 import { onParsingError } from '../Error';
 import path from 'path';
+import { createJson, createReferenceString, createSafeFilenameStem, writeJsonFileIndex } from '../../json/filenames';
+import { clearDirectory } from '../../files/file-utils';
+import { writeFileSync } from 'fs';
 
 interface FrameMap {
     frameCount: Int16;
@@ -19,10 +22,22 @@ interface FrameMap {
     frameIndex: Int16;
 }
 
-const internalFields: (keyof Border)[] = [
-    "graphicPointer",
-    "padding59B",
-    "drawCount"
+const animationFields: (keyof Border)[] = [  
+    "animationFrameCount",
+    "animationFrameDelay",
+    "animationReplayDelay",
+];
+
+const jsonFields: (keyof Border)[] = [
+    "internalName",
+    "resourceFilename",
+    "resourceId",
+    "minimapColor1",
+    "minimapColor2",
+    "minimapColor3",
+    "animated",
+    "drawTerrain",
+    "overlayBorder"
 ];
 
 export class Border {
@@ -63,7 +78,7 @@ export class Border {
         this.random = buffer.readBool8();
 
         this.internalName = buffer.readFixedSizeString(13);
-        this.referenceId = this.internalName;
+        this.referenceId = createSafeFilenameStem(this.internalName);
         this.resourceFilename = buffer.readFixedSizeString(13);
         if (semver.gte(loadingContext.version.numbering, "2.0.0")) {
             this.resourceId = buffer.readInt32();
@@ -120,6 +135,22 @@ export class Border {
                 this.padding59E = buffer.readUInt16();
             }
         }
+    }
+    
+    
+    writeToJsonFile(directory: string, savingContext: SavingContext) {
+        writeFileSync(path.join(directory, `${this.referenceId}.json`), createJson({
+            ...pick(this, jsonFields),
+            ...this.animated ? pick(this, animationFields) : {},
+            soundEffectId: createReferenceString("SoundEffect", this.soundEffect?.referenceId, this.soundEffectId),
+            passabilityTerrainId: createReferenceString("Terrain", this.passabilityTerrainType?.referenceId, this.passabilityTerrainId),
+            frames: this.frameMaps.map(tileFrames =>
+                tileFrames.map(frameEntry => ({
+                    frameCount: frameEntry.frameCount,
+                    animationFrames: frameEntry.animationFrames
+                }))
+            )
+        }));
     }
 
     toString() {
@@ -182,4 +213,15 @@ export function writeBordersToWorldTextFile(outputDirectory: string, borders: (B
     })
 
     textFileWriter.close();
+}
+
+export function writeBordersToJsonFiles(outputDirectory: string, borders: (Border | null)[], savingContext: SavingContext) {
+    const borderDirectory = path.join(outputDirectory, "borders");
+    clearDirectory(borderDirectory);
+
+    borders.forEach(border => {
+        border?.writeToJsonFile(borderDirectory, savingContext)
+    });
+    
+    writeJsonFileIndex(borderDirectory, borders);
 }

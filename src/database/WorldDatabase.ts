@@ -1,61 +1,71 @@
 import semver from "semver";
 import BufferReader from "../BufferReader";
-import { Border, readMainBorderData, readSecondaryBorderData, writeBordersToWorldTextFile } from "./landscape/Border";
-import { Colormap, readColormaps, writeColormapsToWorldTextFile } from "./Colormap";
-import { Habitat, readHabitats, writeHabitatsToWorldTextFile } from "./landscape/Habitat";
+import { Border, readMainBorderData, readSecondaryBorderData, writeBordersToJsonFiles, writeBordersToWorldTextFile } from "./landscape/Border";
+import { Colormap, readColormaps, writeColormapsToJsonFiles, writeColormapsToWorldTextFile } from "./Colormap";
+import { Habitat, readHabitats, writeHabitatsToJsonFiles, writeHabitatsToWorldTextFile } from "./landscape/Habitat";
 import { LoadingContext } from "./LoadingContext";
 import { MapProperties } from "./landscape/MapProperties";
 import { RandomMap, readRandomMapData, writeRandomMapsToWorldTextFile } from "./landscape/RandomMap";
-import { readSoundEffects, SoundEffect, writeSoundEffectsToWorldTextFile } from "./SoundEffect";
-import { readSprites, Sprite, writeSpritesToWorldTextFile } from "./Sprite";
-import { readMainTerrainData, readSecondaryTerrainData, Terrain, writeTerrainsToWorldTextFile } from "./landscape/Terrain";
-import { readStateEffects, StateEffect, writeStateEffectsToWorldTextFile } from "./research/StateEffect";
+import { readSoundEffects, SoundEffect, writeSoundEffectsToJsonFiles, writeSoundEffectsToWorldTextFile } from "./SoundEffect";
+import { readSprites, Sprite, writeSpritesToJsonFiles, writeSpritesToWorldTextFile } from "./Sprite";
+import { readMainTerrainData, readSecondaryTerrainData, Terrain, writeTerrainsToJsonFiles, writeTerrainsToWorldTextFile } from "./landscape/Terrain";
+import { readStateEffects, StateEffect, writeStateEffectsToJsonFiles, writeStateEffectsToWorldTextFile } from "./research/StateEffect";
 import { Civilization, writeCivilizationsToWorldTextFile } from "./Civilization";
 import { SceneryObjectPrototype } from "./object/SceneryObjectPrototype";
 import { readObjectPrototypesFromBuffer, writeObjectPrototypesToWorldTextFile } from "./object/ObjectPrototypes";
-import { readTechnologiesFromBuffer, Technology, writeTechnologiesToWorldTextFile } from "./research/Technology";
+import { readTechnologiesFromBuffer, Technology, writeTechnologiesToJsonFiles, writeTechnologiesToWorldTextFile } from "./research/Technology";
 import { SavingContext } from "./SavingContext";
 import { asInt16 } from "./Types";
 import { TextFileWriter } from "../textfile/TextFileWriter";
 import { TextFileNames } from "../textfile/TextFile";
 import { Attribute, readAttributesFromJsonFile } from "./Attributes";
-import { Overlay, readMainOverlayData, readSecondaryOverlayData, writeOverlaysToWorldTextFile } from "./landscape/Overlay";
+import { Overlay, readMainOverlayData, readSecondaryOverlayData, writeOverlaysToJsonFiles, writeOverlaysToWorldTextFile } from "./landscape/Overlay";
 import { readTribeRandomMapData, TribeRandomMap, writeTribeRandomMapsToWorldTextFile } from "./landscape/TribeRandomMap";
 import { readTribeAiFromBuffer, TribeAi, writeTribeAiToWorldTextFile } from "./TribeAi";
 import { Logger } from "../Logger";
 import { onParsingError, ParsingError } from "./Error";
 import path from "path";
+import { isDefined, Nullable } from "../ts/ts-utils";
+import { ensureReferenceIdUniqueness } from "../json/filenames";
 
 export class WorldDatabase {
     attributes: Attribute[] = [];
-    habitats: (Habitat | null)[] = [];
+    habitats: Nullable<Habitat>[] = [];
     colormaps: Colormap[] = [];
     soundEffects: SoundEffect[] = [];
-    sprites: (Sprite | null)[] = [];
+    sprites: Nullable<Sprite>[] = [];
     mapProperties: MapProperties = new MapProperties();
-    terrains: (Terrain | null)[] = [];
-    overlays: (Overlay | null)[] = [];
-    borders: (Border | null)[] = [];
+    terrains: Nullable<Terrain>[] = [];
+    overlays: Nullable<Overlay>[] = [];
+    borders: Nullable<Border>[] = [];
     tribeRandomMaps: TribeRandomMap[] = [];
     randomMaps: RandomMap[] = [];
-    stateEffects: StateEffect[] = [];
+    stateEffects: Nullable<StateEffect>[] = [];
     civilizations: Civilization[] = [];
-    objects: (SceneryObjectPrototype | null)[][] = [];
-    technologies: Technology[] = [];
-    tribeAi: (TribeAi | null)[] = [];
+    objects: Nullable<SceneryObjectPrototype>[][] = [];
+    technologies: Nullable<Technology>[] = [];
+    tribeAi:  Nullable<TribeAi>[] = [];
 
     readFromBuffer(buffer: BufferReader, loadingContext: LoadingContext) {
         try {
+
             this.attributes = readAttributesFromJsonFile("./data/attributes.json");
+
             this.habitats = readHabitats(buffer, loadingContext);
+
             this.colormaps = readColormaps(buffer, loadingContext);
+
             this.soundEffects = readSoundEffects(buffer, loadingContext);
+
             this.sprites = readSprites(buffer, this.soundEffects, loadingContext);
     
             this.mapProperties = new MapProperties();
             this.mapProperties.readMainDataFromBuffer(buffer, loadingContext);
+
             this.terrains = readMainTerrainData(buffer, this.soundEffects, loadingContext);
+
             this.overlays = readMainOverlayData(buffer, this.soundEffects, loadingContext);
+            
             this.borders = readMainBorderData(buffer, this.soundEffects, this.terrains, loadingContext);
     
             this.mapProperties.readSecondaryDataFromBuffer(buffer, loadingContext);
@@ -85,11 +95,25 @@ export class WorldDatabase {
             this.technologies = readTechnologiesFromBuffer(buffer, loadingContext);
             this.tribeAi = readTribeAiFromBuffer(buffer, loadingContext);
             
+            ensureReferenceIdUniqueness(this.habitats);
+            ensureReferenceIdUniqueness(this.colormaps);
+            ensureReferenceIdUniqueness(this.soundEffects);
+            ensureReferenceIdUniqueness(this.sprites);
+            ensureReferenceIdUniqueness(this.terrains);
+            ensureReferenceIdUniqueness(this.overlays);
+            ensureReferenceIdUniqueness(this.borders);
+
+
+            ensureReferenceIdUniqueness(this.stateEffects);
+            ensureReferenceIdUniqueness(this.technologies);
+            
+            const mergedObjects = this.objects[0].map((object, index) => object ? object : this.objects.find(objectList => objectList[index])?.[index] ?? null);
     
+            this.sprites.forEach(sprite => sprite?.linkOtherData(this.sprites, loadingContext));
             this.habitats.forEach(habitat => habitat?.linkTerrains(this.terrains, loadingContext));
             this.terrains.forEach(terrain => terrain?.linkOtherData(this.terrains, this.borders, this.objects[0], loadingContext));
-            const mergedObjects = this.objects[0].map((object, index) => object ? object : this.objects.find(objectList => objectList[index])?.[index] ?? null);
             this.randomMaps.forEach(randomMap => randomMap.linkOtherData(mergedObjects, loadingContext))
+            this.technologies.forEach(technology => technology?.linkOtherData(this.technologies, mergedObjects, this.stateEffects, loadingContext));
     
             if (buffer.endOfBuffer()) {
                 return true;
@@ -163,7 +187,23 @@ export class WorldDatabase {
         }
 
         textFileWriter.close();
+    }
 
+    writeToJsonFile(outputDirectory: string, savingContext: SavingContext) {
+        writeHabitatsToJsonFiles(outputDirectory, this.habitats, savingContext);
+        writeColormapsToJsonFiles(outputDirectory, this.colormaps, savingContext);
+        writeSoundEffectsToJsonFiles(outputDirectory, this.soundEffects, savingContext);
+        writeSpritesToJsonFiles(outputDirectory, this.sprites, savingContext);
+        writeTerrainsToJsonFiles(outputDirectory, this.terrains, savingContext);
+        writeOverlaysToJsonFiles(outputDirectory, this.overlays, savingContext);
+        writeBordersToJsonFiles(outputDirectory, this.borders, savingContext);
+        // TODO: map properties
+        // TODO: tribe random map
+        // TODO: random map
+        writeStateEffectsToJsonFiles(outputDirectory, this.stateEffects, savingContext);
+        // TODO: objects
+        writeTechnologiesToJsonFiles(outputDirectory, this.technologies, savingContext);
+        // TODO: tribe ai
     }
 
     toString() {

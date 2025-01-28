@@ -7,6 +7,8 @@ import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { TextFileNames, textFileStringCompare } from "../../textfile/TextFile";
 import { getDataEntry } from "../../util";
 import path from "path";
+import { mkdirSync, rmSync, writeFileSync } from "fs";
+import { createJson, createReferenceString, jsonNumberCleanup } from "../../json/filenames";
 
 interface TerrainData {
     terrainId: TerrainId<Int16>;
@@ -64,6 +66,18 @@ export class Habitat {
         });
     }
 
+    writeToJsonFile(directory: string, savingContext: SavingContext) {
+    
+        writeFileSync(path.join(directory, `${this.referenceId}.json`), createJson({
+            terrainData: this.terrainData.filter(entry => entry.multiplier).map(terrainEntry => {
+                return {
+                    terrainId: createReferenceString("Terrain", terrainEntry.terrain?.referenceId, terrainEntry.terrainId),
+                    multiplier: terrainEntry.multiplier
+                }
+            })
+        }));
+    }
+
     toString() {
         return this.terrainData.map(terrainData => terrainData.multiplier.toFixed(6)).join(', ');
     }
@@ -104,4 +118,17 @@ export function writeHabitatsToWorldTextFile(outputDirectory: string, habitats: 
         habitat?.writeToWorldTextFile(textFileWriter);
     })
     textFileWriter.close();
+}
+
+export function writeHabitatsToJsonFiles(outputDirectory: string, habitats: (Habitat | null)[], savingContext: SavingContext) {
+    const habitatDirectory = path.join(outputDirectory, "habitats");
+    rmSync(habitatDirectory, { recursive: true, force: true });
+    mkdirSync(habitatDirectory, { recursive: true });
+
+    habitats.forEach(habitat => {
+        habitat?.writeToJsonFile(habitatDirectory, savingContext)
+    });
+    
+    const habitatIds = habitats.map(habitat => habitat?.referenceId ?? null);
+    writeFileSync(path.join(habitatDirectory, "index.json"), JSON.stringify(habitatIds, undefined, 4));
 }

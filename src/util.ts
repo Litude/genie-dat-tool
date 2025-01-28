@@ -1,7 +1,8 @@
 import { onParsingError } from "./database/Error";
+import { ReferenceType } from "./json/filenames";
 import { Logger } from "./Logger";
 
-export function getDataEntry<T>(entries: T[], index: number, resourceType: string, referencingResource: string, loadingContext: { abortOnError: boolean }) {
+export function getDataEntry<T>(entries: T[], index: number, resourceType: ReferenceType, referencingResource: string, loadingContext: { abortOnError: boolean }) {
     if (index >= 0) {
         if (index < entries.length) {
             const result = entries[index];

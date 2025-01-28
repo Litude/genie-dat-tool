@@ -6,6 +6,8 @@ import { TextFileWriter } from "../textfile/TextFileWriter";
 import { TextFileNames, textFileStringCompare } from "../textfile/TextFile";
 import { onParsingError } from "./Error";
 import path from "path";
+import { mkdirSync, rmSync, writeFileSync } from "fs";
+import { createJson, createSafeFilenameStem } from "../json/filenames";
 
 const enum ColormapType {
     Default = 0,
@@ -14,6 +16,7 @@ const enum ColormapType {
 }
 
 export class Colormap {
+    referenceId: string = "";
     id: ColorId = asInt16(0);
     resourceFilename: string = ""; // includes extension
     resourceId: ResourceId<Int16> = asInt16(-1);
@@ -22,6 +25,7 @@ export class Colormap {
 
     readFromBuffer(buffer: BufferReader, id: Int16, loadingContext: LoadingContext) {
         this.resourceFilename = buffer.readFixedSizeString(30);
+        this.referenceId = createSafeFilenameStem(this.resourceFilename);
         this.id = buffer.readInt16();
         if (this.id !== id) {
             onParsingError(`Mismatch between stored Colormap id ${this.id} and ordering ${id}, data might be corrupt!`, loadingContext);
@@ -29,6 +33,14 @@ export class Colormap {
         this.resourceId = buffer.readInt16();
         this.minimapColor = buffer.readUInt8();
         this.type = buffer.readUInt8();
+    }
+
+    writeToJsonFile(directory: string, savingContext: SavingContext) {
+        writeFileSync(path.join(directory, `${this.referenceId}.json`), createJson({
+            ...this,
+            id: undefined,
+            referenceId: undefined,
+        }));
     }
 
     toString() {
@@ -63,4 +75,17 @@ export function writeColormapsToWorldTextFile(outputDirectory: string, colormaps
             .eol()
     });
     textFileWriter.close();
+}
+
+export function writeColormapsToJsonFiles(outputDirectory: string, colormaps: Colormap[], savingContext: SavingContext) {
+    const colormapDirectory = path.join(outputDirectory, "colormaps");
+    rmSync(colormapDirectory, { recursive: true, force: true });
+    mkdirSync(colormapDirectory, { recursive: true });
+
+    colormaps.forEach(colormap => {
+        colormap.writeToJsonFile(colormapDirectory, savingContext);
+    });
+
+    const colormapIds = colormaps.map(colormap => colormap.referenceId);
+    writeFileSync(path.join(colormapDirectory, "index.json"), JSON.stringify(colormapIds, undefined, 4));
 }

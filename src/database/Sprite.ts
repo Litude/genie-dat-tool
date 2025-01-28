@@ -12,9 +12,13 @@ import { Logger } from "../Logger";
 import { getDataEntry } from "../util";
 import { onParsingError } from "./Error";
 import path from "path";
+import { mkdirSync, rmSync, writeFileSync } from "fs";
+import { createJson, createReferenceString, createSafeFilenameStem, jsonNumberCleanup } from "../json/filenames";
+import { pick } from "../ts/ts-utils";
 
 interface SpriteOverlay {
     spriteId: Int16;
+    sprite: Sprite | null;
     padding02: Int16;
     spritePointer: Pointer;
     offset: Point<Int16>;
@@ -29,9 +33,26 @@ interface SpriteAngleSoundEffect {
     soundEffect: SoundEffect | null;
 }
 
+const spriteJsonFields: (keyof Sprite)[] = [
+    'name',
+    'resourceFilename',
+    'resourceId',
+    'colorTransformType',
+    'layer',
+    'forcedColorTransform',
+    'selectionType',
+    'boundingBox',
+    'framesPerAngle',
+    'angleCount',
+    'objectSpeedMultiplier',
+    'animationDuration',
+    'animationReplayDelay',
+    'spriteType'
+];
+
 export class Sprite {
     referenceId: string;
-    id: Int16; // todo: check if this matches index?
+    id: Int16;
     name: string;
     resourceFilename: string;
     resourceId: ResourceId<Int32>;
@@ -56,7 +77,7 @@ export class Sprite {
 
     constructor(buffer: BufferReader, id: Int16, soundEffects: SoundEffect[], loadingContext: LoadingContext) {
         this.name = buffer.readFixedSizeString(21);
-        this.referenceId = this.name;
+        this.referenceId = createSafeFilenameStem(this.name);
         this.resourceFilename = buffer.readFixedSizeString(13);
         this.resourceId = semver.gte(loadingContext.version.numbering, "1.3.1") ? buffer.readInt32() : asInt32(buffer.readInt16());
         this.loaded = buffer.readBool8();
@@ -92,6 +113,7 @@ export class Sprite {
         for (let i = 0; i < overlayCount; ++i) {
             this.overlays.push({
                 spriteId: buffer.readInt16(),
+                sprite: null,
                 padding02: buffer.readInt16(),
                 spritePointer: buffer.readPointer(),
                 offset: {
@@ -127,7 +149,34 @@ export class Sprite {
                 }
             }
         }
+    }
 
+    linkOtherData(sprites: (Sprite | null)[], loadingContext: LoadingContext) {
+        this.overlays.forEach(overlay => {
+            overlay.sprite = getDataEntry(sprites, overlay.spriteId, "Sprite", this.referenceId, loadingContext);
+        });
+    }
+
+    writeToJsonFile(directory: string, savingContext: SavingContext) {
+        const parsedSprite = {
+            ...pick(this, spriteJsonFields),
+            mirroringMode: this.mirroringMode ? true : false,
+            soundEffectId: createReferenceString("SoundEffect", this.soundEffect?.referenceId, this.soundEffectId),
+            overlays: this.overlays.map(overlay => ({
+                offset: overlay.offset,
+                angle: overlay.angle,
+                spriteId: createReferenceString("Sprite", overlay.sprite?.referenceId, overlay.spriteId) 
+            })),
+            angleSoundEffects: this.angleSoundEffects
+                .filter(soundEffect => soundEffect.soundEffectId >= 0)
+                .map(soundEffect => ({
+                    angle: soundEffect.angle,
+                    frameNumber: soundEffect.frameNumber,
+                    soundEffect: createReferenceString("SoundEffect", soundEffect.soundEffect?.referenceId, soundEffect.soundEffectId)
+                }))
+        };
+
+        writeFileSync(path.join(directory, `${this.referenceId}.json`), createJson(parsedSprite));
     }
 
     toString() {
@@ -154,7 +203,13 @@ export function readSprites(buffer: BufferReader, soundEffects: SoundEffect[], l
 
     for (let i = 0; i < spriteCount; ++i) {
         if (validSprites[i]) {
-            result.push(new Sprite(buffer, asInt16(i), soundEffects, loadingContext));
+            const sprite = new Sprite(buffer, asInt16(i), soundEffects, loadingContext)
+            if (sprite.name && sprite.resourceFilename) {
+                result.push(sprite);
+            }
+            else {
+                result.push(null);
+            }
         }
         else {
             result.push(null);
@@ -166,14 +221,10 @@ export function readSprites(buffer: BufferReader, soundEffects: SoundEffect[], l
 export function writeSpritesToWorldTextFile(outputDirectory: string, sprites: (Sprite | null)[], savingContext: SavingContext) {
     const textFileWriter = new TextFileWriter(path.join(outputDirectory, TextFileNames.Sprites));
     textFileWriter.raw(sprites.length).eol(); // Total sprites entries
-    // TODO: versions older than 3.7 MUST(?) always have the same amount of entries!
     textFileWriter.raw(sprites.filter(sprite => sprite?.name).length).eol(); // Entries that have data here
-    let dummyEntryNumber = 1;
 
-    for (let i = 0; i < sprites.length; ++i) {
-        const sprite = sprites[i]
-        // TODO: Old versions don't actually support empty lines, need to throw an error in that case
-        if (sprite && sprite.name && sprite.resourceFilename) {
+    sprites.forEach(sprite => {
+        if (sprite) {
             // This is a hackish way to keep tower sound effects as they are. It would seem they were originally imported with a non-existing angle number of 1
             // so they were set to -1 during import and such entries are not included by default
             let subsituteEntry = false;
@@ -247,11 +298,21 @@ export function writeSpritesToWorldTextFile(outputDirectory: string, sprites: (S
                 }
             }
         }
-        // else if (semver.lt(savingContext.version.numbering, "3.7.0")) {
-        //     console.log(sprites);
-        //     throw new Error("Saving dummy entries for older versons not implemented!");
-        // }
+    })
 
-    }
     textFileWriter.close();
+}
+
+
+export function writeSpritesToJsonFiles(outputDirectory: string, sprites: (Sprite | null)[], savingContext: SavingContext) {
+    const spriteDirectory = path.join(outputDirectory, "sprites");
+    rmSync(spriteDirectory, { recursive: true, force: true });
+    mkdirSync(spriteDirectory, { recursive: true });
+
+    sprites.forEach(sprite => {
+        sprite?.writeToJsonFile(spriteDirectory, savingContext);
+    });
+
+    const spriteIds = sprites.map(sprite => sprite?.referenceId ?? null);
+    writeFileSync(path.join(spriteDirectory, "index.json"), JSON.stringify(spriteIds, undefined, 4));
 }

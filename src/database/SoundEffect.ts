@@ -7,6 +7,8 @@ import { TextFileWriter } from "../textfile/TextFileWriter";
 import { TextFileNames } from "../textfile/TextFile";
 import { onParsingError } from "./Error";
 import path from "path";
+import { mkdirSync, rmSync, writeFileSync } from "fs";
+import { createJson, createSafeFilenameStem } from "../json/filenames";
 
 interface SoundSample {
     resourceFilename: string;
@@ -15,6 +17,7 @@ interface SoundSample {
 }
 
 export class SoundEffect {
+    referenceId: string = ""; // TODO: Pick this from the first sound effect filename instead and ensure it is unique by appending a number or so...
     id: Int16 = asInt16(-1);
     playDelay: Int16 = asInt16(0);
     samples: SoundSample[] = [];
@@ -22,6 +25,7 @@ export class SoundEffect {
 
     readFromBuffer(buffer: BufferReader, id: Int16, loadingContext: LoadingContext) {
         this.id = buffer.readInt16();
+        this.referenceId = `SoundEffect_${id}`;
         if (this.id !== id) {
             onParsingError(`Mismatch between stored Sound Effect id ${this.id} and ordering ${id}, data might be corrupt!`, loadingContext);
         }
@@ -42,6 +46,14 @@ export class SoundEffect {
                 playbackProbability: buffer.readInt16(),
             });
         }
+
+        this.referenceId = createSafeFilenameStem(this.samples.at(0)?.resourceFilename ?? 'Empty');
+    }
+
+    writeToJsonFile(directory: string, savingContext: SavingContext) {
+        writeFileSync(path.join(directory, `${this.referenceId}.json`), createJson({
+            samples: this.samples
+        }));
     }
 
     toString() {
@@ -83,4 +95,17 @@ export function writeSoundEffectsToWorldTextFile(outputDirectory: string, soundE
         }
     }
     textFileWriter.close();
+}
+
+export function writeSoundEffectsToJsonFiles(outputDirectory: string, soundEffects: SoundEffect[], savingContext: SavingContext) {
+    const colormapDirectory = path.join(outputDirectory, "sounds");
+    rmSync(colormapDirectory, { recursive: true, force: true });
+    mkdirSync(colormapDirectory, { recursive: true });
+
+    soundEffects.forEach(soundEffect => {
+        soundEffect.writeToJsonFile(colormapDirectory, savingContext);
+    });
+
+    const soundEffectIds = soundEffects.map(soundEffect => soundEffect.referenceId);
+    writeFileSync(path.join(colormapDirectory, "index.json"), createJson(soundEffectIds));
 }

@@ -3,7 +3,7 @@ import BufferReader from "../../BufferReader";
 import { Logger } from "../../Logger";
 import { TextFileNames, textFileStringCompare } from "../../textfile/TextFile";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
-import { isDefined } from "../../ts/ts-utils";
+import { isDefined, pick } from "../../ts/ts-utils";
 import { getDataEntry } from "../../util";
 import { LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
@@ -11,12 +11,32 @@ import { SoundEffect } from "../SoundEffect";
 import { asBool16, asBool8, asFloat32, asInt16, asInt32, asUInt8, Bool16, Bool8, Float32, Int16, Int32, NullPointer, PaletteIndex, Pointer, ResourceId, SoundEffectId, TerrainId, UInt8 } from "../Types";
 import { onParsingError } from '../Error';
 import path from 'path';
+import { clearDirectory } from '../../files/file-utils';
+import { createJson, createReferenceString, writeJsonFileIndex } from '../../json/filenames';
+import { writeFileSync } from 'fs';
 
 interface FrameMap {
     frameCount: Int16;
     animationFrames: Int16;
     frameIndex: Int16;
 }
+
+const animationFields: (keyof Overlay)[] = [  
+    "animationFrameCount",
+    "animationFrameDelay",
+    "animationReplayDelay",
+];
+
+const jsonFields: (keyof Overlay)[] = [
+    "internalName",
+    "resourceFilename",
+    "resourceId",
+    "minimapColor1",
+    "minimapColor2",
+    "minimapColor3",
+    "animated",
+    "drawTerrain",
+];
 
 export class Overlay {
     referenceId: string = "";
@@ -98,6 +118,20 @@ export class Overlay {
         this.drawTerrain = buffer.readBool8();
         this.padding59B = buffer.readUInt8();
     }
+        
+    writeToJsonFile(directory: string, savingContext: SavingContext) {
+        writeFileSync(path.join(directory, `${this.referenceId}.json`), createJson({
+            ...pick(this, jsonFields),
+            ...this.animated ? pick(this, animationFields) : {},
+            soundEffectId: createReferenceString("SoundEffect", this.soundEffect?.referenceId, this.soundEffectId),
+            frames: this.frameMaps.map(tileFrames =>
+                tileFrames.map(frameEntry => ({
+                    frameCount: frameEntry.frameCount,
+                    animationFrames: frameEntry.animationFrames
+                }))
+            )
+        }));
+    }
 
     toString() {
         return JSON.stringify(this);
@@ -158,4 +192,16 @@ export function writeOverlaysToWorldTextFile(outputDirectory: string, overlays: 
     })
 
     textFileWriter.close();
+}
+
+
+export function writeOverlaysToJsonFiles(outputDirectory: string, overlay: (Overlay | null)[], savingContext: SavingContext) {
+    const overlayDirectory = path.join(outputDirectory, "overlays");
+    clearDirectory(overlayDirectory);
+
+    overlay.forEach(overlay => {
+        overlay?.writeToJsonFile(overlayDirectory, savingContext)
+    });
+    
+    writeJsonFileIndex(overlayDirectory, overlay);
 }

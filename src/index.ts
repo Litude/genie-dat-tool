@@ -49,21 +49,21 @@ const yargsInstance = yargs(hideBin(process.argv))
           })
         }
     )
-    .command(
-      "generate <type>",
-      "Generate a new DAT file",
-      (yargs) => {
-        return yargs.positional("type", {
-          describe: "Type of DAT file to generate",
-          type: "string",
-          choices: ["empires", "custom"],
-          demandOption: true,
-        });
-      },
-      (argv) => {
-        console.log(`Generating DAT file of type: ${argv.type}`);
-      }
-    )
+    // .command(
+    //   "generate <type>",
+    //   "Generate a new DAT file",
+    //   (yargs) => {
+    //     return yargs.positional("type", {
+    //       describe: "Type of DAT file to generate",
+    //       type: "string",
+    //       choices: ["empires", "custom"],
+    //       demandOption: true,
+    //     });
+    //   },
+    //   (argv) => {
+    //     console.log(`Generating DAT file of type: ${argv.type}`);
+    //   }
+    // )
     .option("list-dat-versions", {
         type: "boolean",
         describe: "List supported DAT versions"
@@ -160,7 +160,7 @@ function parseDatFile() {
                 }
             }
 
-            if (worldDatabase && inputVersion && outputFormat === "textfile") {
+            if (worldDatabase && inputVersion && outputFormat) {
                 const [numbering, flavor] = outputVersionParameter.split('-');
                 const textFileVersion: Version = {
                     numbering,
@@ -170,9 +170,21 @@ function parseDatFile() {
                     textFileVersion.numbering = inputVersion?.numbering
                     textFileVersion.flavor = inputVersion.flavor;
                 }
-                Logger.info(`Writing ${[textFileVersion.numbering, textFileVersion.flavor].filter(isDefined).join('-')} text file`);
-                worldDatabase.writeToWorldTextFile(outputDir, { version: textFileVersion });
+                const versionFormatted = `${[textFileVersion.numbering, textFileVersion.flavor].filter(isDefined).join('-')}`;
+
+                if (outputFormat === "textfile") {
+                    Logger.info(`Writing ${versionFormatted} text files`);
+                    worldDatabase.writeToWorldTextFile(outputDir, { version: textFileVersion });
+                }
+                else if (outputFormat === "json") {
+                    Logger.info(`Writing ${versionFormatted} json files`);
+                    worldDatabase.writeToJsonFile(outputDir, { version: textFileVersion });
+                }
+                else {
+                    Logger.error(`Output format ${outputFormat} not yet implemented!`);
+                }
             }
+
         }
     }
     else {

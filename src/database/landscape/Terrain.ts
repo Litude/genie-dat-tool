@@ -3,7 +3,7 @@ import BufferReader from "../../BufferReader";
 import { Logger } from "../../Logger";
 import { TextFileNames, textFileStringCompare } from "../../textfile/TextFile";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
-import { isDefined } from "../../ts/ts-utils";
+import { isDefined, pick } from "../../ts/ts-utils";
 import { getDataEntry } from "../../util";
 import { LoadingContext } from "../LoadingContext";
 import { SceneryObjectPrototype } from "../object/SceneryObjectPrototype";
@@ -13,6 +13,9 @@ import { asBool8, asFloat32, asInt16, asInt32, asUInt16, asUInt8, Bool8, BorderI
 import { Border } from "./Border";
 import { onParsingError } from "../Error";
 import path from "path";
+import { createJson, createReferenceString, createSafeFilenameStem, writeJsonFileIndex } from "../../json/filenames";
+import { mkdirSync, rmSync, writeFileSync } from "fs";
+import { clearDirectory } from "../../files/file-utils";
 
 interface FrameMap {
     frameCount: Int16;
@@ -27,10 +30,24 @@ interface TerrainObjectPlacement {
     centralize: Bool8;
 }
 
-const internalFields: (keyof Terrain)[] = [
-    "graphicPointer",
-    "padding0196",
-    "drawCount"
+const animationFields: (keyof Terrain)[] = [  
+    "animationFrameCount",
+    "animationFrameDelay",
+    "animationReplayDelay",
+];
+
+const jsonFields: (keyof Terrain)[] = [
+    "internalName",
+    "resourceFilename",
+    "resourceId",
+    "minimapColor1",
+    "minimapColor2",
+    "minimapColor3",
+    "minimapCliffColor1",
+    "minimapCliffColor2",
+    "animated",
+    "terrainPatternHeight",
+    "terrainPatternWidth"
 ];
 
 export class Terrain {
@@ -72,7 +89,7 @@ export class Terrain {
     terrainPatternHeight: Int16 = asInt16(0);
     terrainPatternWidth: Int16 = asInt16(0);
     borderTypeIds: BorderId<Int16>[] = [];
-    borderTypes: (Border | null)[] = [];
+    borderTypes: (({ border: Border | null, terrain: Terrain | null }) | null)[] = [];
     objectPlacements: TerrainObjectPlacement[] = [];
     padding0196: UInt16 = asUInt16(0);
 
@@ -82,7 +99,7 @@ export class Terrain {
         this.random = buffer.readBool8();
 
         this.internalName = buffer.readFixedSizeString(13);
-        this.referenceId = this.internalName;
+        this.referenceId = createSafeFilenameStem(this.internalName);
         this.resourceFilename = buffer.readFixedSizeString(13);
         if (semver.gte(loadingContext.version.numbering, "2.0.0")) {
             this.resourceId = buffer.readInt32();
@@ -133,7 +150,7 @@ export class Terrain {
         this.terrainPatternHeight = buffer.readInt16();
         this.terrainPatternWidth = buffer.readInt16();
 
-        this.borderTypes = [];
+        this.borderTypeIds = [];
         for (let i = 0; i < 32; ++i) {
             this.borderTypeIds.push(buffer.readInt16());
         }
@@ -169,10 +186,51 @@ export class Terrain {
         this.passableTerrain = this.passableTerrainId !== 255 ? getDataEntry(terrains, this.passableTerrainId, "Terrain", this.referenceId, loadingContext) : null;
         this.impassableTerrain = this.impassableTerrainId !== 255 ? getDataEntry(terrains, this.impassableTerrainId, "Terrain", this.referenceId, loadingContext) : null;
         this.renderedTerrain = getDataEntry(terrains, this.renderedTerrainId, "Terrain", this.referenceId, loadingContext);
-        this.borderTypes = this.borderTypeIds.map(borderId => getDataEntry(borders, borderId, "Border", this.referenceId, loadingContext));
+        this.borderTypes = this.borderTypeIds.map((borderId, terrainId) => {
+            if (borderId > 0) {
+                return {
+                    border: getDataEntry(borders, borderId, "Border", this.referenceId, loadingContext),
+                    terrain: getDataEntry(terrains, terrainId, "Terrain", this.referenceId, loadingContext)
+                }
+            }
+            else {
+                return null;
+            }
+        });
         this.objectPlacements.forEach(placement => {
             placement.object = getDataEntry(objects, placement.prototypeId, "ObjectPrototype", this.referenceId, loadingContext);
         });
+    }
+
+    writeToJsonFile(directory: string, savingContext: SavingContext) {
+        writeFileSync(path.join(directory, `${this.referenceId}.json`), createJson({
+            ...pick(this, jsonFields),
+            ...this.animated ? pick(this, animationFields) : {},
+            soundEffectId: createReferenceString("SoundEffect", this.soundEffect?.referenceId, this.soundEffectId),
+            renderedTerrainId: createReferenceString("Terrain", this.renderedTerrain?.referenceId, this.renderedTerrainId),
+            impassableTerrainId: createReferenceString("Terrain", this.impassableTerrain?.referenceId, this.impassableTerrainId),
+            passableTerrainId: createReferenceString("Terrain", this.passableTerrain?.referenceId, this.passableTerrainId),
+            borders: this.borderTypes.map((entry, index) => {
+                if (entry?.border) {
+                    return {
+                        borderId: createReferenceString("Border", entry.border.referenceId, this.borderTypeIds[index]),
+                        terrainId: createReferenceString("Terrain", entry.terrain?.referenceId, index)
+                    }
+                }
+                else {
+                    return null
+                }
+            }).filter(isDefined),
+            objectPlacements: this.objectPlacements.map(objectPlacement => ({
+                prototypeId: createReferenceString("ObjectPrototype", objectPlacement.object?.referenceId, objectPlacement.prototypeId),
+                density: objectPlacement.density,
+                centralize: objectPlacement.centralize
+            })),
+            frames: this.frameMaps.map(frameEntry => ({
+                frameCount: frameEntry.frameCount,
+                animationFrames: frameEntry.animationFrames
+            })),
+        }));
     }
 
     toString() {
@@ -226,18 +284,15 @@ export function writeTerrainsToWorldTextFile(outputDirectory: string, terrains: 
 
     for (let i = 0; i < sortedTerrains.length; ++i) {
         const terrain = sortedTerrains[i];
-        const borderEntries = terrain.borderTypes.map((border, id) => ({
-            terrain: border ? getDataEntry(terrains, id, "Terrain", terrain.referenceId, { abortOnError: false }) : null,
-            border
-        })).sort((a, b) => {
-            if (a.terrain && b.terrain) {
+        const borderEntries = [...terrain.borderTypes].sort((a, b) => {
+            if (a?.terrain && b?.terrain) {
                 return textFileStringCompare(a.terrain.internalName, b.terrain.internalName);
             }
             else {
-                return a.terrain ? 1 : - 1;
+                return a?.terrain ? 1 : - 1;
             }
         });
-        const borderCount = borderEntries.filter(entry => entry.border).length;
+        const borderCount = borderEntries.filter(entry => entry?.border).length;
         textFileWriter
             .integer(terrain.id)
             .string(terrain.internalName.replaceAll(" ", "_"), 17)
@@ -267,7 +322,7 @@ export function writeTerrainsToWorldTextFile(outputDirectory: string, terrains: 
         }
         for (let j = 0; j < terrain.borderTypes.length; ++j) {
             const borderEntry = borderEntries[j];
-            if (borderEntry.border) {
+            if (borderEntry?.border) {
                 textFileWriter
                     .integer(borderEntry.terrain?.id ?? -1)
                     .integer(borderEntry.border.id);
@@ -279,4 +334,15 @@ export function writeTerrainsToWorldTextFile(outputDirectory: string, terrains: 
 
     textFileWriter.close();
     writeTerrainObjectsToWorldTextFile(outputDirectory, terrains, savingContext);
+}
+
+export function writeTerrainsToJsonFiles(outputDirectory: string, terrains: (Terrain | null)[], savingContext: SavingContext) {
+    const terrainDirectory = path.join(outputDirectory, "terrains");
+    clearDirectory(terrainDirectory);
+
+    terrains.forEach(terrain => {
+        terrain?.writeToJsonFile(terrainDirectory, savingContext)
+    });
+
+    writeJsonFileIndex(terrainDirectory, terrains);
 }

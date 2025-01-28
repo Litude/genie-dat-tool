@@ -6,6 +6,13 @@ import { LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
 import { asInt16, asInt32, asUInt8, AttributeId, Bool8, Int16, Int32, PrototypeId, StateEffectId, StringId, TechnologyId, UInt8 } from "../Types";
 import path from 'path';
+import { clearDirectory } from '../../files/file-utils';
+import { createJson, createReferenceString, createSafeFilenameStem, writeJsonFileIndex } from '../../json/filenames';
+import { writeFileSync } from 'fs';
+import { SceneryObjectPrototype } from '../object/SceneryObjectPrototype';
+import { StateEffect } from './StateEffect';
+import { getDataEntry } from '../../util';
+import { isDefined, Nullable, pick, trimEnd } from '../../ts/ts-utils';
 
 interface TechnologyResourceCost {
     attributeId: AttributeId<Int16>;
@@ -13,17 +20,35 @@ interface TechnologyResourceCost {
     costDeducted: Bool8;
 }
 
+const jsonFields: (keyof Technology)[] = [
+    "internalName",
+    "minimumPrerequisites",
+    "nameStringId",
+    "researchStringId",
+    "researchDuration",
+    "technologyType",
+    "iconNumber",
+    "researchButtonIndex",
+    "helpDialogStringId",
+    "helpPageStringId",
+    "hotkeyStringId"
+]
+
 export class Technology {
+    referenceId: string = "";
     id: Int16 = asInt16(-1);
     internalName: string = "";
     prerequisiteTechnologyIds: TechnologyId<Int16>[] = [];
+    prerequisiteTechnologies: (Technology | null)[] = [];
     resourceCosts: TechnologyResourceCost[] = [];
     minimumPrerequisites: Int16 = asInt16(0);
-    researchLocation: PrototypeId<Int16> = asInt16(-1);
+    researchLocationId: PrototypeId<Int16> = asInt16(-1);
+    researchLocation: SceneryObjectPrototype | null = null;
     nameStringId: StringId<Int16> = asInt16(-1);
     researchStringId: StringId<Int16> = asInt16(-1);
     researchDuration: Int16 = asInt16(0);
     stateEffectId: StateEffectId<Int16> = asInt16(-1);
+    stateEffect: StateEffect | null = null;
     technologyType: Int16 = asInt16(0); // used by old AI for tracking similar technologies
     iconNumber: Int16 = asInt16(0);
     researchButtonIndex: UInt8 = asUInt8(0);
@@ -46,7 +71,7 @@ export class Technology {
             });
         }
         this.minimumPrerequisites = buffer.readInt16();
-        this.researchLocation = buffer.readInt16();
+        this.researchLocationId = buffer.readInt16();
         if (semver.gte(loadingContext.version.numbering, "1.5.0")) {
             this.nameStringId = buffer.readInt16();
             this.researchStringId = buffer.readInt16();
@@ -66,10 +91,29 @@ export class Technology {
             this.hotkeyStringId = buffer.readInt32();
         }
         this.internalName = buffer.readPascalString16();
+        this.referenceId = createSafeFilenameStem(this.internalName);
     }
 
     isValid() {
         return this.internalName !== "";
+    }
+    
+    linkOtherData(technologies: Nullable<Technology>[], objects: Nullable<SceneryObjectPrototype>[], stateEffects: Nullable<StateEffect>[], loadingContext: LoadingContext) {
+        this.prerequisiteTechnologies = this.prerequisiteTechnologyIds.map(technologyId => getDataEntry(technologies, technologyId, "Technology", this.referenceId, loadingContext));
+        this.researchLocation = getDataEntry(objects, this.researchLocationId, "ObjectPrototype", this.referenceId, loadingContext);
+        this.stateEffect = getDataEntry(stateEffects, this.stateEffectId, "ObjectPrototype", this.referenceId, loadingContext);
+    }
+    
+    writeToJsonFile(directory: string, savingContext: SavingContext) {
+        const trimmedPrerequisiteTechnologyIds = trimEnd(this.prerequisiteTechnologyIds, entry => entry === -1);
+        const trimmedPrerequisiteTechnologies = this.prerequisiteTechnologies.slice(0, trimmedPrerequisiteTechnologyIds.length);
+        writeFileSync(path.join(directory, `${this.referenceId}.json`), createJson({
+            ...pick(this, jsonFields),
+            resourceCosts: trimEnd(this.resourceCosts, entry => entry.attributeId === -1),
+            prerequisiteTechnologyIds: trimmedPrerequisiteTechnologies.map((technology, index) => createReferenceString("Technology", technology?.referenceId, this.prerequisiteTechnologyIds[index])),
+            researchLocationId: createReferenceString("ObjectPrototype", this.researchLocation?.referenceId, this.researchLocationId),
+            stateEffectId: createReferenceString("StateEffect", this.stateEffect?.referenceId, this.stateEffectId),
+        }));
     }
 
     toString() {
@@ -77,22 +121,22 @@ export class Technology {
     }
 }
 
-export function readTechnologiesFromBuffer(buffer: BufferReader, loadingContext: LoadingContext): Technology[] {
-    const result: Technology[] = [];
+export function readTechnologiesFromBuffer(buffer: BufferReader, loadingContext: LoadingContext): Nullable<Technology>[] {
+    const result: Nullable<Technology>[] = [];
     const technologyCount = buffer.readInt16();
     for (let i = 0; i < technologyCount; ++i) {
         const technology = new Technology();
         technology.readFromBuffer(buffer, asInt16(i), loadingContext);
-        result.push(technology);
+        result.push(technology.isValid() ? technology : null);
     }
 
     return result;
 }
 
-export function writeTechnologiesToWorldTextFile(outputDirectory: string, technologies: Technology[], savingContext: SavingContext) {
+export function writeTechnologiesToWorldTextFile(outputDirectory: string, technologies: Nullable<Technology>[], savingContext: SavingContext) {
     const textFileWriter = new TextFileWriter(path.join(outputDirectory, TextFileNames.Technologies));
     textFileWriter.raw(technologies.length).eol(); // Total technology entries
-    const validEntries = technologies.filter(entry => entry.isValid());
+    const validEntries = technologies.filter(isDefined);
     textFileWriter.raw(validEntries.length).eol(); // Entries that have data
 
     validEntries.forEach(entry => {
@@ -105,7 +149,7 @@ export function writeTechnologiesToWorldTextFile(outputDirectory: string, techno
             .integer(entry.technologyType)
             .integer(entry.iconNumber)
             .integer(entry.researchButtonIndex)
-            .integer(entry.researchLocation)
+            .integer(entry.researchLocationId)
 
         for (let i = 0; i < 4; ++i) {
             textFileWriter.integer(entry.prerequisiteTechnologyIds[i]);
@@ -136,4 +180,15 @@ export function writeTechnologiesToWorldTextFile(outputDirectory: string, techno
     });
     textFileWriter.close();
 
+}
+
+export function writeTechnologiesToJsonFiles(outputDirectory: string, technologies: (Technology | null)[], savingContext: SavingContext) {
+    const technologiesDirectory = path.join(outputDirectory, "techs");
+    clearDirectory(technologiesDirectory);
+
+    technologies.forEach(technology => {
+        technology?.writeToJsonFile(technologiesDirectory, savingContext)
+    });
+    
+    writeJsonFileIndex(technologiesDirectory, technologies);
 }
