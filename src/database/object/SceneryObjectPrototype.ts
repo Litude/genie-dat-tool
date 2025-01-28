@@ -8,7 +8,12 @@ import { SavingContext } from "../SavingContext";
 import { asBool8, asFloat32, asInt16, asInt32, asUInt8, AttributeId, Bool8, Float32, HabitatId, Int16, Int32, PaletteIndex, PrototypeId, SoundEffectId, SpriteId, StringId, TerrainId, UInt8 } from "../Types";
 import { ObjectClasses } from "./ObjectClass";
 import { ObjectType, ObjectTypes } from "./ObjectType";
-import { createSafeFilenameStem } from '../../json/filenames';
+import { createJson, createSafeFilenameStem } from '../../json/filenames';
+import { SoundEffect } from '../SoundEffect';
+import { Terrain } from '../landscape/Terrain';
+import { Habitat } from '../landscape/Habitat';
+import { writeFileSync } from 'fs';
+import path from 'path';
 
 interface AttributeStorage {
     attributeId: AttributeId<Int16>;
@@ -86,22 +91,27 @@ export class SceneryObjectPrototype {
     }
 
     creationSoundId: SoundEffectId<Int16> = asInt16(-1);
-    deadUnitId: PrototypeId<Int16> = asInt16(-1);
+    creationSound: SoundEffect | null = null;
+    deadUnitPrototypeId: PrototypeId<Int16> = asInt16(-1);
+    deadUnitPrototype: SceneryObjectPrototype | null = null;
     sortNumber: UInt8 = asUInt8(0);
     canBeBuiltOn: UInt8 = asUInt8(0);
     iconNumber: Int16 = asInt16(-1);
     hiddenInEditor: Bool8 = asBool8(false);
     portraitPicture: Int16 = asInt16(-1); // obsolete(?)
     available: Bool8 = asBool8(true);
-    placementNeighbouringTerrains: TerrainId<Int16>[] = [];
-    placementUnderlyingTerrains: TerrainId<Int16>[] = [];
+    placementNeighbouringTerrainIds: TerrainId<Int16>[] = [];
+    placementNeighbouringTerrains: Terrain[] = [];
+    placementUnderlyingTerrainIds: TerrainId<Int16>[] = [];
+    placementUnderlyingTerrains: Terrain[] = [];
     clearanceSize: Point<Float32> = {
         x: asFloat32(0),
         y: asFloat32(0)
     };
     elevationMode: UInt8 = asUInt8(0);
     fogVisibility: UInt8 = asUInt8(0);
-    habitat: HabitatId<Int16> = asInt16(-1); // this habitat is used for passability checks (e.g. bland unit or boat)
+    habitatId: HabitatId<Int16> = asInt16(-1); // this habitat is used for passability checks (e.g. bland unit or boat)
+    habitat: Habitat | null = null;
     flyMode: UInt8 = asUInt8(0);
     attributeCapacity: Int16 = asInt16(0);
     attributeDecayRate: Float32 = asFloat32(0);
@@ -164,7 +174,7 @@ export class SceneryObjectPrototype {
             z: buffer.readFloat32(),
         };
         this.creationSoundId = buffer.readInt16();
-        this.deadUnitId = buffer.readInt16();
+        this.deadUnitPrototypeId = buffer.readInt16();
         this.sortNumber = buffer.readUInt8();
         this.canBeBuiltOn = buffer.readUInt8();
         this.iconNumber = buffer.readInt16();
@@ -174,22 +184,22 @@ export class SceneryObjectPrototype {
         
         // TODO: Filter based on load context
         const requiredNeighbouringTerrains: TerrainId<Int16>[] = [];
-        this.placementNeighbouringTerrains = [];
+        this.placementNeighbouringTerrainIds = [];
         for (let i = 0; i < 2; ++i) {
             requiredNeighbouringTerrains.push(buffer.readInt16());
         }
-        this.placementNeighbouringTerrains = requiredNeighbouringTerrains;
+        this.placementNeighbouringTerrainIds = requiredNeighbouringTerrains;
 
         if (semver.gte(loadingContext.version.numbering, "1.4.0")) {
             const requiredUnderlyingTerrains: TerrainId<Int16>[] = [];
-            this.placementUnderlyingTerrains = [];
+            this.placementUnderlyingTerrainIds = [];
             for (let i = 0; i < 2; ++i) {
                 requiredUnderlyingTerrains.push(buffer.readInt16());
             }
-            this.placementUnderlyingTerrains = requiredUnderlyingTerrains;
+            this.placementUnderlyingTerrainIds = requiredUnderlyingTerrains;
         }
         else {
-            this.placementUnderlyingTerrains = [asInt16(-1), asInt16(-1)];
+            this.placementUnderlyingTerrainIds = [asInt16(-1), asInt16(-1)];
         }
 
         this.clearanceSize = {
@@ -198,7 +208,7 @@ export class SceneryObjectPrototype {
         }
         this.elevationMode = buffer.readUInt8();
         this.fogVisibility = buffer.readUInt8();
-        this.habitat = buffer.readInt16();
+        this.habitatId = buffer.readInt16();
 
         this.flyMode = buffer.readUInt8();
         this.attributeCapacity = buffer.readInt16();
@@ -337,7 +347,7 @@ export class SceneryObjectPrototype {
             .float(this.collisionRadius.x)
             .float(this.collisionRadius.y)
             .float(this.collisionRadius.z)
-            .integer(this.deadUnitId)
+            .integer(this.deadUnitPrototypeId)
             .integer(this.sortNumber)
             .integer(this.canBeBuiltOn)
             .integer(this.iconNumber)
@@ -352,17 +362,17 @@ export class SceneryObjectPrototype {
 
         textFileWriter
             .indent(4)
-            .integer(this.placementNeighbouringTerrains[0])
-            .integer(this.placementNeighbouringTerrains[1])
+            .integer(this.placementNeighbouringTerrainIds[0])
+            .integer(this.placementNeighbouringTerrainIds[1])
             .conditional(semver.gte(savingContext.version.numbering, "1.4.0"), writer => writer
-                .integer(this.placementUnderlyingTerrains[0])
-                .integer(this.placementUnderlyingTerrains[1])
+                .integer(this.placementUnderlyingTerrainIds[0])
+                .integer(this.placementUnderlyingTerrainIds[1])
             )
             .float(this.clearanceSize.x)
             .float(this.clearanceSize.y)
             .integer(this.elevationMode)
             .integer(this.fogVisibility)
-            .integer(this.habitat)
+            .integer(this.habitatId)
             .eol()
 
         textFileWriter
@@ -433,4 +443,7 @@ export class SceneryObjectPrototype {
             .eol();
     }
 
+    writeToJsonFile(directory: string, savingContext: SavingContext) {
+        writeFileSync(path.join(directory, `${this.referenceId}.json`), createJson(this));
+    }
 }

@@ -137,7 +137,6 @@ export class Border {
         }
     }
     
-    
     writeToJsonFile(directory: string, savingContext: SavingContext) {
         writeFileSync(path.join(directory, `${this.referenceId}.json`), createJson({
             ...pick(this, jsonFields),

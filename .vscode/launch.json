@@ -10,7 +10,6 @@
         "type": "node",
         "request": "launch",
 
-        // Debug current file in VSCode
         "program": "${workspaceFolder}/src/index.ts",
 
         /*
@@ -25,6 +24,12 @@
         */
         "console": "integratedTerminal",
         "internalConsoleOptions": "neverOpen",
+        "args": [
+            "parse",
+            "empires_ror.dat",
+            "--output-format",
+            "json"
+        ],
 
         // Files to exclude from debugger (e.g. call stack)
         "skipFiles": [

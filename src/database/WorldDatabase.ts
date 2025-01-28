@@ -12,7 +12,7 @@ import { readMainTerrainData, readSecondaryTerrainData, Terrain, writeTerrainsTo
 import { readStateEffects, StateEffect, writeStateEffectsToJsonFiles, writeStateEffectsToWorldTextFile } from "./research/StateEffect";
 import { Civilization, writeCivilizationsToWorldTextFile } from "./Civilization";
 import { SceneryObjectPrototype } from "./object/SceneryObjectPrototype";
-import { readObjectPrototypesFromBuffer, writeObjectPrototypesToWorldTextFile } from "./object/ObjectPrototypes";
+import { createBaselineObjectPrototypes, readObjectPrototypesFromBuffer, writeObjectPrototypesToJsonFiles, writeObjectPrototypesToWorldTextFile } from "./object/ObjectPrototypes";
 import { readTechnologiesFromBuffer, Technology, writeTechnologiesToJsonFiles, writeTechnologiesToWorldTextFile } from "./research/Technology";
 import { SavingContext } from "./SavingContext";
 import { asInt16 } from "./Types";
@@ -43,6 +43,7 @@ export class WorldDatabase {
     stateEffects: Nullable<StateEffect>[] = [];
     civilizations: Civilization[] = [];
     objects: Nullable<SceneryObjectPrototype>[][] = [];
+    baselineObjects: Nullable<SceneryObjectPrototype>[] = [];
     technologies: Nullable<Technology>[] = [];
     tribeAi:  Nullable<TribeAi>[] = [];
 
@@ -91,6 +92,7 @@ export class WorldDatabase {
                 this.civilizations.push(civilization);
                 this.objects.push(readObjectPrototypesFromBuffer(buffer, loadingContext));
             }
+            this.baselineObjects = createBaselineObjectPrototypes(this.objects);
     
             this.technologies = readTechnologiesFromBuffer(buffer, loadingContext);
             this.tribeAi = readTribeAiFromBuffer(buffer, loadingContext);
@@ -103,17 +105,17 @@ export class WorldDatabase {
             ensureReferenceIdUniqueness(this.overlays);
             ensureReferenceIdUniqueness(this.borders);
 
+            ensureReferenceIdUniqueness(this.baselineObjects);
 
             ensureReferenceIdUniqueness(this.stateEffects);
             ensureReferenceIdUniqueness(this.technologies);
+
             
-            const mergedObjects = this.objects[0].map((object, index) => object ? object : this.objects.find(objectList => objectList[index])?.[index] ?? null);
-    
             this.sprites.forEach(sprite => sprite?.linkOtherData(this.sprites, loadingContext));
             this.habitats.forEach(habitat => habitat?.linkTerrains(this.terrains, loadingContext));
             this.terrains.forEach(terrain => terrain?.linkOtherData(this.terrains, this.borders, this.objects[0], loadingContext));
-            this.randomMaps.forEach(randomMap => randomMap.linkOtherData(mergedObjects, loadingContext))
-            this.technologies.forEach(technology => technology?.linkOtherData(this.technologies, mergedObjects, this.stateEffects, loadingContext));
+            this.randomMaps.forEach(randomMap => randomMap.linkOtherData(this.baselineObjects, loadingContext))
+            this.technologies.forEach(technology => technology?.linkOtherData(this.technologies, this.baselineObjects, this.stateEffects, loadingContext));
     
             if (buffer.endOfBuffer()) {
                 return true;
@@ -201,6 +203,8 @@ export class WorldDatabase {
         // TODO: tribe random map
         // TODO: random map
         writeStateEffectsToJsonFiles(outputDirectory, this.stateEffects, savingContext);
+        // TODO: civilizations
+        writeObjectPrototypesToJsonFiles(outputDirectory, this.baselineObjects, this.objects, savingContext);
         // TODO: objects
         writeTechnologiesToJsonFiles(outputDirectory, this.technologies, savingContext);
         // TODO: tribe ai
