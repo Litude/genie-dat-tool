@@ -13,6 +13,7 @@ import { SceneryObjectPrototype } from '../object/SceneryObjectPrototype';
 import { StateEffect } from './StateEffect';
 import { getDataEntry } from '../../util';
 import { isDefined, Nullable, pick, trimEnd } from '../../ts/ts-utils';
+import { JsonFieldConfig, writeDataEntriesToJson } from '../../json/json-serializer';
 
 interface TechnologyResourceCost {
     attributeId: AttributeId<Int16>;
@@ -20,19 +21,27 @@ interface TechnologyResourceCost {
     costDeducted: Bool8;
 }
 
-const jsonFields: (keyof Technology)[] = [
-    "internalName",
-    "minimumPrerequisites",
-    "nameStringId",
-    "researchStringId",
-    "researchDuration",
-    "technologyType",
-    "iconNumber",
-    "researchButtonIndex",
-    "helpDialogStringId",
-    "helpPageStringId",
-    "hotkeyStringId"
-]
+const jsonFields: JsonFieldConfig<Technology>[] = [
+    { key: "internalName" },
+    { key: "prerequisiteTechnologyIds",
+        transformTo: (obj) => {
+            return obj.prerequisiteTechnologies
+                .slice(0, trimEnd(obj.prerequisiteTechnologyIds, entry => entry === -1).length)
+                .map((entry, index) => createReferenceString("Technology", entry?.referenceId, obj.prerequisiteTechnologyIds[index])) }},
+    { key: 'resourceCosts', transformTo: (obj) => trimEnd(obj.resourceCosts, entry => entry.attributeId === -1) },
+    { key: 'minimumPrerequisites' },
+    { key: 'researchLocationId', transformTo: (obj) => createReferenceString("ObjectPrototype", obj.researchLocation?.referenceId, obj.researchLocationId) },
+    { key: 'nameStringId', versionFrom: "1.5.0" },
+    { key: 'researchStringId', versionFrom: "1.5.0" },
+    { key: 'researchDuration' },
+    { key: 'stateEffectId', transformTo: (obj) => createReferenceString("StateEffect", obj.stateEffect?.referenceId, obj.stateEffectId) },
+    { key: 'technologyType' },
+    { key: 'iconNumber' },
+    { key: 'researchButtonIndex' },
+    { key: 'helpDialogStringId', versionFrom: "2.7.0" },
+    { key: 'helpPageStringId', versionFrom: "2.7.0" },
+    { key: 'hotkeyStringId', versionFrom: "2.7.0" }
+];
 
 export class Technology {
     referenceId: string = "";
@@ -103,18 +112,6 @@ export class Technology {
         this.researchLocation = getDataEntry(objects, this.researchLocationId, "ObjectPrototype", this.referenceId, loadingContext);
         this.stateEffect = getDataEntry(stateEffects, this.stateEffectId, "ObjectPrototype", this.referenceId, loadingContext);
     }
-    
-    writeToJsonFile(directory: string, savingContext: SavingContext) {
-        const trimmedPrerequisiteTechnologyIds = trimEnd(this.prerequisiteTechnologyIds, entry => entry === -1);
-        const trimmedPrerequisiteTechnologies = this.prerequisiteTechnologies.slice(0, trimmedPrerequisiteTechnologyIds.length);
-        writeFileSync(path.join(directory, `${this.referenceId}.json`), createJson({
-            ...pick(this, jsonFields),
-            resourceCosts: trimEnd(this.resourceCosts, entry => entry.attributeId === -1),
-            prerequisiteTechnologyIds: trimmedPrerequisiteTechnologies.map((technology, index) => createReferenceString("Technology", technology?.referenceId, this.prerequisiteTechnologyIds[index])),
-            researchLocationId: createReferenceString("ObjectPrototype", this.researchLocation?.referenceId, this.researchLocationId),
-            stateEffectId: createReferenceString("StateEffect", this.stateEffect?.referenceId, this.stateEffectId),
-        }));
-    }
 
     toString() {
         return this.internalName;
@@ -182,13 +179,6 @@ export function writeTechnologiesToWorldTextFile(outputDirectory: string, techno
 
 }
 
-export function writeTechnologiesToJsonFiles(outputDirectory: string, technologies: (Technology | null)[], savingContext: SavingContext) {
-    const technologiesDirectory = path.join(outputDirectory, "techs");
-    clearDirectory(technologiesDirectory);
-
-    technologies.forEach(technology => {
-        technology?.writeToJsonFile(technologiesDirectory, savingContext)
-    });
-    
-    writeJsonFileIndex(technologiesDirectory, technologies);
+export function writeTechnologiesToJsonFiles(outputDirectory: string, technologies: Nullable<Technology>[], savingContext: SavingContext) {
+    writeDataEntriesToJson(outputDirectory, "techs", technologies, jsonFields, savingContext);
 }

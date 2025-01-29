@@ -8,12 +8,18 @@ import { SavingContext } from "../SavingContext";
 import { asBool8, asFloat32, asInt16, asInt32, asUInt8, AttributeId, Bool8, Float32, HabitatId, Int16, Int32, PaletteIndex, PrototypeId, SoundEffectId, SpriteId, StringId, TerrainId, UInt8 } from "../Types";
 import { ObjectClasses } from "./ObjectClass";
 import { ObjectType, ObjectTypes } from "./ObjectType";
-import { createJson, createSafeFilenameStem } from '../../json/filenames';
+import { createJson, createReferenceString, createSafeFilenameStem } from '../../json/filenames';
 import { SoundEffect } from '../SoundEffect';
 import { Terrain } from '../landscape/Terrain';
 import { Habitat } from '../landscape/Habitat';
 import { writeFileSync } from 'fs';
 import path from 'path';
+import { Sprite } from '../Sprite';
+import { Nullable, trimEnd } from '../../ts/ts-utils';
+import { getDataEntry } from '../../util';
+import { JsonFieldConfig, transformObjectToJson } from '../../json/json-serializer';
+import { Technology } from '../research/Technology';
+import { Overlay } from '../landscape/Overlay';
 
 interface AttributeStorage {
     attributeId: AttributeId<Int16>;
@@ -23,6 +29,7 @@ interface AttributeStorage {
 
 interface DamageSprite {
     spriteId: SpriteId<Int16>;
+    sprite: Sprite | null;
     damagePercent: UInt8;
     padding05: UInt8; // this is actually contains the same data as applyMode
     applyMode: UInt8;
@@ -69,6 +76,74 @@ function getResourceDoppelgangerMode(prototype: SceneryObjectPrototype) {
     }
 }
 
+const jsonFields: JsonFieldConfig<SceneryObjectPrototype>[] = [
+    { key: "objectType" },
+    { key: "internalName" },
+    { key: "nameStringId" },
+    { key: "creationStringId", versionFrom: "1.5.0" },
+    { key: "objectClass" },
+    { key: "idleSpriteId", transformTo: (obj) => createReferenceString("Sprite", obj.idleSprite?.referenceId, obj.idleSpriteId) },
+    { key: "deathSpriteId", transformTo: (obj) => createReferenceString("Sprite", obj.deathSprite?.referenceId, obj.deathSpriteId) },
+    { key: "undeadSpriteId", transformTo: (obj) => createReferenceString("Sprite", obj.undeadSprite?.referenceId, obj.undeadSpriteId) },
+    { key: "undead" },
+    { key: "hitpoints" },
+    { key: "lineOfSight" },
+    { key: "garrisonCapacity" },
+    { key: "collisionRadius" },
+    { key: "creationSoundId", transformTo: (obj) => createReferenceString("SoundEffect", obj.creationSound?.referenceId, obj.creationSoundId)},
+    { key: "deadUnitPrototypeId", transformFrom: (obj) => createReferenceString("ObjectPrototype", obj.deadUnitPrototype?.referenceId, obj.deadUnitPrototypeId)},
+    { key: "sortNumber" },
+    { key: "canBeBuiltOn" },
+    { key: "iconNumber" },
+    { key: "hiddenInEditor" },
+    { key: "portraitPicture", flags: { unusedField: true } },
+    { key: "available" },
+    { key: "placementNeighbouringTerrainIds", transformTo: (obj) => {
+        return obj.placementNeighbouringTerrains.slice(0, trimEnd(obj.placementNeighbouringTerrainIds, terrainId => terrainId === -1).length)
+            .map((terrain, index) => createReferenceString("Terrain", terrain?.referenceId, obj.placementNeighbouringTerrainIds[index]));
+    }},
+    { key: "placementUnderlyingTerrainIds", transformTo: (obj) => {
+        return obj.placementUnderlyingTerrains.slice(0, trimEnd(obj.placementUnderlyingTerrainIds, terrainId => terrainId === -1).length)
+            .map((terrain, index) => createReferenceString("Terrain", terrain?.referenceId, obj.placementUnderlyingTerrainIds[index]));
+    }},
+    { key: "clearanceSize" },
+    { key: "elevationMode" },
+    { key: "fogVisibility" },
+    { key: "habitatId", transformTo: (obj) => createReferenceString("Habitat", obj.habitat?.referenceId, obj.habitatId) },
+    { key: "flyMode" },
+    { key: "attributeCapacity" },
+    { key: "attributeDecayRate" },
+    { key: "blastDefenseLevel" },
+    { key: "combatMode" },
+    { key: "interactionMode" },
+    { key: "minimapMode" },
+    { key: "minimapColor" },
+    { key: "interfaceType" },
+    { key: "multipleAttributeMode", flags: { unusedField: true } },
+    { key: "minimapColor" },
+    { key: "helpDialogStringId", versionFrom: "2.7.0" },
+    { key: "helpPageStringId",versionFrom: "2.7.0" },
+    { key: "hotkeyStringId", versionFrom: "2.7.0" },
+    { key: "reusable", versionFrom: "2.7.0", flags: { internalField: true } },
+    { key: "trackAsResource", versionFrom: "3.1.0" },
+    { key: "doppelgangerMode", versionFrom: "3.1.0" },
+    { key: "resourceGroup", versionFrom: "3.1.0" },
+    { key: "selectionOutlineFlags", versionFrom: "3.3.0" },
+    { key: "editorSelectionOutlineColor", versionFrom: "3.3.0" },
+    { key: "selectionOutlineRadius", versionFrom: "3.3.0" },
+    { key: "attributesStored", transformTo: (obj) => trimEnd(obj.attributesStored, entry => entry.attributeId === -1) },
+    { key: "damageSprites", transformTo: (obj) => obj.damageSprites.map(damageSprite => ({
+        spriteId: createReferenceString("Sprite", damageSprite.sprite?.referenceId, damageSprite.spriteId),
+        damagePercent: damageSprite.damagePercent,
+        applyMode: damageSprite.applyMode
+    }))},
+    { key: "selectionSoundId", transformTo: (obj) => createReferenceString("SoundEffect", obj.selectionSound?.referenceId, obj.selectionSoundId)},
+    { key: "deathSoundId", transformTo: (obj) => createReferenceString("SoundEffect", obj.deathSound?.referenceId, obj.deathSoundId)},
+    { key: "attackReaction", flags: { unusedField: true } },
+    { key: "convertTerrain", flags: { unusedField: true } },
+    { key: "upgradeUnitPrototypeId", flags: { internalField: true }, transformTo: (obj) => createReferenceString("ObjectPrototype", obj.upgradeUnitPrototype?.referenceId, obj.upgradeUnitPrototypeId ) }
+  ];
+
 export class SceneryObjectPrototype {
     referenceId: string = "";
     id: PrototypeId<Int16> = asInt16(-1);
@@ -78,8 +153,11 @@ export class SceneryObjectPrototype {
     creationStringId: StringId<Int16> = asInt16(-1);
     objectClass: Int16 = ObjectClasses.None;
     idleSpriteId: SpriteId<Int16> = asInt16(-1);
+    idleSprite: Sprite | null = null;
     deathSpriteId: SpriteId<Int16> = asInt16(-1);
-    undeathSpriteId: SpriteId<Int16> = asInt16(-1);
+    deathSprite: Sprite | null = null;
+    undeadSpriteId: SpriteId<Int16> = asInt16(-1);
+    undeadSprite: Sprite | null = null;
     undead: Bool8 = asBool8(false);
     hitpoints: Int16 = asInt16(0);
     lineOfSight: Float32 = asFloat32(0);
@@ -101,9 +179,9 @@ export class SceneryObjectPrototype {
     portraitPicture: Int16 = asInt16(-1); // obsolete(?)
     available: Bool8 = asBool8(true);
     placementNeighbouringTerrainIds: TerrainId<Int16>[] = [];
-    placementNeighbouringTerrains: Terrain[] = [];
+    placementNeighbouringTerrains: Nullable<Terrain>[] = [];
     placementUnderlyingTerrainIds: TerrainId<Int16>[] = [];
-    placementUnderlyingTerrains: Terrain[] = [];
+    placementUnderlyingTerrains: Nullable<Terrain>[] = [];
     clearanceSize: Point<Float32> = {
         x: asFloat32(0),
         y: asFloat32(0)
@@ -142,10 +220,13 @@ export class SceneryObjectPrototype {
     damageSprites: DamageSprite[] = [];
 
     selectionSoundId: SoundEffectId<Int16> = asInt16(-1);
+    selectionSound: SoundEffect | null = null;
     deathSoundId: SoundEffectId<Int16> = asInt16(-1);
+    deathSound: SoundEffect | null = null;
     attackReaction: UInt8 = asUInt8(0);
     convertTerrain: Bool8 = asBool8(false);
     upgradeUnitPrototypeId: PrototypeId<Int16> = asInt16(-1); // internal field, should definitely not be modified
+    upgradeUnitPrototype: SceneryObjectPrototype | null = null;
     
     readFromBuffer(buffer: BufferReader, id: Int16, loadingContext: LoadingContext): void {
         const nameLength = buffer.readInt16();
@@ -163,7 +244,7 @@ export class SceneryObjectPrototype {
         this.objectClass = buffer.readInt16();
         this.idleSpriteId = buffer.readInt16();
         this.deathSpriteId = buffer.readInt16();
-        this.undeathSpriteId = buffer.readInt16();
+        this.undeadSpriteId = buffer.readInt16();
         this.undead = buffer.readBool8();
         this.hitpoints = buffer.readInt16();
         this.lineOfSight = buffer.readFloat32();
@@ -286,6 +367,7 @@ export class SceneryObjectPrototype {
         for (let i = 0; i < damageSpriteCount; ++i) {
             this.damageSprites.push({
                 spriteId: buffer.readInt16(),
+                sprite: null,
                 damagePercent: buffer.readUInt8(),
                 padding05: buffer.readUInt8(),
                 applyMode: buffer.readUInt8()
@@ -317,6 +399,30 @@ export class SceneryObjectPrototype {
 
     }
 
+    linkOtherData(
+        sprites: Nullable<Sprite>[], soundEffects: Nullable<SoundEffect>[], terrains: Nullable<Terrain>[], habitats: Nullable<Habitat>[],
+        objects: Nullable<SceneryObjectPrototype>[], technologies: Nullable<Technology>[], overlays: Nullable<Overlay>[], loadingContext: LoadingContext
+    ) {
+        this.idleSprite = getDataEntry(sprites, this.idleSpriteId, "Sprite", this.referenceId, loadingContext);
+        this.deathSprite = getDataEntry(sprites, this.deathSpriteId, "Sprite", this.referenceId, loadingContext);
+        this.undeadSprite = getDataEntry(sprites, this.undeadSpriteId, "Sprite", this.referenceId, loadingContext);
+        this.damageSprites.forEach(damageSprite => {
+            damageSprite.sprite = getDataEntry(sprites, damageSprite.spriteId, "Sprite", this.referenceId, loadingContext);
+        })
+
+        this.creationSound = getDataEntry(soundEffects, this.creationSoundId, "SoundEffect", this.referenceId, loadingContext);
+        this.selectionSound = getDataEntry(soundEffects, this.selectionSoundId, "SoundEffect", this.referenceId, loadingContext);
+        this.deathSound = getDataEntry(soundEffects, this.deathSoundId, "SoundEffect", this.referenceId, loadingContext);
+
+        this.deadUnitPrototype = getDataEntry(objects, this.deadUnitPrototypeId, "ObjectPrototype", this.referenceId, loadingContext);
+        this.upgradeUnitPrototype = getDataEntry(objects, this.upgradeUnitPrototypeId, "ObjectPrototype", this.referenceId, loadingContext);
+
+        this.habitat = getDataEntry(habitats, this.habitatId, "Habitat", this.referenceId, loadingContext);
+
+        this.placementNeighbouringTerrains = this.placementNeighbouringTerrainIds.map(terrainId => getDataEntry(terrains, terrainId, "Terrain", this.referenceId, loadingContext));
+        this.placementUnderlyingTerrains = this.placementUnderlyingTerrainIds.map(terrainId => getDataEntry(terrains, terrainId, "Terrain", this.referenceId, loadingContext));
+    }
+
 
     writeToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext) {
         textFileWriter.eol();
@@ -339,7 +445,7 @@ export class SceneryObjectPrototype {
             .integer(this.objectClass)
             .integer(this.idleSpriteId)
             .integer(this.deathSpriteId)
-            .integer(this.undeathSpriteId)
+            .integer(this.undeadSpriteId)
             .integer(this.undead ? 1 : 0)
             .integer(this.hitpoints)
             .float(this.lineOfSight)
@@ -443,7 +549,7 @@ export class SceneryObjectPrototype {
             .eol();
     }
 
-    writeToJsonFile(directory: string, savingContext: SavingContext) {
-        writeFileSync(path.join(directory, `${this.referenceId}.json`), createJson(this));
+    getJsonConfig(): JsonFieldConfig<SceneryObjectPrototype>[] {
+        return jsonFields; 
     }
 }

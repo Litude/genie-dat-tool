@@ -11,7 +11,7 @@ export function createSafeFilenameStem(input: string) {
     return trimmed;
 }
 
-export type ReferenceType = "Terrain" | "SoundEffect" | "ObjectPrototype" | "Sprite" | "Border" | "Technology" | "StateEffect";
+export type ReferenceType = "Terrain" | "SoundEffect" | "ObjectPrototype" | "Sprite" | "Border" | "Technology" | "StateEffect" | "Habitat" | "Overlay";
 
 function getShortRefName(type: ReferenceType) {
     switch (type) {
@@ -29,6 +29,10 @@ function getShortRefName(type: ReferenceType) {
             return "Tech";
         case "StateEffect":
             return "Eff";
+        case "Habitat":
+            return "Hab";
+        case "Overlay":
+            return "Ovly"
         default:
             throw new Error(`Unknown ref type ${type}`)
     }

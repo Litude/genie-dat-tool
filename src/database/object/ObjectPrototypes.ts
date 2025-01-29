@@ -22,6 +22,8 @@ import { ParsingError } from '../Error';
 import path from 'path';
 import { clearDirectory } from '../../files/file-utils';
 import { writeJsonFileIndex } from '../../json/filenames';
+import { writeDataEntriesToJson, writeDataEntryToJsonFile } from '../../json/json-serializer';
+import { Ability } from './Ability';
 
 export function readObjectPrototypesFromBuffer(buffer: BufferReader, loadingContext: LoadingContext) {
     const result: (SceneryObjectPrototype | null)[] = [];
@@ -136,7 +138,7 @@ const excludedBaselineFields: (keyof BuildingObjectPrototype)[] = [
     "creationSound",
     "deadUnitPrototype",
     "placementNeighbouringTerrains",
-    "placementUnderlyingTerrainIds",
+    "placementUnderlyingTerrains",
     "habitat"
 ]
 
@@ -170,7 +172,13 @@ export function createBaselineObjectPrototypes(objectPrototypes: Nullable<Scener
                 mostCommonFields[key as keyof SceneryObjectPrototype] = mergeCommonFields(fieldValues[key]);
             }
     
-            baselineObjects.push(Object.assign(Object.create(Object.getPrototypeOf(objectInstance)), mostCommonFields));
+            const baseLineObject = Object.assign(Object.create(Object.getPrototypeOf(objectInstance)), mostCommonFields);
+
+            // Ability is the only non pure data stuff linked at this point, hopefully stuff will stay this way
+            if ("abilityList" in mostCommonFields) {
+                baseLineObject.abilityList = baseLineObject.abilityList.map((entry: Ability) => Object.assign(Object.create(Object.getPrototypeOf(new Ability())), entry))
+            }
+            baselineObjects.push(baseLineObject);
         }
         else {
             baselineObjects.push(null);
@@ -183,12 +191,14 @@ export function createBaselineObjectPrototypes(objectPrototypes: Nullable<Scener
 }
 
 export function writeObjectPrototypesToJsonFiles(outputDirectory: string, baselineObjects: Nullable<SceneryObjectPrototype>[], objectPrototypes: Nullable<SceneryObjectPrototype>[][], savingContext: SavingContext) {
-    const stateEffectDirectory = path.join(outputDirectory, "objects");
-    clearDirectory(stateEffectDirectory);
 
-    baselineObjects.forEach(baselineObject => {
-        baselineObject?.writeToJsonFile(stateEffectDirectory, savingContext)
-    });
+    const objectsDirectory = path.join(outputDirectory, "objects");
+    clearDirectory(objectsDirectory);
+    baselineObjects.forEach(object => {
+        if (object) {
+            writeDataEntryToJsonFile(objectsDirectory, object, object.getJsonConfig(), savingContext);
+        }
+    })
     
-    writeJsonFileIndex(stateEffectDirectory, baselineObjects);
+    writeJsonFileIndex(objectsDirectory, baselineObjects);
 }

@@ -6,15 +6,45 @@ import { SavingContext } from "../SavingContext";
 import { AbilityId, asFloat32, asInt16, asUInt8, Float32, Int16, PrototypeId, SoundEffectId, UInt8 } from "../Types";
 import { Ability } from "./Ability";
 import { MobileObjectPrototype } from "./MobileObjectPrototype";
+import { JsonFieldConfig, transformObjectToJson } from '../../json/json-serializer';
+import { SceneryObjectPrototype } from './SceneryObjectPrototype';
+import { Nullable, trimEnd } from '../../ts/ts-utils';
+import { createReferenceString } from '../../json/filenames';
+import { Sprite } from '../Sprite';
+import { SoundEffect } from '../SoundEffect';
+import { Terrain } from '../landscape/Terrain';
+import { Habitat } from '../landscape/Habitat';
+import { getDataEntry } from '../../util';
+import { Technology } from '../research/Technology';
+import { Overlay } from '../landscape/Overlay';
+
+const jsonFields: JsonFieldConfig<ActorObjectPrototype>[] = [
+    { key: "defaultAbility" },
+    { key: "searchRadius" },
+    { key: "workRate" },
+    { key: "dropSitePrototypeIds", transformTo: (obj) => {
+        return obj.dropSitePrototypes
+            .slice(0, trimEnd(obj.dropSitePrototypeIds, entry => entry === -1).length)
+            .map((dropSite, index) => createReferenceString("ObjectPrototype", dropSite?.referenceId, obj.dropSitePrototypeIds[index]))
+    }},
+    { key: 'abilitySwapGroup' },
+    { key: 'attackSoundId', transformTo: (obj) => createReferenceString("SoundEffect", obj.attackSound?.referenceId, obj.attackSoundId) },
+    { key: 'moveSoundId', transformTo: (obj) => createReferenceString("SoundEffect", obj.moveSound?.referenceId, obj.moveSoundId) },
+    { key: 'runPattern', flags: { unusedField: true } },
+    { key: 'abilityList', transformTo: (obj, savingContext) => obj.abilityList.map(ability => transformObjectToJson(ability, ability.getJsonConfig(), savingContext)) },
+]
 
 export class ActorObjectPrototype extends MobileObjectPrototype {
     defaultAbility: AbilityId<Int16> = asInt16(-1);
     searchRadius: Float32 = asFloat32(0);
     workRate: Float32 = asFloat32(0);
-    dropSites: PrototypeId<Int16>[] = [];
+    dropSitePrototypeIds: PrototypeId<Int16>[] = [];
+    dropSitePrototypes: Nullable<SceneryObjectPrototype>[] = [];
     abilitySwapGroup: UInt8 = asUInt8(0);
     attackSoundId: SoundEffectId<Int16> = asInt16(-1);
+    attackSound: SoundEffect | null = null;
     moveSoundId: SoundEffectId<Int16> = asInt16(-1);
+    moveSound: SoundEffect | null = null;
     runPattern: UInt8 = asUInt8(0);
     abilityList: Ability[] = [];
     
@@ -24,13 +54,13 @@ export class ActorObjectPrototype extends MobileObjectPrototype {
         this.searchRadius = buffer.readFloat32();
         this.workRate = buffer.readFloat32();
 
-        this.dropSites = [];
+        this.dropSitePrototypeIds = [];
         const dropSiteCount = semver.gte(loadingContext.version.numbering, "1.3.1") ? 2 : 1;
         for (let i = 0; i < dropSiteCount; ++i) {
-            this.dropSites.push(buffer.readInt16());
+            this.dropSitePrototypeIds.push(buffer.readInt16());
         }
-        for (let i = this.dropSites.length; i < 2; ++i) {
-            this.dropSites.push(asInt16(-1));
+        for (let i = this.dropSitePrototypeIds.length; i < 2; ++i) {
+            this.dropSitePrototypeIds.push(asInt16(-1));
         }
 
         this.abilitySwapGroup = buffer.readUInt8();
@@ -51,6 +81,23 @@ export class ActorObjectPrototype extends MobileObjectPrototype {
             this.abilityList.push(ability);
         }
     }
+    
+    linkOtherData(
+        sprites: Nullable<Sprite>[], soundEffects: Nullable<SoundEffect>[], terrains: Nullable<Terrain>[], habitats: Nullable<Habitat>[],
+        objects: Nullable<SceneryObjectPrototype>[], technologies: Nullable<Technology>[], overlays: Nullable<Overlay>[], loadingContext: LoadingContext
+    ) {
+        super.linkOtherData(sprites, soundEffects, terrains, habitats, objects, technologies, overlays, loadingContext);
+        this.dropSitePrototypes = this.dropSitePrototypeIds.map(prototypeId => getDataEntry(objects, prototypeId, "ObjectPrototype", this.referenceId, loadingContext));
+        this.attackSound = getDataEntry(soundEffects, this.attackSoundId, "SoundEffect", this.referenceId, loadingContext);
+        this.moveSound = getDataEntry(soundEffects, this.moveSoundId, "SoundEffect", this.referenceId, loadingContext);
+        this.abilityList.forEach(ability => {
+            ability.linkOtherData(this.referenceId, sprites, soundEffects, terrains, objects, loadingContext);
+        })
+    }
+        
+    getJsonConfig(): JsonFieldConfig<SceneryObjectPrototype>[] {
+        return super.getJsonConfig().concat(jsonFields as JsonFieldConfig<SceneryObjectPrototype>[]);
+    }
 
     writeToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext): void {
         super.writeToTextFile(textFileWriter, savingContext)
@@ -58,8 +105,8 @@ export class ActorObjectPrototype extends MobileObjectPrototype {
             .indent(4)
             .float(this.searchRadius)
             .float(this.workRate)
-            .integer(this.dropSites[0])
-            .conditional(semver.gte(savingContext.version.numbering, "1.3.1"), writer => writer.integer(this.dropSites[1]))
+            .integer(this.dropSitePrototypeIds[0])
+            .conditional(semver.gte(savingContext.version.numbering, "1.3.1"), writer => writer.integer(this.dropSitePrototypeIds[1]))
             .integer(this.abilitySwapGroup)
             .integer(this.attackSoundId)
             .conditional(

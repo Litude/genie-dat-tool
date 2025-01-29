@@ -110,12 +110,14 @@ export class WorldDatabase {
             ensureReferenceIdUniqueness(this.stateEffects);
             ensureReferenceIdUniqueness(this.technologies);
 
-            
             this.sprites.forEach(sprite => sprite?.linkOtherData(this.sprites, loadingContext));
             this.habitats.forEach(habitat => habitat?.linkTerrains(this.terrains, loadingContext));
             this.terrains.forEach(terrain => terrain?.linkOtherData(this.terrains, this.borders, this.objects[0], loadingContext));
             this.randomMaps.forEach(randomMap => randomMap.linkOtherData(this.baselineObjects, loadingContext))
             this.technologies.forEach(technology => technology?.linkOtherData(this.technologies, this.baselineObjects, this.stateEffects, loadingContext));
+            this.baselineObjects.forEach(object => object?.linkOtherData(
+                this.sprites, this.soundEffects, this.terrains, this.habitats, this.baselineObjects, this.technologies, this.overlays, loadingContext
+            ));
     
             if (buffer.endOfBuffer()) {
                 return true;

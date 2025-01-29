@@ -1,9 +1,47 @@
 import BufferReader from "../../BufferReader";
+import { createReferenceString } from "../../json/filenames";
+import { JsonFieldConfig } from "../../json/json-serializer";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
+import { Nullable } from "../../ts/ts-utils";
+import { getDataEntry } from "../../util";
+import { Terrain } from "../landscape/Terrain";
 import { LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
+import { SoundEffect } from "../SoundEffect";
+import { Sprite } from "../Sprite";
 import { AbilityId, ActionId, asBool8, asFloat32, asInt16, asUInt8, AttributeId, Bool8, Float32, Int16, PrototypeId, SoundEffectId, SpriteId, TerrainId, UInt8 } from "../Types";
 import { ObjectClass, ObjectClasses } from "./ObjectClass";
+import { SceneryObjectPrototype } from "./SceneryObjectPrototype";
+
+const jsonFields: JsonFieldConfig<Ability>[] = [
+    { key: "abilityType" },
+    { key: "defaultAbility" },
+    { key: "actionType" },
+    { key: "objectClass" },
+    { key: "objectPrototypeId", transformTo: (obj) => createReferenceString("ObjectPrototype", obj.objectPrototype?.referenceId, obj.objectPrototypeId) },
+    { key: "terrainId", transformTo: (obj) => createReferenceString("Terrain", obj.terrain?.referenceId, obj.terrainId) },
+    { key: "attributeType1" },
+    { key: "attributeType2" },
+    { key: "attributeType3" },
+    { key: "attributeType4" },
+    { key: "workRate1" },
+    { key: "workRate2" },
+    { key: "autoSearchTargets" },
+    { key: "searchWaitTime" },
+    { key: "enableTargeting" },
+    { key: "combatLevelFlag" },
+    { key: "workFlag1" },
+    { key: "workFlag2" },
+    { key: "targetDiplomacyType" },
+    { key: "holdingAttributeCheck" },
+    { key: "buildingTarget" },
+    { key: "moveSpriteId", transformTo: (obj) => createReferenceString("Sprite", obj.moveSprite?.referenceId, obj.moveSpriteId)},
+    { key: "workPreceedingSpriteId", transformTo: (obj) => createReferenceString("Sprite", obj.workPreceedingSprite?.referenceId, obj.workPreceedingSpriteId)},
+    { key: "workActiveSpriteId", transformTo: (obj) => createReferenceString("Sprite", obj.workActiveSprite?.referenceId, obj.workActiveSpriteId)},
+    { key: "carrySpriteId", transformTo: (obj) => createReferenceString("Sprite", obj.carrySprite?.referenceId, obj.carrySpriteId)},
+    { key: "resourceGatheringSoundId", transformTo: (obj) => createReferenceString("SoundEffect", obj.resourceGatheringSound?.referenceId, obj.resourceGatheringSoundId) },
+    { key: "resourceDepositSoundId", transformTo: (obj) => createReferenceString("SoundEffect", obj.resourceDepositSound?.referenceId, obj.resourceDepositSoundId) },
+]
 
 export class Ability {
     abilityType: AbilityId<Int16> = asInt16(1); // always 1;
@@ -12,7 +50,9 @@ export class Ability {
     actionType: ActionId<Int16> = asInt16(0);
     objectClass: ObjectClass = ObjectClasses.None;
     objectPrototypeId: PrototypeId<Int16> = asInt16(-1);
+    objectPrototype: SceneryObjectPrototype | null = null;
     terrainId: TerrainId<Int16> = asInt16(-1);
+    terrain: Terrain | null = null;
     attributeType1: AttributeId<Int16> = asInt16(-1);
     attributeType2: AttributeId<Int16> = asInt16(-1);
     attributeType3: AttributeId<Int16> = asInt16(-1);
@@ -30,11 +70,17 @@ export class Ability {
     holdingAttributeCheck: UInt8 = asUInt8(0);
     buildingTarget: Bool8 = asBool8(false);
     moveSpriteId: SpriteId<Int16> = asInt16(-1);
+    moveSprite: Sprite | null = null;
     workPreceedingSpriteId: SpriteId<Int16> = asInt16(-1);
+    workPreceedingSprite: Sprite | null = null;
     workActiveSpriteId: SpriteId<Int16> = asInt16(-1);
+    workActiveSprite: Sprite | null = null;
     carrySpriteId: SpriteId<Int16> = asInt16(-1);
+    carrySprite: Sprite | null = null;
     resourceGatheringSoundId: SoundEffectId<Int16> = asInt16(-1);
+    resourceGatheringSound: SoundEffect | null = null;
     resourceDepositSoundId: SoundEffectId<Int16> = asInt16(-1);
+    resourceDepositSound: SoundEffect | null = null;
 
     readFromBuffer(buffer: BufferReader, loadingContext: LoadingContext): void {
         this.abilityType = buffer.readInt16();
@@ -66,6 +112,18 @@ export class Ability {
         this.carrySpriteId = buffer.readInt16();
         this.resourceGatheringSoundId = buffer.readInt16();
         this.resourceDepositSoundId = buffer.readInt16();
+    }
+    
+    linkOtherData(parentReferenceId: string, sprites: Nullable<Sprite>[], soundEffects: Nullable<SoundEffect>[], terrains: Nullable<Terrain>[], objects: Nullable<SceneryObjectPrototype>[], loadingContext: LoadingContext) {
+        this.objectPrototype = getDataEntry(objects, this.objectPrototypeId, "ObjectPrototype", parentReferenceId, loadingContext);
+        this.terrain = getDataEntry(terrains, this.terrainId, "Terrain", parentReferenceId, loadingContext);
+        this.moveSprite = getDataEntry(sprites, this.moveSpriteId, "Sprite", parentReferenceId, loadingContext);
+        this.workPreceedingSprite = getDataEntry(sprites, this.workPreceedingSpriteId, "Sprite", parentReferenceId, loadingContext);
+        this.workActiveSprite = getDataEntry(sprites, this.workActiveSpriteId, "Sprite", parentReferenceId, loadingContext);
+        this.carrySprite = getDataEntry(sprites, this.carrySpriteId, "Sprite", parentReferenceId, loadingContext);
+
+        this.resourceGatheringSound = getDataEntry(soundEffects, this.resourceGatheringSoundId, "SoundEffect", parentReferenceId, loadingContext);
+        this.resourceDepositSound = getDataEntry(soundEffects, this.resourceDepositSoundId, "SoundEffect", parentReferenceId, loadingContext);
     }
 
     writeToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext) {
@@ -105,5 +163,9 @@ export class Ability {
             .integer(this.resourceGatheringSoundId)
             .integer(this.resourceDepositSoundId)
             .eol();
+    }
+    
+    getJsonConfig(): JsonFieldConfig<Ability>[] {
+        return jsonFields; 
     }
 }

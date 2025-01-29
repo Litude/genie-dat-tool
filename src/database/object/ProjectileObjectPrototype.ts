@@ -1,9 +1,20 @@
 import BufferReader from "../../BufferReader";
+import { JsonFieldConfig } from "../../json/json-serializer";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
 import { asFloat32, asUInt8, Float32, Int16, UInt8 } from "../Types";
 import { CombatantObjectPrototype } from "./CombatantObjectPrototype";
+import { SceneryObjectPrototype } from "./SceneryObjectPrototype";
+
+const jsonFields: JsonFieldConfig<ProjectileObjectPrototype>[] = [
+    { key: "projectileType" },
+    { key: "targettingMode" },
+    { key: "hitMode" },
+    { key: "vanishMode" },
+    { key: "areaEffect" },
+    { key: "projectileArc" }
+]
 
 export class ProjectileObjectPrototype extends CombatantObjectPrototype {
     projectileType: UInt8 = asUInt8(0);
@@ -21,6 +32,10 @@ export class ProjectileObjectPrototype extends CombatantObjectPrototype {
         this.vanishMode = buffer.readUInt8();
         this.areaEffect = buffer.readUInt8();
         this.projectileArc = buffer.readFloat32();
+    }
+        
+    getJsonConfig(): JsonFieldConfig<SceneryObjectPrototype>[] {
+        return super.getJsonConfig().concat(jsonFields as JsonFieldConfig<SceneryObjectPrototype>[]);
     }
 
     writeToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext): void {
