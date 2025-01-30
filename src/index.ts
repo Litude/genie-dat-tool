@@ -6,6 +6,9 @@ import { WorldDatabase } from "./database/WorldDatabase";
 import { Logger } from "./Logger";
 import { Version } from "./database/Version";
 import { isDefined } from "./ts/ts-utils";
+import path from "path";
+import { mkdirSync } from "fs";
+import { clearDirectory } from "./files/file-utils";
 
 interface ParseArgs {
     filename: string;
@@ -172,13 +175,17 @@ function parseDatFile() {
                 }
                 const versionFormatted = `${[textFileVersion.numbering, textFileVersion.flavor].filter(isDefined).join('-')}`;
 
+                mkdirSync(outputDir, { recursive: true });
+                const fileOutputDir = path.parse(filename).name;
+                const jsonOutputDir = path.join(outputDir, fileOutputDir);
+                clearDirectory(jsonOutputDir);
                 if (outputFormat === "textfile") {
                     Logger.info(`Writing ${versionFormatted} text files`);
-                    worldDatabase.writeToWorldTextFile(outputDir, { version: textFileVersion });
+                    worldDatabase.writeToWorldTextFile(jsonOutputDir, { version: textFileVersion });
                 }
                 else if (outputFormat === "json") {
                     Logger.info(`Writing ${versionFormatted} json files`);
-                    worldDatabase.writeToJsonFile(outputDir, { version: textFileVersion });
+                    worldDatabase.writeToJsonFile(jsonOutputDir, { version: textFileVersion });
                 }
                 else {
                     Logger.error(`Output format ${outputFormat} not yet implemented!`);

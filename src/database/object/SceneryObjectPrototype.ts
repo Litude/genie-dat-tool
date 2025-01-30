@@ -8,16 +8,14 @@ import { SavingContext } from "../SavingContext";
 import { asBool8, asFloat32, asInt16, asInt32, asUInt8, AttributeId, Bool8, Float32, HabitatId, Int16, Int32, PaletteIndex, PrototypeId, SoundEffectId, SpriteId, StringId, TerrainId, UInt8 } from "../Types";
 import { ObjectClasses } from "./ObjectClass";
 import { ObjectType, ObjectTypes } from "./ObjectType";
-import { createJson, createReferenceString, createSafeFilenameStem } from '../../json/filenames';
+import { createReferenceString, createSafeFilenameStem } from '../../json/filenames';
 import { SoundEffect } from '../SoundEffect';
 import { Terrain } from '../landscape/Terrain';
 import { Habitat } from '../landscape/Habitat';
-import { writeFileSync } from 'fs';
-import path from 'path';
 import { Sprite } from '../Sprite';
 import { Nullable, trimEnd } from '../../ts/ts-utils';
 import { getDataEntry } from '../../util';
-import { JsonFieldConfig, transformObjectToJson } from '../../json/json-serializer';
+import { JsonFieldConfig } from '../../json/json-serializer';
 import { Technology } from '../research/Technology';
 import { Overlay } from '../landscape/Overlay';
 
@@ -97,7 +95,7 @@ const jsonFields: JsonFieldConfig<SceneryObjectPrototype>[] = [
     { key: "iconNumber" },
     { key: "hiddenInEditor" },
     { key: "portraitPicture", flags: { unusedField: true } },
-    { key: "available" },
+    { key: "unlocked" },
     { key: "placementNeighbouringTerrainIds", transformTo: (obj) => {
         return obj.placementNeighbouringTerrains.slice(0, trimEnd(obj.placementNeighbouringTerrainIds, terrainId => terrainId === -1).length)
             .map((terrain, index) => createReferenceString("Terrain", terrain?.referenceId, obj.placementNeighbouringTerrainIds[index]));
@@ -177,7 +175,7 @@ export class SceneryObjectPrototype {
     iconNumber: Int16 = asInt16(-1);
     hiddenInEditor: Bool8 = asBool8(false);
     portraitPicture: Int16 = asInt16(-1); // obsolete(?)
-    available: Bool8 = asBool8(true);
+    unlocked: Bool8 = asBool8(true);
     placementNeighbouringTerrainIds: TerrainId<Int16>[] = [];
     placementNeighbouringTerrains: Nullable<Terrain>[] = [];
     placementUnderlyingTerrainIds: TerrainId<Int16>[] = [];
@@ -261,7 +259,7 @@ export class SceneryObjectPrototype {
         this.iconNumber = buffer.readInt16();
         this.hiddenInEditor = buffer.readBool8();
         this.portraitPicture = buffer.readInt16();
-        this.available = buffer.readBool8();
+        this.unlocked = buffer.readBool8();
         
         // TODO: Filter based on load context
         const requiredNeighbouringTerrains: TerrainId<Int16>[] = [];
@@ -459,7 +457,7 @@ export class SceneryObjectPrototype {
             .integer(this.iconNumber)
             .integer(this.hiddenInEditor ? 1 : 0)
             .integer(this.portraitPicture)
-            .integer(this.available ? 1 : 0)
+            .integer(this.unlocked ? 1 : 0)
             .eol()
 
         const outlineRadius = this.selectionOutlineRadius.x !== this.collisionRadius.x ||

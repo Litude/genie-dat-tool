@@ -110,7 +110,7 @@ export class Technology {
     linkOtherData(technologies: Nullable<Technology>[], objects: Nullable<SceneryObjectPrototype>[], stateEffects: Nullable<StateEffect>[], loadingContext: LoadingContext) {
         this.prerequisiteTechnologies = this.prerequisiteTechnologyIds.map(technologyId => getDataEntry(technologies, technologyId, "Technology", this.referenceId, loadingContext));
         this.researchLocation = getDataEntry(objects, this.researchLocationId, "ObjectPrototype", this.referenceId, loadingContext);
-        this.stateEffect = getDataEntry(stateEffects, this.stateEffectId, "ObjectPrototype", this.referenceId, loadingContext);
+        this.stateEffect = getDataEntry(stateEffects, this.stateEffectId, "StateEffect", this.referenceId, loadingContext);
     }
 
     toString() {

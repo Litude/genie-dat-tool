@@ -1,5 +1,6 @@
 import semver from 'semver';
 import BufferReader from "../../BufferReader"
+import isEqual from "fast-deep-equal";
 import { TextFileNames, textFileStringCompare } from "../../textfile/TextFile";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { isDefined, Nullable } from "../../ts/ts-utils";
@@ -21,9 +22,10 @@ import { TreeObjectPrototype } from "./TreeObjectPrototype";
 import { ParsingError } from '../Error';
 import path from 'path';
 import { clearDirectory } from '../../files/file-utils';
-import { writeJsonFileIndex } from '../../json/filenames';
-import { writeDataEntriesToJson, writeDataEntryToJsonFile } from '../../json/json-serializer';
+import { createJson, writeJsonFileIndex } from '../../json/filenames';
+import { transformObjectToJson } from '../../json/json-serializer';
 import { Ability } from './Ability';
+import { writeFileSync } from 'fs';
 
 export function readObjectPrototypesFromBuffer(buffer: BufferReader, loadingContext: LoadingContext) {
     const result: (SceneryObjectPrototype | null)[] = [];
@@ -193,11 +195,76 @@ export function createBaselineObjectPrototypes(objectPrototypes: Nullable<Scener
 export function writeObjectPrototypesToJsonFiles(outputDirectory: string, baselineObjects: Nullable<SceneryObjectPrototype>[], objectPrototypes: Nullable<SceneryObjectPrototype>[][], savingContext: SavingContext) {
 
     const objectsDirectory = path.join(outputDirectory, "objects");
-    clearDirectory(objectsDirectory);
-    baselineObjects.forEach(object => {
-        if (object) {
-            writeDataEntryToJsonFile(objectsDirectory, object, object.getJsonConfig(), savingContext);
+
+    const jsonBaselineObjects = baselineObjects.map(object => object ? transformObjectToJson(object, object.getJsonConfig(), savingContext) : null);
+
+
+    // Need to eliminate all fields that are not actually baseline (less than half of civilizations that have this unit actually share the value)
+    const civilizationCount = objectPrototypes.length;
+    const baselineEnableStates: boolean[] = [];
+    const jsonObjects = objectPrototypes.map(civObjects => civObjects.map(object => object ? transformObjectToJson(object, object.getJsonConfig(), savingContext) : null))
+    for (let i = 0; i < jsonBaselineObjects.length; ++i) {
+        let validEntryCount = 0;
+        if (jsonBaselineObjects[i]) {
+            jsonObjects.forEach(civObjects => {
+                if (civObjects[i]) {
+                    ++validEntryCount;
+                }
+            })
+            Object.entries(jsonBaselineObjects[i]).forEach(([key, value]) => {
+                let matchCount = 0;
+                jsonObjects.forEach(civObjects => {
+                    if (civObjects[i]) {
+                        if (isEqual(civObjects[i][key], value)) {
+                            ++matchCount;
+                        }
+                    }
+                })
+                if (matchCount / validEntryCount < 0.5) {
+                    jsonBaselineObjects[i][key] = undefined;
+                }
+            });
+            baselineEnableStates.push((validEntryCount / civilizationCount) >= 0.5);
         }
+        else {
+            baselineEnableStates.push(false);
+        }
+    }
+    
+    // TODO: Still need some sort of baseline enable state for each object
+
+    // Remove fields that match the baseline from civilization objects
+    for (let i = 0; i < jsonBaselineObjects.length; ++i) {
+        if (jsonBaselineObjects[i]) {
+            Object.entries(jsonBaselineObjects[i]).forEach(([key, value]) => {
+                if (value !== undefined) { // Only fields that we have "deleted" should be undefined, otherwise null is used. Fields that don't exist in the baseline should be kept
+                    jsonObjects.forEach(civObjects => {
+                        if (civObjects[i] && isEqual(civObjects[i][key], value)) {
+                            delete civObjects[i][key];
+                        }
+                    })
+                }
+            });
+        }
+    }
+
+    const mergedJsonObjects = jsonBaselineObjects.map((baselineObject, objIndex) => ({
+        baseline: { enabled: baselineEnableStates[objIndex], ...baselineObject },
+        overrides: jsonObjects.reduce((acc, curCiv, civIndex) => {
+            const enabledStateDiffers = Boolean(curCiv[objIndex]) != baselineEnableStates[objIndex]
+            if (curCiv[objIndex] && Object.keys(curCiv[objIndex]).length) {
+                acc[civIndex] = enabledStateDiffers ? { enabled: Boolean(curCiv[objIndex]), ...curCiv[objIndex] } : curCiv[objIndex];
+            }
+            else if (enabledStateDiffers) {
+                acc[civIndex] = { enabled: Boolean(curCiv[objIndex]) };
+            }
+            return acc;
+        }, {} as Record<number, any>)
+    }))
+
+    clearDirectory(objectsDirectory);
+    mergedJsonObjects.forEach((jsonObject, index) => {
+        writeFileSync(path.join(objectsDirectory, `${baselineObjects[index]?.referenceId}.json`), createJson(jsonObject));
     })
     
     writeJsonFileIndex(objectsDirectory, baselineObjects);

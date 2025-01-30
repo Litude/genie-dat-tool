@@ -7,12 +7,32 @@ import { LoadingContext } from "./LoadingContext";
 import { SavingContext } from "./SavingContext";
 import { ArchitectureStyleId, asInt16, asUInt8, Float32, Int16, StateEffectId, UInt8 } from "./Types";
 import path from "path";
+import { JsonFieldConfig, writeDataEntriesToJson } from "../json/json-serializer";
+import { StateEffect } from "./research/StateEffect";
+import { createReferenceString, createSafeFilenameStem as createReferenceIdFromString } from "../json/filenames";
+import { Nullable } from "../ts/ts-utils";
+import { getDataEntry } from "../util";
+
+const jsonFields: JsonFieldConfig<Civilization>[] = [
+    { key: "civilizationType" },
+    { key: "internalName"},
+    { key: "bonusEffectId", versionFrom: "1.4.0", transformTo: (obj) => createReferenceString("StateEffect", obj.bonusEffect?.referenceId, obj.bonusEffectId) },
+    { key: "attributes", transformTo: (obj) => obj.attributes.reduce((acc, cur, index) => {
+        if (cur) {
+            acc[index] = cur;
+        }
+        return acc;
+    }, {} as Record<number, number>)},
+    { key: "architectureStyle" }
+];
 
 export class Civilization {
+    referenceId: string = "";
     id: Int16 = asInt16(-1);
     civilizationType: UInt8 = asUInt8(1); // should always be 1 for a valid civilization
     internalName: string = "";
-    bonusEffect: StateEffectId<Int16> = asInt16(-1);
+    bonusEffectId: StateEffectId<Int16> = asInt16(-1);
+    bonusEffect: StateEffect | null = null;
     attributes: Float32[] = [];
     architectureStyle: ArchitectureStyleId<UInt8> = asUInt8(0);
 
@@ -20,9 +40,10 @@ export class Civilization {
         this.id = id;
         this.civilizationType = buffer.readUInt8();
         this.internalName = buffer.readFixedSizeString(20);
+        this.referenceId = createReferenceIdFromString(this.internalName);
         const attributeCount = buffer.readInt16();
         if (semver.gte(loadingContext.version.numbering, "1.4.0")) {
-            this.bonusEffect = buffer.readInt16();
+            this.bonusEffectId = buffer.readInt16();
         }
 
         this.attributes = [];
@@ -30,6 +51,10 @@ export class Civilization {
             this.attributes.push(buffer.readFloat32());
         }
         this.architectureStyle = buffer.readUInt8();
+    }
+        
+    linkOtherData(stateEffects: Nullable<StateEffect>[], loadingContext: LoadingContext) {
+        this.bonusEffect = getDataEntry(stateEffects, this.bonusEffectId, "StateEffect", this.referenceId, loadingContext);
     }
 }
 
@@ -46,7 +71,7 @@ export function writeCivilizationsToWorldTextFile(outputDirectory: string, civil
             .integer(civilization.id)
             .integer(civilization.civilizationType)
             .string(civilization.internalName, 17)
-            .conditional(semver.gte(savingContext.version.numbering, "1.4.0"), writer => writer.integer(civilization.bonusEffect))
+            .conditional(semver.gte(savingContext.version.numbering, "1.4.0"), writer => writer.integer(civilization.bonusEffectId))
             .integer(civilization.attributes.length)
             .integer(civilization.attributes.filter(x => x).length)
             .eol();
@@ -75,4 +100,8 @@ export function writeCivilizationsToWorldTextFile(outputDirectory: string, civil
     })
     textFileWriter.close();
 
+}
+
+export function writeCivilizationsToJsonFiles(outputDirectory: string, civilizations: Nullable<Civilization>[], savingContext: SavingContext) {
+    writeDataEntriesToJson(outputDirectory, "civilizations", civilizations, jsonFields, savingContext);
 }

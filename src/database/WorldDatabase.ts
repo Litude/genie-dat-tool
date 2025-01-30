@@ -10,7 +10,7 @@ import { readSoundEffects, SoundEffect, writeSoundEffectsToJsonFiles, writeSound
 import { readSprites, Sprite, writeSpritesToJsonFiles, writeSpritesToWorldTextFile } from "./Sprite";
 import { readMainTerrainData, readSecondaryTerrainData, Terrain, writeTerrainsToJsonFiles, writeTerrainsToWorldTextFile } from "./landscape/Terrain";
 import { readStateEffects, StateEffect, writeStateEffectsToJsonFiles, writeStateEffectsToWorldTextFile } from "./research/StateEffect";
-import { Civilization, writeCivilizationsToWorldTextFile } from "./Civilization";
+import { Civilization, writeCivilizationsToJsonFiles, writeCivilizationsToWorldTextFile } from "./Civilization";
 import { SceneryObjectPrototype } from "./object/SceneryObjectPrototype";
 import { createBaselineObjectPrototypes, readObjectPrototypesFromBuffer, writeObjectPrototypesToJsonFiles, writeObjectPrototypesToWorldTextFile } from "./object/ObjectPrototypes";
 import { readTechnologiesFromBuffer, Technology, writeTechnologiesToJsonFiles, writeTechnologiesToWorldTextFile } from "./research/Technology";
@@ -118,6 +118,10 @@ export class WorldDatabase {
             this.baselineObjects.forEach(object => object?.linkOtherData(
                 this.sprites, this.soundEffects, this.terrains, this.habitats, this.baselineObjects, this.technologies, this.overlays, loadingContext
             ));
+            this.civilizations.forEach(civilization => civilization.linkOtherData(this.stateEffects, loadingContext));
+            this.objects.forEach(civObjects => civObjects.forEach((object) => object?.linkOtherData(
+                this.sprites, this.soundEffects, this.terrains, this.habitats, this.baselineObjects, this.technologies, this.overlays, loadingContext
+            )));
     
             if (buffer.endOfBuffer()) {
                 return true;
@@ -205,7 +209,7 @@ export class WorldDatabase {
         // TODO: tribe random map
         // TODO: random map
         writeStateEffectsToJsonFiles(outputDirectory, this.stateEffects, savingContext);
-        // TODO: civilizations
+        writeCivilizationsToJsonFiles(outputDirectory, this.civilizations, savingContext);
         writeObjectPrototypesToJsonFiles(outputDirectory, this.baselineObjects, this.objects, savingContext);
         // TODO: objects
         writeTechnologiesToJsonFiles(outputDirectory, this.technologies, savingContext);
