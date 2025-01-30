@@ -9,7 +9,7 @@ import { RandomMap, readRandomMapData, writeRandomMapsToWorldTextFile } from "./
 import { readSoundEffects, SoundEffect, writeSoundEffectsToJsonFiles, writeSoundEffectsToWorldTextFile } from "./SoundEffect";
 import { readSprites, Sprite, writeSpritesToJsonFiles, writeSpritesToWorldTextFile } from "./Sprite";
 import { readMainTerrainData, readSecondaryTerrainData, Terrain, writeTerrainsToJsonFiles, writeTerrainsToWorldTextFile } from "./landscape/Terrain";
-import { readStateEffects, StateEffect, writeStateEffectsToJsonFiles, writeStateEffectsToWorldTextFile } from "./research/StateEffect";
+import { createFallbackStateEffectReferenceIdsIfNeeded, readStateEffects, StateEffect, writeStateEffectsToJsonFiles, writeStateEffectsToWorldTextFile } from "./research/StateEffect";
 import { Civilization, writeCivilizationsToJsonFiles, writeCivilizationsToWorldTextFile } from "./Civilization";
 import { SceneryObjectPrototype } from "./object/SceneryObjectPrototype";
 import { createBaselineObjectPrototypes, readObjectPrototypesFromBuffer, writeObjectPrototypesToJsonFiles, writeObjectPrototypesToWorldTextFile } from "./object/ObjectPrototypes";
@@ -107,8 +107,13 @@ export class WorldDatabase {
 
             ensureReferenceIdUniqueness(this.baselineObjects);
 
-            ensureReferenceIdUniqueness(this.stateEffects);
             ensureReferenceIdUniqueness(this.technologies);
+
+            createFallbackStateEffectReferenceIdsIfNeeded(this.stateEffects, this.technologies, this.civilizations, {
+                104: "Triple Hitpoints"
+            });
+
+            ensureReferenceIdUniqueness(this.stateEffects);
 
             this.sprites.forEach(sprite => sprite?.linkOtherData(this.sprites, loadingContext));
             this.habitats.forEach(habitat => habitat?.linkTerrains(this.terrains, loadingContext));

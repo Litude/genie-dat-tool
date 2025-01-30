@@ -8,8 +8,11 @@ import { asInt16, Float32, Int16, UInt8 } from "../Types";
 import path from "path";
 import { clearDirectory } from "../../files/file-utils";
 import { createJson, createReferenceIdFromString, writeJsonFileIndex } from "../../json/filenames";
-import { isDefined } from "../../ts/ts-utils";
+import { isDefined, Nullable } from "../../ts/ts-utils";
 import { writeFileSync } from "fs";
+import { Civilization } from "../Civilization";
+import { Technology } from "./Technology";
+import { number } from "yargs";
 
 interface EffectCommand {
     commandType: UInt8;
@@ -104,6 +107,50 @@ export function writeStateEffectsToWorldTextFile(outputDirectory: string, effect
         }
     }
     textFileWriter.close();
+}
+
+export function createFallbackStateEffectReferenceIdsIfNeeded(stateEffects: Nullable<StateEffect>[], technologies: Nullable<Technology>[], civilizations: Nullable<Civilization>[], hardcodedNames: Record<number, string> = {}) {
+    const uniqueStateEffectNames = new Set([...stateEffects.filter(isDefined).map(stateEffect => stateEffect?.internalName)]);
+    if (uniqueStateEffectNames.size === 1) {
+        stateEffects.forEach(effect => {
+            if (effect) {
+                effect.referenceId = "";
+            }
+        });
+        technologies.filter(isDefined).forEach(technology => {
+            if (technology.stateEffectId >= 0 && technology.stateEffectId < stateEffects.length) {
+                const stateEffect = stateEffects[technology.stateEffectId];
+                if (stateEffect) {
+                    stateEffect.referenceId = createReferenceIdFromString(`Tech ${technology.internalName}`);
+                }
+            }
+        });
+        civilizations.filter(isDefined).forEach(civilization => {
+            if (civilization.bonusEffectId >= 0 && civilization.bonusEffectId < stateEffects.length) {
+                const stateEffect = stateEffects[civilization.bonusEffectId];
+                if (stateEffect) {
+                    stateEffect.referenceId = createReferenceIdFromString(`Civ ${civilization.internalName}`);
+                }
+            }
+        });
+        for (const [key, value] of Object.entries(hardcodedNames)) {
+            const stateEffect = stateEffects[+key];
+            if (stateEffect?.referenceId === "") {
+                stateEffect.referenceId = createReferenceIdFromString(value);
+            }
+        }
+        const defaultName = [...uniqueStateEffectNames.values()][0];
+        stateEffects.forEach(effect => {
+            if (effect?.referenceId === "") {
+                if (effect.commands.length === 0) {
+                    effect.referenceId = "None";
+                }
+                else {
+                    effect.referenceId = createReferenceIdFromString(defaultName);
+                }
+            }
+        });
+    }
 }
 
 export function writeStateEffectsToJsonFiles(outputDirectory: string, stateEffects: (StateEffect | null)[], savingContext: SavingContext) {
