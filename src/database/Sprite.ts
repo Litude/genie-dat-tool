@@ -13,7 +13,7 @@ import { getDataEntry } from "../util";
 import { onParsingError } from "./Error";
 import path from "path";
 import { mkdirSync, rmSync, writeFileSync } from "fs";
-import { createJson, createReferenceString, createSafeFilenameStem, jsonNumberCleanup } from "../json/filenames";
+import { createJson, createReferenceString, createReferenceIdFromString, jsonNumberCleanup } from "../json/filenames";
 import { pick } from "../ts/ts-utils";
 
 interface SpriteOverlay {
@@ -77,7 +77,7 @@ export class Sprite {
 
     constructor(buffer: BufferReader, id: Int16, soundEffects: SoundEffect[], loadingContext: LoadingContext) {
         this.name = buffer.readFixedSizeString(21);
-        this.referenceId = createSafeFilenameStem(this.name);
+        this.referenceId = createReferenceIdFromString(this.name);
         this.resourceFilename = buffer.readFixedSizeString(13);
         this.resourceId = semver.gte(loadingContext.version.numbering, "1.3.1") ? buffer.readInt32() : asInt32(buffer.readInt16());
         this.loaded = buffer.readBool8();

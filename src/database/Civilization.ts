@@ -9,7 +9,7 @@ import { ArchitectureStyleId, asInt16, asUInt8, Float32, Int16, StateEffectId, U
 import path from "path";
 import { JsonFieldConfig, writeDataEntriesToJson } from "../json/json-serializer";
 import { StateEffect } from "./research/StateEffect";
-import { createReferenceString, createSafeFilenameStem as createReferenceIdFromString } from "../json/filenames";
+import { createReferenceString, createReferenceIdFromString as createReferenceIdFromString } from "../json/filenames";
 import { Nullable } from "../ts/ts-utils";
 import { getDataEntry } from "../util";
 

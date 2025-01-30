@@ -26,7 +26,7 @@
         "internalConsoleOptions": "neverOpen",
         "args": [
             "parse",
-            "empires_ror.dat",
+            "dave.dat",
             "--output-format",
             "json"
         ],

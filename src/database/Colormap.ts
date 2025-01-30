@@ -7,7 +7,7 @@ import { TextFileNames, textFileStringCompare } from "../textfile/TextFile";
 import { onParsingError } from "./Error";
 import path from "path";
 import { mkdirSync, rmSync, writeFileSync } from "fs";
-import { createJson, createSafeFilenameStem } from "../json/filenames";
+import { createJson, createReferenceIdFromString } from "../json/filenames";
 
 const enum ColormapType {
     Default = 0,
@@ -25,7 +25,7 @@ export class Colormap {
 
     readFromBuffer(buffer: BufferReader, id: Int16, loadingContext: LoadingContext) {
         this.resourceFilename = buffer.readFixedSizeString(30);
-        this.referenceId = createSafeFilenameStem(this.resourceFilename);
+        this.referenceId = createReferenceIdFromString(this.resourceFilename);
         this.id = buffer.readInt16();
         if (this.id !== id) {
             onParsingError(`Mismatch between stored Colormap id ${this.id} and ordering ${id}, data might be corrupt!`, loadingContext);

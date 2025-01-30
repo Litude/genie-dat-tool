@@ -7,7 +7,7 @@ import { SavingContext } from "../SavingContext";
 import { asInt16, Float32, Int16, UInt8 } from "../Types";
 import path from "path";
 import { clearDirectory } from "../../files/file-utils";
-import { createJson, createSafeFilenameStem, writeJsonFileIndex } from "../../json/filenames";
+import { createJson, createReferenceIdFromString, writeJsonFileIndex } from "../../json/filenames";
 import { isDefined } from "../../ts/ts-utils";
 import { writeFileSync } from "fs";
 
@@ -29,7 +29,7 @@ export class StateEffect {
         this.id = id;
         this.internalName = buffer.readFixedSizeString(31);
         // TODO: Some other way of generating a reference id since all original names have been lost?
-        this.referenceId = createSafeFilenameStem(this.internalName);
+        this.referenceId = createReferenceIdFromString(this.internalName);
         const commandCount = buffer.readInt16();
         this.commands = [];
         for (let i = 0; i < commandCount; ++i) {

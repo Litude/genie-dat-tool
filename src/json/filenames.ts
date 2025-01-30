@@ -2,7 +2,7 @@ import path from "path";
 import { Logger } from "../Logger";
 import { writeFileSync } from "fs";
 
-export function createSafeFilenameStem(input: string) {
+export function createReferenceIdFromString(input: string) {
     const invalidChars = /[<>:"/\\|?*\x00-\x1F]/g; // Invalid Windows filename characters
     const sanitized = input.replace(invalidChars, "-");
     const noSpaces = sanitized.replaceAll(" ", "_");
@@ -52,7 +52,7 @@ export function createReferenceString(type: ReferenceType, input: string | undef
         }
         if (typeof resultId === "number") {
             // There are some legit broken references as well...
-            Logger.warn(`Could not find ${type} with ${fallBackId} while creating references!`)
+            Logger.warn(`Could not find ${type} with id ${fallBackId} while creating references!`)
         }
         return resultId;
     }

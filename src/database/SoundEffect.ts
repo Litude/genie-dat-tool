@@ -8,7 +8,7 @@ import { TextFileNames } from "../textfile/TextFile";
 import { onParsingError } from "./Error";
 import path from "path";
 import { mkdirSync, rmSync, writeFileSync } from "fs";
-import { createJson, createSafeFilenameStem } from "../json/filenames";
+import { createJson, createReferenceIdFromString } from "../json/filenames";
 
 interface SoundSample {
     resourceFilename: string;
@@ -47,7 +47,7 @@ export class SoundEffect {
             });
         }
 
-        this.referenceId = createSafeFilenameStem(this.samples.at(0)?.resourceFilename ?? 'Empty');
+        this.referenceId = createReferenceIdFromString(this.samples.at(0)?.resourceFilename ?? 'Empty');
     }
 
     writeToJsonFile(directory: string, savingContext: SavingContext) {

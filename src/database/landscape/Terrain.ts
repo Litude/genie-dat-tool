@@ -13,7 +13,7 @@ import { asBool8, asFloat32, asInt16, asInt32, asUInt16, asUInt8, Bool8, BorderI
 import { Border } from "./Border";
 import { onParsingError } from "../Error";
 import path from "path";
-import { createJson, createReferenceString, createSafeFilenameStem, writeJsonFileIndex } from "../../json/filenames";
+import { createJson, createReferenceString, createReferenceIdFromString, writeJsonFileIndex } from "../../json/filenames";
 import { mkdirSync, rmSync, writeFileSync } from "fs";
 import { clearDirectory } from "../../files/file-utils";
 
@@ -99,7 +99,7 @@ export class Terrain {
         this.random = buffer.readBool8();
 
         this.internalName = buffer.readFixedSizeString(13);
-        this.referenceId = createSafeFilenameStem(this.internalName);
+        this.referenceId = createReferenceIdFromString(this.internalName);
         this.resourceFilename = buffer.readFixedSizeString(13);
         if (semver.gte(loadingContext.version.numbering, "2.0.0")) {
             this.resourceId = buffer.readInt32();

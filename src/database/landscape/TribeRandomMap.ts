@@ -8,42 +8,107 @@ import { asBool32, asInt16, asInt32, Bool32, BorderId, Int16, Int32, PrototypeId
 import { Border } from "./Border";
 import { Terrain } from "./Terrain";
 import path from 'path';
+import { JsonFieldConfig, writeDataEntriesToJson } from '../../json/json-serializer';
+import { createReferenceIdFromString, createReferenceString } from '../../json/filenames';
+import { SceneryObjectPrototype } from '../object/SceneryObjectPrototype';
+import { Nullable } from '../../ts/ts-utils';
+import { getDataEntry } from '../../util';
 
 interface TerrainPlacementData {
     unusedTerrainId: TerrainId<Int32>; // Seems this is some field that was skipped when the text file was parsed by the game and is thus not included in the DAT file data
+    unusedTerrain: Terrain | null;
     terrainId: TerrainId<Int32>;
+    terrain: Terrain | null;
     placementType: Int32;
     density: Int32;
-    borderId: BorderId<Int32>;
-    borderingType: TerrainId<Int32>;
-    secondaryBorderId: BorderId<Int32>;
-    terrainTypeSpecialAlt: TerrainId<Int32>;
-    borderTypeDistant: BorderId<Int32>;
+    primaryBorderingTerrainId: TerrainId<Int32>;
+    primaryBorderingTerrain: Terrain | null;
+    secondaryBorderingTerrainId: TerrainId<Int32>;
+    secondaryBorderingTerrain: Terrain | null;
+    secondaryBorderId: TerrainId<Int32>; // TODO: This is probably also a terrain...
+    secondaryBorder: Terrain | null; // TODO: This is probably also a terrain...
+    specialAltTerrainId: TerrainId<Int32>;
+    specialAltTerrain: Terrain | null;
+    distantBorderId: BorderId<Int32>;
+    distantBorder: Border | null;
     defaultElevation: Int32;
     avoidedTerrainId: TerrainId<Int32>;
-    windyAvoidingType: TerrainId<Int32>;
+    avoidedTerrain: Terrain | null;
+    windyAvoidingTerrainId: TerrainId<Int32>;
+    windyAvoidingTerrain: Terrain | null;
     windyBorderId: BorderId<Int32>;
+    windyBorder: Border | null;
 }
 
 interface ObjectPlacementData {
     prototypeId: PrototypeId<Int32>;
+    prototype: SceneryObjectPrototype | null;
     placementType: Int32;
     placementCount: Int32;
     placementSpread: Int32;
     objectsPerGroupMax: Int32;
     objectGroupsPerPlayer: Int32; // TODO: Was this per player...?
-    placementTerrain1: TerrainId<Int32>;
-    placementTerrain2: TerrainId<Int32>;
-    placementTerrain3: TerrainId<Int32>;
-    borderingTerrain: TerrainId<Int32>;
+    placementTerrainId1: TerrainId<Int32>;
+    placementTerrainId2: TerrainId<Int32>;
+    placementTerrainId3: TerrainId<Int32>;
+    placementTerrain1: Terrain | null;
+    placementTerrain2: Terrain | null;
+    placementTerrain3: Terrain | null;
+    borderingTerrainId: TerrainId<Int32>;
+    borderingTerrain: Terrain | null;
 }
 
+const jsonFields: JsonFieldConfig<TribeRandomMap>[] = [
+    { key: "internalName", flags: { unusedField: true } },
+    { key: "primaryTerrainId", transformTo: (obj) => createReferenceString("Terrain", obj.primaryTerrain?.referenceId, obj.primaryTerrainId) },
+    { key: "secondaryTerrainId", transformTo: (obj) => createReferenceString("Terrain", obj.secondaryTerrain?.referenceId, obj.secondaryTerrainId) },
+    { key: "startingAvoidingTerrainId", transformTo: (obj) => createReferenceString("Terrain", obj.startingAvoidingTerrain?.referenceId, obj.startingAvoidingTerrainId) },
+    { key: "radiusBetweenPlayers" },
+    { key: "terrainPlacements", transformTo: (obj, savingContext) => obj.terrainPlacements.map(terrainPlacement => ({
+        unusedTerrainId: savingContext.excludeUnused ? undefined : createReferenceString("Terrain", terrainPlacement.unusedTerrain?.referenceId, terrainPlacement.unusedTerrainId),
+        terrainId: createReferenceString("Terrain", terrainPlacement.terrain?.referenceId, terrainPlacement.terrainId),
+        placementType: terrainPlacement.placementType,
+        density: terrainPlacement.density,
+        primaryBorderingTerrainId: createReferenceString("Terrain", terrainPlacement.primaryBorderingTerrain?.referenceId, terrainPlacement.primaryBorderingTerrainId),
+        secondaryBorderingTerrainId: createReferenceString("Terrain", terrainPlacement.secondaryBorderingTerrain?.referenceId, terrainPlacement.secondaryBorderingTerrainId),
+        secondaryBorderId: createReferenceString("Border", terrainPlacement.secondaryBorder?.referenceId, terrainPlacement.secondaryBorderId),
+        specialAltTerrainId: createReferenceString("Terrain", terrainPlacement.specialAltTerrain?.referenceId, terrainPlacement.specialAltTerrainId),
+        distantBorderId: createReferenceString("Border", terrainPlacement.distantBorder?.referenceId, terrainPlacement.distantBorderId),
+        avoidedTerrainId: createReferenceString("Terrain", terrainPlacement.avoidedTerrain?.referenceId, terrainPlacement.avoidedTerrainId),
+        windyAvoidingTerrainId: createReferenceString("Terrain", terrainPlacement.windyAvoidingTerrain?.referenceId, terrainPlacement.windyAvoidingTerrainId),
+        windyBorderId: createReferenceString("Border", terrainPlacement.windyBorder?.referenceId, terrainPlacement.windyBorderId),
+    }))},
+    { key: "objectPlacements", transformTo: (obj) => obj.objectPlacements.map(objectPlacement => ({
+        prototypeId: createReferenceString("ObjectPrototype", objectPlacement.prototype?.referenceId, objectPlacement.prototypeId),
+        placementType: objectPlacement.placementType,
+        placementCount: objectPlacement.placementCount,
+        placementSpread: objectPlacement.placementSpread,
+        objectsPerGroupMax: objectPlacement.objectsPerGroupMax,
+        objectGroupsPerPlayer: objectPlacement.objectGroupsPerPlayer,
+        placementTerrainId1: createReferenceString("Terrain", objectPlacement.placementTerrain1?.referenceId, objectPlacement.placementTerrainId1),
+        placementTerrainId2: createReferenceString("Terrain", objectPlacement.placementTerrain2?.referenceId, objectPlacement.placementTerrainId2),
+        placementTerrainId3: createReferenceString("Terrain", objectPlacement.placementTerrain3?.referenceId, objectPlacement.placementTerrainId3),
+        borderingTerrainId: createReferenceString("Border", objectPlacement.borderingTerrain?.referenceId, objectPlacement.borderingTerrainId),
+    }))},
+    { key: "distance" },
+    { key: "distanceBetweenPlayers" },
+    { key: "boolField" },
+    { key: "minimumClearingCount" },
+    { key: "randomizeStartingLocations" },
+    { key: "startingLocationDistributionType" },
+]
+
+
 export class TribeRandomMap {
+    referenceId: string = "";
     id: Int16 = asInt16(-1);
     internalName: string = "";
-    primaryTerrainId: TerrainId<Int32> = asInt32(-1); // TODO: this is really more like primary?
+    primaryTerrainId: TerrainId<Int32> = asInt32(-1);
+    primaryTerrain: Terrain | null = null;
     secondaryTerrainId: TerrainId<Int32> = asInt32(-1);
+    secondaryTerrain: Terrain | null = null;
     startingAvoidingTerrainId: TerrainId<Int32> = asInt32(-1);
+    startingAvoidingTerrain: Terrain | null = null;
     radiusBetweenPlayers: Int32 = asInt32(0);
     terrainPlacements: TerrainPlacementData[] = [];
     objectPlacements: ObjectPlacementData[] = [];
@@ -54,12 +119,16 @@ export class TribeRandomMap {
     randomizeStartingLocations: Bool32 = asBool32(false);
     startingLocationDistributionType: Int32 = asInt32(0);
     
-    readFromBuffer(buffer: BufferReader, id: Int16, terrains: (Terrain | null)[], borders: (Border | null)[], loadingContext: LoadingContext): void {
+    readFromBuffer(buffer: BufferReader, id: Int16, terrains: Nullable<Terrain>[], borders: Nullable<Border>[], loadingContext: LoadingContext): void {
         this.id = id;
         this.internalName = `Map ${id + 1}`;
+        this.referenceId = createReferenceIdFromString(this.internalName);
         this.primaryTerrainId = buffer.readInt32();
+        this.primaryTerrain = getDataEntry(terrains, this.primaryTerrainId, "Terrain", this.referenceId, loadingContext);
         this.secondaryTerrainId = buffer.readInt32();
+        this.secondaryTerrain = getDataEntry(terrains, this.secondaryTerrainId, "Terrain", this.referenceId, loadingContext);
         this.startingAvoidingTerrainId = buffer.readInt32();
+        this.startingAvoidingTerrain = getDataEntry(terrains, this.startingAvoidingTerrainId, "Terrain", this.referenceId, loadingContext);
         this.radiusBetweenPlayers = buffer.readInt32();
 
         const terrainPlacementEntries = buffer.readInt32();
@@ -76,38 +145,82 @@ export class TribeRandomMap {
         for (let i = 0; i < 20; ++i) {
             this.terrainPlacements.push({
                 unusedTerrainId: asInt32(-1),
+                unusedTerrain: null,
                 terrainId: buffer.readInt32(),
+                terrain: null,
                 placementType: buffer.readInt32(),
                 density: buffer.readInt32(),
-                borderId: buffer.readInt32(),
-                borderingType: buffer.readInt32(),
+                primaryBorderingTerrainId: buffer.readInt32(),
+                primaryBorderingTerrain: null,
+                secondaryBorderingTerrainId: buffer.readInt32(),
+                secondaryBorderingTerrain: null,
                 secondaryBorderId: buffer.readInt32(),
-                terrainTypeSpecialAlt: buffer.readInt32(),
-                borderTypeDistant: buffer.readInt32(),
+                secondaryBorder: null,
+                specialAltTerrainId: buffer.readInt32(),
+                specialAltTerrain: null,
+                distantBorderId: buffer.readInt32(),
+                distantBorder: null,
                 defaultElevation: buffer.readInt32(),
                 avoidedTerrainId: buffer.readInt32(),
-                windyAvoidingType: buffer.readInt32(),
-                windyBorderId: buffer.readInt32()
+                avoidedTerrain: null,
+                windyAvoidingTerrainId: buffer.readInt32(),
+                windyAvoidingTerrain: null,
+                windyBorderId: buffer.readInt32(),
+                windyBorder: null,
             });
         }
         for (let i = 0; i < 60; ++i) {
             this.objectPlacements.push({
                 prototypeId: buffer.readInt32(),
+                prototype: null,
                 placementType: buffer.readInt32(),
                 placementCount: buffer.readInt32(),
                 placementSpread: buffer.readInt32(),
                 objectsPerGroupMax: buffer.readInt32(),
                 objectGroupsPerPlayer: buffer.readInt32(),
-                placementTerrain1: buffer.readInt32(),
-                placementTerrain2: buffer.readInt32(),
-                placementTerrain3: buffer.readInt32(),
-                borderingTerrain: buffer.readInt32()
+                placementTerrainId1: buffer.readInt32(),
+                placementTerrainId2: buffer.readInt32(),
+                placementTerrainId3: buffer.readInt32(),
+                placementTerrain1: null,
+                placementTerrain2: null,
+                placementTerrain3: null,
+                borderingTerrainId: buffer.readInt32(),
+                borderingTerrain: null,
             });
         }
 
         this.terrainPlacements = this.terrainPlacements.slice(0, terrainPlacementEntries);
         this.objectPlacements = this.objectPlacements.slice(0, objectPlacementEntries);
+        
+        // Make sure all non-valid data has been cleaned before linking these
+        this.terrainPlacements.forEach(terrainPlacement => {
+            terrainPlacement.unusedTerrain = getDataEntry(terrains, terrainPlacement.unusedTerrainId, "Terrain", this.referenceId, loadingContext);
+            terrainPlacement.terrain = getDataEntry(terrains, terrainPlacement.terrainId, "Terrain", this.referenceId, loadingContext);
+            terrainPlacement.secondaryBorderingTerrain = getDataEntry(terrains, terrainPlacement.secondaryBorderingTerrainId, "Terrain", this.referenceId, loadingContext);
+            terrainPlacement.specialAltTerrain = getDataEntry(terrains, terrainPlacement.specialAltTerrainId, "Terrain", this.referenceId, loadingContext);
+            terrainPlacement.avoidedTerrain = getDataEntry(terrains, terrainPlacement.avoidedTerrainId, "Terrain", this.referenceId, loadingContext);
+            terrainPlacement.windyAvoidingTerrain = getDataEntry(terrains, terrainPlacement.windyAvoidingTerrainId, "Terrain", this.referenceId, loadingContext);
+            
+            terrainPlacement.primaryBorderingTerrain = getDataEntry(terrains, terrainPlacement.primaryBorderingTerrainId, "Terrain", this.referenceId, loadingContext);
+            terrainPlacement.secondaryBorder = getDataEntry(terrains, terrainPlacement.secondaryBorderId, "Terrain", this.referenceId, loadingContext);
+            terrainPlacement.distantBorder = getDataEntry(borders, terrainPlacement.distantBorderId, "Border", this.referenceId, loadingContext);
+            terrainPlacement.windyBorder = getDataEntry(borders, terrainPlacement.windyBorderId, "Border", this.referenceId, loadingContext);
+        });
+
+        this.objectPlacements.forEach(objectPlacement => {
+            objectPlacement.placementTerrain1 = getDataEntry(terrains, objectPlacement.placementTerrainId1, "Terrain", this.referenceId, loadingContext);
+            objectPlacement.placementTerrain2 = getDataEntry(terrains, objectPlacement.placementTerrainId2, "Terrain", this.referenceId, loadingContext);
+            objectPlacement.placementTerrain3 = getDataEntry(terrains, objectPlacement.placementTerrainId3, "Terrain", this.referenceId, loadingContext);
+            objectPlacement.borderingTerrain = getDataEntry(terrains, objectPlacement.borderingTerrainId, "Terrain", this.referenceId, loadingContext);
+        });
     }
+
+    linkOtherData(objects: Nullable<SceneryObjectPrototype>[], loadingContext: LoadingContext) {
+        this.objectPlacements.forEach(objectPlacement => {
+            objectPlacement.prototype = getDataEntry(objects, objectPlacement.prototypeId, "ObjectPrototype", this.referenceId, loadingContext);
+        });
+    }
+    
 }
 
 
@@ -155,14 +268,14 @@ export function writeTribeRandomMapsToWorldTextFile(outputDirectory: string, map
                 .integer(terrainPlacement.placementType)
                 .integer(terrainPlacement.terrainId)
                 .integer(terrainPlacement.density)
-                .integer(terrainPlacement.borderId)
-                .integer(terrainPlacement.borderingType)
+                .integer(terrainPlacement.primaryBorderingTerrainId)
+                .integer(terrainPlacement.secondaryBorderingTerrainId)
                 .integer(terrainPlacement.secondaryBorderId)
-                .integer(terrainPlacement.terrainTypeSpecialAlt)
-                .integer(terrainPlacement.borderTypeDistant)
+                .integer(terrainPlacement.specialAltTerrainId)
+                .integer(terrainPlacement.distantBorderId)
                 .integer(terrainPlacement.defaultElevation)
                 .integer(terrainPlacement.avoidedTerrainId)
-                .integer(terrainPlacement.windyAvoidingType)
+                .integer(terrainPlacement.windyAvoidingTerrainId)
                 .integer(terrainPlacement.windyBorderId)
                 .eol();
         });
@@ -176,13 +289,17 @@ export function writeTribeRandomMapsToWorldTextFile(outputDirectory: string, map
                 .integer(objectPlacement.placementSpread)
                 .integer(objectPlacement.objectsPerGroupMax)
                 .integer(objectPlacement.objectGroupsPerPlayer)
-                .integer(objectPlacement.placementTerrain1)
-                .integer(objectPlacement.placementTerrain2)
-                .integer(objectPlacement.placementTerrain3)
-                .integer(objectPlacement.borderingTerrain)
+                .integer(objectPlacement.placementTerrainId1)
+                .integer(objectPlacement.placementTerrainId2)
+                .integer(objectPlacement.placementTerrainId3)
+                .integer(objectPlacement.borderingTerrainId)
                 .eol()
         });
     })
 
     textFileWriter.close();
+}
+
+export function writeTribeRandomMapsToJsonFiles(outputDirectory: string, maps: Nullable<TribeRandomMap>[], savingContext: SavingContext) {
+    writeDataEntriesToJson(outputDirectory, "tribemaps", maps, jsonFields, savingContext);
 }

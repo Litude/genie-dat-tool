@@ -7,7 +7,7 @@ import { SavingContext } from "../SavingContext";
 import { asInt16, asInt32, asUInt8, AttributeId, Bool8, Int16, Int32, PrototypeId, StateEffectId, StringId, TechnologyId, UInt8 } from "../Types";
 import path from 'path';
 import { clearDirectory } from '../../files/file-utils';
-import { createJson, createReferenceString, createSafeFilenameStem, writeJsonFileIndex } from '../../json/filenames';
+import { createJson, createReferenceString, createReferenceIdFromString, writeJsonFileIndex } from '../../json/filenames';
 import { writeFileSync } from 'fs';
 import { SceneryObjectPrototype } from '../object/SceneryObjectPrototype';
 import { StateEffect } from './StateEffect';
@@ -100,7 +100,7 @@ export class Technology {
             this.hotkeyStringId = buffer.readInt32();
         }
         this.internalName = buffer.readPascalString16();
-        this.referenceId = createSafeFilenameStem(this.internalName);
+        this.referenceId = createReferenceIdFromString(this.internalName);
     }
 
     isValid() {

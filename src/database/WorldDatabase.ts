@@ -20,7 +20,7 @@ import { TextFileWriter } from "../textfile/TextFileWriter";
 import { TextFileNames } from "../textfile/TextFile";
 import { Attribute, readAttributesFromJsonFile } from "./Attributes";
 import { Overlay, readMainOverlayData, readSecondaryOverlayData, writeOverlaysToJsonFiles, writeOverlaysToWorldTextFile } from "./landscape/Overlay";
-import { readTribeRandomMapData, TribeRandomMap, writeTribeRandomMapsToWorldTextFile } from "./landscape/TribeRandomMap";
+import { readTribeRandomMapData, TribeRandomMap, writeTribeRandomMapsToJsonFiles, writeTribeRandomMapsToWorldTextFile } from "./landscape/TribeRandomMap";
 import { readTribeAiFromBuffer, TribeAi, writeTribeAiToWorldTextFile } from "./TribeAi";
 import { Logger } from "../Logger";
 import { onParsingError, ParsingError } from "./Error";
@@ -113,7 +113,8 @@ export class WorldDatabase {
             this.sprites.forEach(sprite => sprite?.linkOtherData(this.sprites, loadingContext));
             this.habitats.forEach(habitat => habitat?.linkTerrains(this.terrains, loadingContext));
             this.terrains.forEach(terrain => terrain?.linkOtherData(this.terrains, this.borders, this.objects[0], loadingContext));
-            this.randomMaps.forEach(randomMap => randomMap.linkOtherData(this.baselineObjects, loadingContext))
+            this.tribeRandomMaps.forEach(tribeMap => tribeMap.linkOtherData(this.baselineObjects, loadingContext));
+            this.randomMaps.forEach(randomMap => randomMap.linkOtherData(this.baselineObjects, loadingContext));
             this.technologies.forEach(technology => technology?.linkOtherData(this.technologies, this.baselineObjects, this.stateEffects, loadingContext));
             this.baselineObjects.forEach(object => object?.linkOtherData(
                 this.sprites, this.soundEffects, this.terrains, this.habitats, this.baselineObjects, this.technologies, this.overlays, loadingContext
@@ -206,12 +207,11 @@ export class WorldDatabase {
         writeOverlaysToJsonFiles(outputDirectory, this.overlays, savingContext);
         writeBordersToJsonFiles(outputDirectory, this.borders, savingContext);
         // TODO: map properties
-        // TODO: tribe random map
+        writeTribeRandomMapsToJsonFiles(outputDirectory, this.tribeRandomMaps, savingContext);
         // TODO: random map
         writeStateEffectsToJsonFiles(outputDirectory, this.stateEffects, savingContext);
         writeCivilizationsToJsonFiles(outputDirectory, this.civilizations, savingContext);
         writeObjectPrototypesToJsonFiles(outputDirectory, this.baselineObjects, this.objects, savingContext);
-        // TODO: objects
         writeTechnologiesToJsonFiles(outputDirectory, this.technologies, savingContext);
         // TODO: tribe ai
     }

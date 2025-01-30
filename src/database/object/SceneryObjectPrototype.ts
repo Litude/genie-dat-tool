@@ -8,7 +8,7 @@ import { SavingContext } from "../SavingContext";
 import { asBool8, asFloat32, asInt16, asInt32, asUInt8, AttributeId, Bool8, Float32, HabitatId, Int16, Int32, PaletteIndex, PrototypeId, SoundEffectId, SpriteId, StringId, TerrainId, UInt8 } from "../Types";
 import { ObjectClasses } from "./ObjectClass";
 import { ObjectType, ObjectTypes } from "./ObjectType";
-import { createReferenceString, createSafeFilenameStem } from '../../json/filenames';
+import { createReferenceString, createReferenceIdFromString } from '../../json/filenames';
 import { SoundEffect } from '../SoundEffect';
 import { Terrain } from '../landscape/Terrain';
 import { Habitat } from '../landscape/Habitat';
@@ -89,7 +89,7 @@ const jsonFields: JsonFieldConfig<SceneryObjectPrototype>[] = [
     { key: "garrisonCapacity" },
     { key: "collisionRadius" },
     { key: "creationSoundId", transformTo: (obj) => createReferenceString("SoundEffect", obj.creationSound?.referenceId, obj.creationSoundId)},
-    { key: "deadUnitPrototypeId", transformFrom: (obj) => createReferenceString("ObjectPrototype", obj.deadUnitPrototype?.referenceId, obj.deadUnitPrototypeId)},
+    { key: "deadUnitPrototypeId", transformTo: (obj) => createReferenceString("ObjectPrototype", obj.deadUnitPrototype?.referenceId, obj.deadUnitPrototypeId)},
     { key: "sortNumber" },
     { key: "canBeBuiltOn" },
     { key: "iconNumber" },
@@ -378,7 +378,7 @@ export class SceneryObjectPrototype {
         this.convertTerrain = buffer.readBool8();
 
         this.internalName = nameLength > 0 ? buffer.readFixedSizeString(nameLength) : "";
-        this.referenceId = createSafeFilenameStem(this.internalName);
+        this.referenceId = createReferenceIdFromString(this.internalName);
         if (semver.gte(loadingContext.version.numbering, "3.5.0")) {
             this.upgradeUnitPrototypeId = buffer.readInt16();
             if (this.upgradeUnitPrototypeId !== this.id) {
