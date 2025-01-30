@@ -17,12 +17,14 @@ const jsonFields: JsonFieldConfig<Civilization>[] = [
     { key: "civilizationType" },
     { key: "internalName"},
     { key: "bonusEffectId", versionFrom: "1.4.0", transformTo: (obj) => createReferenceString("StateEffect", obj.bonusEffect?.referenceId, obj.bonusEffectId) },
-    { key: "attributes", transformTo: (obj) => obj.attributes.reduce((acc, cur, index) => {
+    { key: "attributes", transformTo: (obj) => ({
+        totalCount: obj.attributes.length,
+        entries: obj.attributes.reduce((acc, cur, index) => {
         if (cur) {
             acc[index] = cur;
         }
         return acc;
-    }, {} as Record<number, number>)},
+    }, {} as Record<number, number>)})},
     { key: "architectureStyle" }
 ];
 

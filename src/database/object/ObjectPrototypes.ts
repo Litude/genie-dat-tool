@@ -198,8 +198,7 @@ export function writeObjectPrototypesToJsonFiles(outputDirectory: string, baseli
 
     const jsonBaselineObjects = baselineObjects.map(object => object ? transformObjectToJson(object, object.getJsonConfig(), savingContext) : null);
 
-
-    // Need to eliminate all fields that are not actually baseline (less than half of civilizations that have this unit actually share the value)
+    // Need to eliminate all fields that are not actually baseline (we require that more than half of civilizations actually share this value)
     const civilizationCount = objectPrototypes.length;
     const baselineEnableStates: boolean[] = [];
     const jsonObjects = objectPrototypes.map(civObjects => civObjects.map(object => object ? transformObjectToJson(object, object.getJsonConfig(), savingContext) : null))
@@ -220,18 +219,16 @@ export function writeObjectPrototypesToJsonFiles(outputDirectory: string, baseli
                         }
                     }
                 })
-                if (matchCount / validEntryCount < 0.5) {
+                if (matchCount / validEntryCount <= 0.5) {
                     jsonBaselineObjects[i][key] = undefined;
                 }
             });
-            baselineEnableStates.push((validEntryCount / civilizationCount) >= 0.5);
+            baselineEnableStates.push((validEntryCount / civilizationCount) > 0.5);
         }
         else {
             baselineEnableStates.push(false);
         }
     }
-    
-    // TODO: Still need some sort of baseline enable state for each object
 
     // Remove fields that match the baseline from civilization objects
     for (let i = 0; i < jsonBaselineObjects.length; ++i) {
@@ -248,7 +245,7 @@ export function writeObjectPrototypesToJsonFiles(outputDirectory: string, baseli
         }
     }
 
-    const mergedJsonObjects = jsonBaselineObjects.map((baselineObject, objIndex) => ({
+    const mergedJsonObjects = jsonBaselineObjects.map((baselineObject, objIndex) => baselineObject ? ({
         baseline: { enabled: baselineEnableStates[objIndex], ...baselineObject },
         overrides: jsonObjects.reduce((acc, curCiv, civIndex) => {
             const enabledStateDiffers = Boolean(curCiv[objIndex]) != baselineEnableStates[objIndex]
@@ -260,11 +257,13 @@ export function writeObjectPrototypesToJsonFiles(outputDirectory: string, baseli
             }
             return acc;
         }, {} as Record<number, any>)
-    }))
+    }) : null)
 
     clearDirectory(objectsDirectory);
     mergedJsonObjects.forEach((jsonObject, index) => {
-        writeFileSync(path.join(objectsDirectory, `${baselineObjects[index]?.referenceId}.json`), createJson(jsonObject));
+        if (jsonObject) {
+            writeFileSync(path.join(objectsDirectory, `${baselineObjects[index]?.referenceId}.json`), createJson(jsonObject));
+        }
     })
     
     writeJsonFileIndex(objectsDirectory, baselineObjects);

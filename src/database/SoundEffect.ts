@@ -52,7 +52,11 @@ export class SoundEffect {
 
     writeToJsonFile(directory: string, savingContext: SavingContext) {
         writeFileSync(path.join(directory, `${this.referenceId}.json`), createJson({
-            samples: this.samples
+            samples: this.samples.map(sample => ({
+                resourceFilename: sample.resourceFilename,
+                resourceId: sample.resourceId,
+                playbackProbability: sample.playbackProbability,
+            })),
         }));
     }
 
