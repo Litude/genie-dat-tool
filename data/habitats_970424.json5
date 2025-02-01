@@ -1,0 +1,13 @@
+// These are the habitats used around April 1997 until June 1997
+[
+    "All Terrains", // 0
+    "Animals", // 1
+    "Beach", // 2
+    "Boats", // 3
+    "Buildings", // 4
+    "Desert Bonus", // 5
+    "Dock", // 6
+    "Units", // 7
+    "Resources", // 8
+    "Farm", // 9
+]

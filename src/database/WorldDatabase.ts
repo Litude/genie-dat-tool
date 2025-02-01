@@ -49,7 +49,7 @@ export class WorldDatabase {
     readFromBuffer(buffer: BufferReader, loadingContext: LoadingContext) {
         try {
 
-            this.attributes = readAttributesFromJsonFile("./data/attributes.json");
+            this.attributes = readAttributesFromJsonFile("./data/attributes.json5");
 
             this.habitats = readHabitats(buffer, loadingContext);
 

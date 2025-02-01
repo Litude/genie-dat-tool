@@ -1,0 +1,14 @@
+// These are the habitats from around July 1997 the final version of the game (including ROR)
+[
+    "All Terrains", // 0
+    "Animals", // 1
+    "Beach", // 2
+    "Boats", // 3
+    "Buildings", // 4
+    "Desert Bonus", // 5 (no longer contains any data but must be desert bonus due to its location)
+    "Dock", // 6
+    "Units", // 7
+    "Resources", // 8
+    "Farm", // 9
+    "Walls", // 10
+]

@@ -1,0 +1,11 @@
+// These are the habitats used around November 1996 until December 1996
+[
+    "All Terrains", // 0
+    "Alligator", // 1
+    "Animals", // 2
+    "Beach", // 3
+    "Boats", // 4
+    "Buildings", // 5
+    "Units", // 6
+    "Unused", // 7 (Grass+Desert+Forest+Desert Palm+Pine Forest+Jungle)
+]
