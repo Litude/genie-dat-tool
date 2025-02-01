@@ -301,5 +301,7 @@ export function writeTribeRandomMapsToWorldTextFile(outputDirectory: string, map
 }
 
 export function writeTribeRandomMapsToJsonFiles(outputDirectory: string, maps: Nullable<TribeRandomMap>[], savingContext: SavingContext) {
-    writeDataEntriesToJson(outputDirectory, "tribemaps", maps, jsonFields, savingContext);
+    if (semver.lt(savingContext.version.numbering, "2.0.0")) {
+        writeDataEntriesToJson(outputDirectory, "tribemaps", maps, jsonFields, savingContext);
+    }
 }

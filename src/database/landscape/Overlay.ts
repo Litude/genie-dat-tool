@@ -196,12 +196,14 @@ export function writeOverlaysToWorldTextFile(outputDirectory: string, overlays: 
 
 
 export function writeOverlaysToJsonFiles(outputDirectory: string, overlay: (Overlay | null)[], savingContext: SavingContext) {
-    const overlayDirectory = path.join(outputDirectory, "overlays");
-    clearDirectory(overlayDirectory);
-
-    overlay.forEach(overlay => {
-        overlay?.writeToJsonFile(overlayDirectory, savingContext)
-    });
+    if (semver.lt(savingContext.version.numbering, "2.0.0")) {
+        const overlayDirectory = path.join(outputDirectory, "overlays");
+        clearDirectory(overlayDirectory);
     
-    writeJsonFileIndex(overlayDirectory, overlay);
+        overlay.forEach(overlay => {
+            overlay?.writeToJsonFile(overlayDirectory, savingContext)
+        });
+        
+        writeJsonFileIndex(overlayDirectory, overlay);
+    }
 }

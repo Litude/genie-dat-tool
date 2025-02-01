@@ -5,8 +5,13 @@ import { TextFileWriter } from "../textfile/TextFileWriter";
 import { LoadingContext } from "./LoadingContext";
 import { ObjectClass } from "./object/ObjectClass";
 import { SavingContext } from "./SavingContext";
-import { AgeId, asBool16, asBool8, asFloat32, asInt16, asUInt16, asUInt32, asUInt8, Bool16, Bool8, Float32, Int16, Int32, NullPointer, Percentage, Pointer, PrototypeId, UInt16, UInt32, UInt8 } from "./Types";
+import { AgeId, asBool16, asBool8, asFloat32, asInt16, asUInt16, asUInt32, asUInt8, Bool16, Bool8, Float32, Int16, Int32, NullPointer, Percentage, Pointer, PrototypeId, TechnologyType, UInt16, UInt32, UInt8 } from "./Types";
 import path from "path";
+import { JsonFieldConfig, writeDataEntriesToJson } from "../json/json-serializer";
+import { Nullable } from "../ts/ts-utils";
+import { createReferenceIdFromString, createReferenceString } from "../json/filenames";
+import { BaseObjectPrototype } from "./object/ObjectPrototypes";
+import { getDataEntry } from "../util";
 
 // Many entries have exactly 8 entries in an array... Perhaps these correspond to 1 for each age in very early stages of development when there were 8 ages
 // For exampla the object state type as 8 entries for target units and target percents, perhaps to allow specifying how many of that unit the AI should
@@ -19,10 +24,11 @@ interface AiGroup {
     padding16: UInt16;
 }
 
-interface AiObjectState {
+interface AiObjectGoal {
     targetCounts: Int16[];
     targetPercents: Percentage<Int16>[];
     prototypeId: PrototypeId<Int16>;
+    prototype: BaseObjectPrototype | null;
     objectClass: ObjectClass;
     aiGroupId: Int16;
     objectCount: Int16;
@@ -32,9 +38,9 @@ interface AiObjectState {
     padding43: UInt8;
 }
 
-interface AiTechnologyState {
+interface AiTechnologyGoal {
     targetPercents: Percentage<Int16>[];
-    technologyType: Int16; // this references the "unused" value in techonlogies
+    technologyType: TechnologyType; // this references the "unused" value in techonlogies
     padding12: UInt16;
     assetsTotal: Int32;
     deltaPercent: Percentage<Int16>;
@@ -42,19 +48,42 @@ interface AiTechnologyState {
     padding2F: UInt8;
 }
 
+const jsonFields: JsonFieldConfig<TribeAi>[] = [
+    { key: "objectGoals", transformTo: (obj) => obj.objectGoals.map(objectGoal => ({
+        prototypeId: createReferenceString("ObjectPrototype", objectGoal.prototype?.referenceId, objectGoal.prototypeId),
+        objectClass: objectGoal.objectClass,
+        objectName: objectGoal.stateName,
+        aiGroupId: objectGoal.aiGroupId,
+        targetValues: objectGoal.targetCounts.map((targetCount, index) => ({
+            count: objectGoal.targetCounts[index],
+            percent: objectGoal.targetPercents[index]
+        }))
+    }))},
+    { key: "technologyGoals", transformTo: (obj) => obj.technologyGoals.map(technologyGoal => ({
+        technologyType: technologyGoal.technologyType,
+        targetPercents: technologyGoal.targetPercents,
+    }))},
+    { key: "aiGroups", transformTo: (obj) => obj.aiGroups.map(aiGroup => ({
+        targetPercents: aiGroup.targetPercents
+    }))},
+    { key: "field9C"},
+    { key: "fieldA3"}
+];
+
 export class TribeAi {
+    referenceId: string = "";
     id: Int16 = asInt16(-1);
     padding02: UInt16 = asUInt16(0);
-    objectStatesPointer: Pointer = NullPointer;
-    objectStates: AiObjectState[] = [];
+    objectGoalsPointer: Pointer = NullPointer;
+    objectGoals: AiObjectGoal[] = [];
     objectPrototypeCount: Int16 = asInt16(0);
     padding0A: UInt16 = asUInt16(0);
-    objectIdToStateMapPointer: Pointer = NullPointer;
+    objectIdToGoalMapPointer: Pointer = NullPointer;
     objectTotalCostsPointer: Pointer = NullPointer;
     padding16: UInt16 = asUInt16(0);
-    technologyStatesPointer: Pointer = NullPointer;
-    technologyStates: AiTechnologyState[] = [];
-    technologyIdToStateMapPointer: Pointer = NullPointer;
+    technologyGoalsPointer: Pointer = NullPointer;
+    technologyGoals: AiTechnologyGoal[] = [];
+    technologyIdToGoalMapPointer: Pointer = NullPointer;
     technologyTotalCostsPointer: Pointer = NullPointer;
     aiGroups: AiGroup[] = [];
     field9C: UInt8[] = [];
@@ -84,18 +113,19 @@ export class TribeAi {
             return;
         }
         this.id = id;
+        this.referenceId = createReferenceIdFromString(`Ai ${this.id + 1}`);
 
         const objectStatesCount = buffer.readInt16();
         this.padding02 = buffer.readUInt16();
-        this.objectStatesPointer = buffer.readPointer();
+        this.objectGoalsPointer = buffer.readPointer();
         this.objectPrototypeCount = buffer.readInt16();
         this.padding0A = buffer.readUInt16();
-        this.objectIdToStateMapPointer = buffer.readPointer();
+        this.objectIdToGoalMapPointer = buffer.readPointer();
         this.objectTotalCostsPointer = buffer.readPointer();
         const technologyStatesCount = buffer.readInt16();
         this.padding16 = buffer.readUInt16();
-        this.technologyStatesPointer = buffer.readPointer();
-        this.technologyIdToStateMapPointer = buffer.readPointer();
+        this.technologyGoalsPointer = buffer.readPointer();
+        this.technologyIdToGoalMapPointer = buffer.readPointer();
         this.technologyTotalCostsPointer = buffer.readPointer();
 
         this.aiGroups = [];
@@ -140,7 +170,7 @@ export class TribeAi {
         this.loggingEnabled = buffer.readBool16();
         this.paddingD6 = buffer.readUInt16();
 
-        this.objectStates = [];
+        this.objectGoals = [];
         for (let i = 0; i < objectStatesCount; ++i) {
             const targetCounts: Int16[] = [];
             const targetPercents: Percentage<Int16>[] = [];
@@ -150,10 +180,11 @@ export class TribeAi {
             for (let i = 0; i < 8; ++i) {
                 targetPercents.push(buffer.readInt16());
             }
-            this.objectStates.push({
+            this.objectGoals.push({
                 targetCounts,
                 targetPercents,
                 prototypeId: buffer.readInt16(),
+                prototype: null,
                 objectClass: buffer.readInt16(),
                 aiGroupId: buffer.readInt16(),
                 objectCount: buffer.readInt16(),
@@ -164,13 +195,13 @@ export class TribeAi {
             });
         }
 
-        this.technologyStates = [];
+        this.technologyGoals = [];
         for (let i = 0; i < technologyStatesCount; ++i) {
             const targetPercents: Percentage<Int16>[] = [];
             for (let i = 0; i < 8; ++i) {
                 targetPercents.push(buffer.readInt16());
             }
-            this.technologyStates.push({
+            this.technologyGoals.push({
                 targetPercents,
                 technologyType: buffer.readInt16(),
                 padding12: buffer.readUInt16(),
@@ -181,6 +212,12 @@ export class TribeAi {
             });
         }
 
+    }
+    
+    linkOtherData(objects: Nullable<BaseObjectPrototype>[], loadingContext: LoadingContext) {
+        this.objectGoals.forEach(objectState => {
+            objectState.prototype = getDataEntry(objects, objectState.prototypeId, "ObjectPrototype", this.referenceId, loadingContext);
+        });
     }
 }
 
@@ -214,20 +251,20 @@ export function writeTribeAiToWorldTextFile(outputDirectory: string, aiEntries: 
             
             textFileWriter
                 .indent(4)
-                .raw(aiEntry.objectStates.length).eol()
+                .raw(aiEntry.objectGoals.length).eol()
 
-            aiEntry.objectStates.forEach(objectState => {
+            aiEntry.objectGoals.forEach(objectGoal => {
                 textFileWriter
                     .indent(6)
-                    .integer(objectState.prototypeId)
-                    .integer(objectState.objectClass)
-                    .integer(objectState.aiGroupId)
-                    .string(objectState.stateName, 21);
+                    .integer(objectGoal.prototypeId)
+                    .integer(objectGoal.objectClass)
+                    .integer(objectGoal.aiGroupId)
+                    .string(objectGoal.stateName, 21);
 
                 for (let i = 0; i < 8; ++i) {
                     textFileWriter
-                        .integer(objectState.targetCounts[i])
-                        .integer(objectState.targetPercents[i])
+                        .integer(objectGoal.targetCounts[i])
+                        .integer(objectGoal.targetPercents[i])
                 }
                 textFileWriter.eol();
             })
@@ -243,17 +280,17 @@ export function writeTribeAiToWorldTextFile(outputDirectory: string, aiEntries: 
             
             textFileWriter
                 .indent(4)
-                .raw(aiEntry.technologyStates.length).eol()
+                .raw(aiEntry.technologyGoals.length).eol()
 
-            aiEntry.technologyStates.forEach(techState => {
+            aiEntry.technologyGoals.forEach(techGoal => {
                 textFileWriter
                     .indent(6)
-                    .integer(techState.technologyType)
-                    .string(techState.stateName, 21);
+                    .integer(techGoal.technologyType)
+                    .string(techGoal.stateName, 21);
                     
                 for (let i = 0; i < 8; ++i) {
                     textFileWriter
-                        .integer(techState.targetPercents[i])
+                        .integer(techGoal.targetPercents[i])
                 }
                 textFileWriter.eol();
             })
@@ -270,4 +307,10 @@ export function writeTribeAiToWorldTextFile(outputDirectory: string, aiEntries: 
     })
 
     textFileWriter.close();
+}
+
+export function writeTribeAiToJsonFiles(outputDirectory: string, aiEntries: Nullable<TribeAi>[], savingContext: SavingContext) {
+    if (semver.lt(savingContext.version.numbering, "2.0.0")) {
+        writeDataEntriesToJson(outputDirectory, "tribeai", aiEntries, jsonFields, savingContext); 
+    }
 }

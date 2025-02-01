@@ -4,15 +4,13 @@ import { TextFileNames } from "../../textfile/TextFile";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
-import { asInt16, asInt32, asUInt8, AttributeId, Bool8, Int16, Int32, PrototypeId, StateEffectId, StringId, TechnologyId, UInt8 } from "../Types";
+import { asInt16, asInt32, asUInt8, AttributeId, Bool8, Int16, Int32, PrototypeId, StateEffectId, StringId, TechnologyId, TechnologyType, UInt8 } from "../Types";
 import path from 'path';
-import { clearDirectory } from '../../files/file-utils';
-import { createJson, createReferenceString, createReferenceIdFromString, writeJsonFileIndex } from '../../json/filenames';
-import { writeFileSync } from 'fs';
+import { createReferenceString, createReferenceIdFromString } from '../../json/filenames';
 import { SceneryObjectPrototype } from '../object/SceneryObjectPrototype';
 import { StateEffect } from './StateEffect';
 import { getDataEntry } from '../../util';
-import { isDefined, Nullable, pick, trimEnd } from '../../ts/ts-utils';
+import { isDefined, Nullable, trimEnd } from '../../ts/ts-utils';
 import { JsonFieldConfig, writeDataEntriesToJson } from '../../json/json-serializer';
 
 interface TechnologyResourceCost {
@@ -58,7 +56,7 @@ export class Technology {
     researchDuration: Int16 = asInt16(0);
     stateEffectId: StateEffectId<Int16> = asInt16(-1);
     stateEffect: StateEffect | null = null;
-    technologyType: Int16 = asInt16(0); // used by old AI for tracking similar technologies
+    technologyType: TechnologyType = asInt16(0); // used by old AI for tracking similar technologies
     iconNumber: Int16 = asInt16(0);
     researchButtonIndex: UInt8 = asUInt8(0);
     helpDialogStringId: StringId<Int32> = asInt32(-1); // The game actually only supports 16-bit string indexes, higher values will overflow

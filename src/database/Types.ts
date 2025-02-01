@@ -91,6 +91,7 @@ export type StateEffectId<T> = T;
 export type TechnologyId<T> = T;
 export type ArchitectureStyleId<T> = T;
 export type AgeId<T> = T;
+export type TechnologyType = Int16;
 
 function createBrandedInteger<T extends string>(
     value: number,

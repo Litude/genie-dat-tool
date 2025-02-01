@@ -27,6 +27,8 @@ import { transformObjectToJson } from '../../json/json-serializer';
 import { Ability } from './Ability';
 import { writeFileSync } from 'fs';
 
+export type BaseObjectPrototype = SceneryObjectPrototype;
+
 export function readObjectPrototypesFromBuffer(buffer: BufferReader, loadingContext: LoadingContext) {
     const result: (SceneryObjectPrototype | null)[] = [];
     const objectCount = buffer.readInt16();

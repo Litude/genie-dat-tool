@@ -3,6 +3,10 @@ import BufferReader from "../../BufferReader";
 import { Point } from "../../geometry/Point";
 import { LoadingContext } from "../LoadingContext";
 import { asBool8, asInt16, asInt32, asUInt16, asUInt8, Bool8, Int16, Int32, NullPointer, Pointer, TerrainId, UInt16, UInt8 } from "../Types";
+import { writeFileSync } from 'fs';
+import path from 'path';
+import { createJson } from '../../json/filenames';
+import { SavingContext } from '../SavingContext';
 
 interface TileProperty {
     width: Int16;
@@ -165,4 +169,12 @@ export class MapProperties {
     toString() {
         return JSON.stringify(this);
     }
+}
+
+export function writeMapPropertiesToJsonFile(directory: string, mapProperties: MapProperties, savingContext: SavingContext) {
+    writeFileSync(path.join(directory, `tileProperties.json`), createJson({
+        tileWidth: mapProperties.tileWidthPx,
+        tileHeight: mapProperties.tileHeightPx,
+        elevationHeight: mapProperties.elevationHeightPx,
+    }));
 }

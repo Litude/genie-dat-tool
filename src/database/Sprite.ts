@@ -12,9 +12,10 @@ import { Logger } from "../Logger";
 import { getDataEntry } from "../util";
 import { onParsingError } from "./Error";
 import path from "path";
-import { mkdirSync, rmSync, writeFileSync } from "fs";
+import { writeFileSync } from "fs";
 import { createJson, createReferenceString, createReferenceIdFromString, jsonNumberCleanup } from "../json/filenames";
 import { pick } from "../ts/ts-utils";
+import { clearDirectory } from "../files/file-utils";
 
 interface SpriteOverlay {
     spriteId: Int16;
@@ -306,8 +307,7 @@ export function writeSpritesToWorldTextFile(outputDirectory: string, sprites: (S
 
 export function writeSpritesToJsonFiles(outputDirectory: string, sprites: (Sprite | null)[], savingContext: SavingContext) {
     const spriteDirectory = path.join(outputDirectory, "sprites");
-    rmSync(spriteDirectory, { recursive: true, force: true });
-    mkdirSync(spriteDirectory, { recursive: true });
+    clearDirectory(spriteDirectory);
 
     sprites.forEach(sprite => {
         sprite?.writeToJsonFile(spriteDirectory, savingContext);

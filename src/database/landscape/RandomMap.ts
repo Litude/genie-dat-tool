@@ -3,7 +3,7 @@ import BufferReader from "../../BufferReader";
 import { Point } from "../../geometry/Point";
 import { Rectangle } from "../../geometry/Rectangle";
 import { LoadingContext } from "../LoadingContext";
-import { Optional } from "../../ts/ts-utils";
+import { Nullable, Optional } from "../../ts/ts-utils";
 import { asInt16, asInt32, Bool8, Int16, Int32, NullPointer, Percentage, PlayerId, Pointer, PrototypeId, TerrainId, UInt16, UInt8 } from "../Types";
 import { SavingContext } from "../SavingContext";
 import { Terrain } from "./Terrain";
@@ -12,6 +12,8 @@ import { SceneryObjectPrototype } from "../object/SceneryObjectPrototype";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { TextFileNames } from "../../textfile/TextFile";
 import path from "path";
+import { JsonFieldConfig, writeDataEntriesToJson } from "../../json/json-serializer";
+import { createReferenceString } from "../../json/filenames";
 
 interface PreMapData {
     mapTypeId: Int32;
@@ -64,7 +66,7 @@ interface TerrainPlacementData {
 
 interface ObjectPlacementData {
     prototypeId: PrototypeId<Int32>;
-    objectPrototype: SceneryObjectPrototype | null;
+    prototype: SceneryObjectPrototype | null;
     placementTerrainId: TerrainId<Int32>;
     placementTerrain: Terrain | null;
     groupMode: UInt8;
@@ -96,7 +98,61 @@ const internalFields: (keyof RandomMap)[] = [
     "terrainDataPointer",
     "objectDataPointer",
     "elevationDataPointer"
-]
+];
+
+const jsonFields: JsonFieldConfig<RandomMap>[] = [
+    { key: "mapTypeId"},
+    { key: "border" },
+    { key: "borderEdgeFade" },
+    { key: "waterShapeLandPlacementEdge" },
+    { key: "baseTerrainId", transformTo: (obj) => createReferenceString("Terrain", obj.baseTerrain?.referenceId, obj.baseTerrainId) },
+    { key: "landCover" },
+    { key: "landId", flags: { unusedField: true } },
+    { key: "baseLandData", transformTo: (obj, savingContext) => obj.baseLandData.map(baseLandEntry => ({
+        baseLandId: baseLandEntry.baseLandId,
+        terrainId: createReferenceString("Terrain", baseLandEntry.terrain?.referenceId, baseLandEntry.terrainId),
+        landSpacing: baseLandEntry.landSpacing,
+        baseSize: baseLandEntry.baseSize,
+        zone: baseLandEntry.zone,
+        placementType: baseLandEntry.placementType,
+        origin: baseLandEntry.origin,
+        landProportion: baseLandEntry.landProportion,
+        playerPlacement: baseLandEntry.playerPlacement,
+        playerBaseRadius: baseLandEntry.playerBaseRadius,
+        edgeFade: baseLandEntry.edgeFade,
+        clumpinessFactor: savingContext.internalFields ? baseLandEntry.clumpinessFactor : undefined,
+    }))},
+    { key: "terrainData", transformTo: (obj, savingContext) => obj.terrainData.map(terrainEntry => ({
+        terrainId: createReferenceString("Terrain", terrainEntry.terrain?.referenceId, terrainEntry.terrainId),
+        coverageProportion: terrainEntry.coverageProportion,
+        clumpCount: terrainEntry.clumpCount,
+        terrainSpacing: terrainEntry.terrainSpacing,
+        replacedTerrainId: createReferenceString("Terrain", terrainEntry.replacedTerrain?.referenceId, terrainEntry.replacedTerrainId),
+        clumpinessFactor: savingContext.internalFields ? terrainEntry.clumpinessFactor : undefined,
+    }))},
+    { key: "objectData", transformTo: (obj) => obj.objectData.map(objectEntry => ({
+        prototypeId: createReferenceString("ObjectPrototype", objectEntry.prototype?.referenceId, objectEntry.prototypeId),
+        placementTerrainId: createReferenceString("Terrain", objectEntry.placementTerrain?.referenceId, objectEntry.placementTerrainId),
+        groupMode: objectEntry.groupMode,
+        scaleByMapSize: objectEntry.scaleByMapSize,
+        objectsPerGroup: objectEntry.objectsPerGroup,
+        objectsPerGroupVariance: objectEntry.objectsPerGroupVariance,
+        objectGroupsPerPlayer: objectEntry.objectGroupsPerPlayer,
+        objectGroupRadius: objectEntry.objectGroupRadius,
+        placementPlayerId: objectEntry.placementPlayerId,
+        placementBaseLandId: objectEntry.placementBaseLandId,
+        minDistanceToPlayers: objectEntry.minDistanceToPlayers,
+        maxDistanceToPlayers: objectEntry.maxDistanceToPlayers,
+    }))},
+    { key: "elevationData", flags: { unusedField: true }, transformTo: (obj, savingContext) => obj.elevationData.map(elevationEntry => ({
+        elevationHeight: elevationEntry.elevationHeight,
+        coverageProportion: elevationEntry.coverageProportion,
+        elevationSpacing: elevationEntry.elevationSpacing,
+        placementTerrain: createReferenceString("Terrain", elevationEntry.placementTerrain?.referenceId, elevationEntry.placementTerrainId),
+        placementElevation: elevationEntry.placementElevation,
+        clumpinessFactor: savingContext.internalFields ? elevationEntry.clumpinessFactor : undefined,
+    }))}
+];
 
 export class RandomMap {
     id: Int16 = asInt16(-1);
@@ -111,7 +167,8 @@ export class RandomMap {
     };
     borderEdgeFade: Int32 = asInt32(0);
     waterShapeLandPlacementEdge: Int32 = asInt32(0);
-    baseTerrain: TerrainId<Int32> = asInt32(0);
+    baseTerrainId: TerrainId<Int32> = asInt32(0);
+    baseTerrain: Terrain | null = null;
     landCover: Int32 = asInt32(0);
     landId: Int32 = asInt32(0);
     baseLandData: BaseLandData[] = [];
@@ -124,7 +181,7 @@ export class RandomMap {
     objectDataPointer: Pointer = NullPointer;
     elevationDataPointer: Pointer = NullPointer;
 
-    readFromBuffer(buffer: BufferReader, id: Int16, terrains: (Terrain | null)[], loadingContext: LoadingContext, preMapData: PreMapData): void {
+    readFromBuffer(buffer: BufferReader, id: Int16, terrains: Nullable<Terrain>[], loadingContext: LoadingContext, preMapData: PreMapData): void {
         this.id = id;
         this.referenceId = `RandomMap_${this.id}`;
         this.mapTypeId = preMapData.mapTypeId;
@@ -137,7 +194,8 @@ export class RandomMap {
         this.border.bottom = buffer.readInt32();
         this.borderEdgeFade = buffer.readInt32();
         this.waterShapeLandPlacementEdge = buffer.readInt32();
-        this.baseTerrain = buffer.readInt32();
+        this.baseTerrainId = buffer.readInt32();
+        this.baseTerrain = getDataEntry(terrains, this.baseTerrainId, "Terrain", this.referenceId, loadingContext);
         this.landCover = buffer.readInt32();
         this.landId = buffer.readInt32();
 
@@ -196,7 +254,7 @@ export class RandomMap {
         for (let i = 0; i < objectEntryCount; ++i) {
             const objectData: ObjectPlacementData = {
                 prototypeId: buffer.readInt32(),
-                objectPrototype: null,
+                prototype: null,
                 placementTerrainId: buffer.readInt32(),
                 placementTerrain: null,
                 groupMode: buffer.readUInt8(),
@@ -236,7 +294,7 @@ export class RandomMap {
     
     linkOtherData(objects: (SceneryObjectPrototype | null)[], loadingContext: LoadingContext) {
         this.objectData.forEach(object => {
-            object.objectPrototype = getDataEntry(objects, object.prototypeId, "ObjectPrototype", this.referenceId, loadingContext);
+            object.prototype = getDataEntry(objects, object.prototypeId, "ObjectPrototype", this.referenceId, loadingContext);
         })
     }
 
@@ -311,7 +369,7 @@ function writeRandomMapBaseLandDataToWorldTextFile(outputDirectory: string, rand
             .integer(randomMap.border.bottom)
             .integer(randomMap.borderEdgeFade)
             .integer(randomMap.waterShapeLandPlacementEdge)
-            .integer(randomMap.baseTerrain)
+            .integer(randomMap.baseTerrainId)
             .integer(randomMap.landCover)
             .eol()
 
@@ -398,4 +456,10 @@ export function writeRandomMapsToWorldTextFile(outputDirectory: string, randomMa
     writeRandomMapBaseLandDataToWorldTextFile(outputDirectory, randomMaps, savingContext);
     writeRandomMapTerrainPlacementDataToWorldTextFile(outputDirectory, randomMaps, savingContext);
     writeRandomMapObjectPlacementDataToWorldTextFile(outputDirectory, randomMaps, savingContext);
+}
+
+export function writeRandomMapsToJsonFiles(outputDirectory: string, randomMaps: RandomMap[], savingContext: SavingContext) {
+    if (semver.gte(savingContext.version.numbering, "2.0.0")) {
+        writeDataEntriesToJson(outputDirectory, "randommaps", randomMaps, jsonFields, savingContext);
+    }
 }
