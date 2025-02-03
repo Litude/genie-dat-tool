@@ -6,11 +6,11 @@ import { LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
 import { asFloat32, asInt16, asUInt8, Float32, HabitatId, Int16, Percentage, PrototypeId, SpriteId, UInt8 } from "../Types";
 import { ActorObjectPrototype } from "./ActorObjectPrototype";
-import { JsonFieldConfig } from "../../json/json-serializer";
+import { OldJsonFieldConfig } from "../../json/json-serialization";
 import { Habitat } from "../landscape/Habitat";
 import { SceneryObjectPrototype } from "./SceneryObjectPrototype";
 import { Sprite } from "../Sprite";
-import { createReferenceString } from "../../json/filenames";
+import { createReferenceString } from "../../json/reference-id";
 import { Nullable } from "../../ts/ts-utils";
 import { SoundEffect } from "../SoundEffect";
 import { Terrain } from "../landscape/Terrain";
@@ -23,26 +23,26 @@ interface DamageValue {
     amount: Int16;
 }
 
-const jsonFields: JsonFieldConfig<CombatantObjectPrototype>[] = [
-    { key: "baseArmor" },
-    { key: "attackTypes" },
-    { key: "armorTypes" },
-    { key: "bonusHabitat", transformTo: (obj) => createReferenceString("Habitat", obj.bonusHabitat?.referenceId, obj.bonusHabitatId) },
-    { key: "maxRange" },
-    { key: "blastRadius" },
-    { key: "attackSpeed" },
-    { key: "projectileUnitId", transformTo: (obj) => createReferenceString("ObjectPrototype", obj.projectileUnit?.referenceId, obj.projectileUnitId) },
-    { key: "accuracy" },
-    { key: "breakOffCombat", flags: { unusedField: true } },
-    { key: "attackFrame" },
-    { key: "projectileOffset", },
-    { key: "blastAttackLevel" },
-    { key: "minRange" },
-    { key: "attackSpriteId", transformTo: (obj) => createReferenceString("Sprite", obj.attackSprite?.referenceId, obj.attackSpriteId ) },
-    { key: "originalArmorValue", versionFrom: "3.2.0" },
-    { key: "originalAttackValue", versionFrom: "3.2.0" },
-    { key: "originalRangeValue", versionFrom: "3.2.0" },
-    { key: "originalAttackSpeed", versionFrom: "3.2.0" },
+const jsonFields: OldJsonFieldConfig<CombatantObjectPrototype>[] = [
+    { field: "baseArmor" },
+    { field: "attackTypes" },
+    { field: "armorTypes" },
+    { field: "bonusHabitat", toJson: (obj) => createReferenceString("Habitat", obj.bonusHabitat?.referenceId, obj.bonusHabitatId) },
+    { field: "maxRange" },
+    { field: "blastRadius" },
+    { field: "attackSpeed" },
+    { field: "projectileUnitId", toJson: (obj) => createReferenceString("ObjectPrototype", obj.projectileUnit?.referenceId, obj.projectileUnitId) },
+    { field: "accuracy" },
+    { field: "breakOffCombat", flags: { unusedField: true } },
+    { field: "attackFrame" },
+    { field: "projectileOffset", },
+    { field: "blastAttackLevel" },
+    { field: "minRange" },
+    { field: "attackSpriteId", toJson: (obj) => createReferenceString("Sprite", obj.attackSprite?.referenceId, obj.attackSpriteId ) },
+    { field: "originalArmorValue", versionFrom: "3.2.0" },
+    { field: "originalAttackValue", versionFrom: "3.2.0" },
+    { field: "originalRangeValue", versionFrom: "3.2.0" },
+    { field: "originalAttackSpeed", versionFrom: "3.2.0" },
 ]
 
 export class CombatantObjectPrototype extends ActorObjectPrototype {
@@ -133,8 +133,8 @@ export class CombatantObjectPrototype extends ActorObjectPrototype {
         this.attackSprite = getDataEntry(sprites, this.attackSpriteId, "Sprite", this.referenceId, loadingContext);
     }
     
-    getJsonConfig(): JsonFieldConfig<SceneryObjectPrototype>[] {
-        return super.getJsonConfig().concat(jsonFields as JsonFieldConfig<SceneryObjectPrototype>[]);
+    getJsonConfig(): OldJsonFieldConfig<SceneryObjectPrototype>[] {
+        return super.getJsonConfig().concat(jsonFields as OldJsonFieldConfig<SceneryObjectPrototype>[]);
     }
 
     writeToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext): void {

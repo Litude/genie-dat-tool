@@ -8,14 +8,14 @@ import { SavingContext } from "../SavingContext";
 import { asBool8, asFloat32, asInt16, asInt32, asUInt8, AttributeId, Bool8, Float32, HabitatId, Int16, Int32, PaletteIndex, PrototypeId, SoundEffectId, SpriteId, StringId, TerrainId, UInt8 } from "../Types";
 import { ObjectClasses } from "./ObjectClass";
 import { ObjectType, ObjectTypes } from "./ObjectType";
-import { createReferenceString, createReferenceIdFromString } from '../../json/filenames';
+import { createReferenceString, createReferenceIdFromString } from '../../json/reference-id';
 import { SoundEffect } from '../SoundEffect';
 import { Terrain } from '../landscape/Terrain';
 import { Habitat } from '../landscape/Habitat';
 import { Sprite } from '../Sprite';
 import { Nullable, trimEnd } from '../../ts/ts-utils';
 import { getDataEntry } from '../../util';
-import { JsonFieldConfig } from '../../json/json-serializer';
+import { OldJsonFieldConfig } from '../../json/json-serialization';
 import { Technology } from '../research/Technology';
 import { Overlay } from '../landscape/Overlay';
 
@@ -74,72 +74,72 @@ function getResourceDoppelgangerMode(prototype: SceneryObjectPrototype) {
     }
 }
 
-const jsonFields: JsonFieldConfig<SceneryObjectPrototype>[] = [
-    { key: "objectType" },
-    { key: "internalName" },
-    { key: "nameStringId" },
-    { key: "creationStringId", versionFrom: "1.5.0" },
-    { key: "objectClass" },
-    { key: "idleSpriteId", transformTo: (obj) => createReferenceString("Sprite", obj.idleSprite?.referenceId, obj.idleSpriteId) },
-    { key: "deathSpriteId", transformTo: (obj) => createReferenceString("Sprite", obj.deathSprite?.referenceId, obj.deathSpriteId) },
-    { key: "undeadSpriteId", transformTo: (obj) => createReferenceString("Sprite", obj.undeadSprite?.referenceId, obj.undeadSpriteId) },
-    { key: "undead" },
-    { key: "hitpoints" },
-    { key: "lineOfSight" },
-    { key: "garrisonCapacity" },
-    { key: "collisionRadius" },
-    { key: "creationSoundId", transformTo: (obj) => createReferenceString("SoundEffect", obj.creationSound?.referenceId, obj.creationSoundId)},
-    { key: "deadUnitPrototypeId", transformTo: (obj) => createReferenceString("ObjectPrototype", obj.deadUnitPrototype?.referenceId, obj.deadUnitPrototypeId)},
-    { key: "sortNumber" },
-    { key: "canBeBuiltOn" },
-    { key: "iconNumber" },
-    { key: "hiddenInEditor" },
-    { key: "portraitPicture", flags: { unusedField: true } },
-    { key: "unlocked" },
-    { key: "placementNeighbouringTerrainIds", transformTo: (obj) => {
+const jsonFields: OldJsonFieldConfig<SceneryObjectPrototype>[] = [
+    { field: "objectType" },
+    { field: "internalName" },
+    { field: "nameStringId" },
+    { field: "creationStringId", versionFrom: "1.5.0" },
+    { field: "objectClass" },
+    { field: "idleSpriteId", toJson: (obj) => createReferenceString("Sprite", obj.idleSprite?.referenceId, obj.idleSpriteId) },
+    { field: "deathSpriteId", toJson: (obj) => createReferenceString("Sprite", obj.deathSprite?.referenceId, obj.deathSpriteId) },
+    { field: "undeadSpriteId", toJson: (obj) => createReferenceString("Sprite", obj.undeadSprite?.referenceId, obj.undeadSpriteId) },
+    { field: "undead" },
+    { field: "hitpoints" },
+    { field: "lineOfSight" },
+    { field: "garrisonCapacity" },
+    { field: "collisionRadius" },
+    { field: "creationSoundId", toJson: (obj) => createReferenceString("SoundEffect", obj.creationSound?.referenceId, obj.creationSoundId)},
+    { field: "deadUnitPrototypeId", toJson: (obj) => createReferenceString("ObjectPrototype", obj.deadUnitPrototype?.referenceId, obj.deadUnitPrototypeId)},
+    { field: "sortNumber" },
+    { field: "canBeBuiltOn" },
+    { field: "iconNumber" },
+    { field: "hiddenInEditor" },
+    { field: "portraitPicture", flags: { unusedField: true } },
+    { field: "unlocked" },
+    { field: "placementNeighbouringTerrainIds", toJson: (obj) => {
         return obj.placementNeighbouringTerrains.slice(0, trimEnd(obj.placementNeighbouringTerrainIds, terrainId => terrainId === -1).length)
             .map((terrain, index) => createReferenceString("Terrain", terrain?.referenceId, obj.placementNeighbouringTerrainIds[index]));
     }},
-    { key: "placementUnderlyingTerrainIds", transformTo: (obj) => {
+    { field: "placementUnderlyingTerrainIds", toJson: (obj) => {
         return obj.placementUnderlyingTerrains.slice(0, trimEnd(obj.placementUnderlyingTerrainIds, terrainId => terrainId === -1).length)
             .map((terrain, index) => createReferenceString("Terrain", terrain?.referenceId, obj.placementUnderlyingTerrainIds[index]));
     }},
-    { key: "clearanceSize" },
-    { key: "elevationMode" },
-    { key: "fogVisibility" },
-    { key: "habitatId", transformTo: (obj) => createReferenceString("Habitat", obj.habitat?.referenceId, obj.habitatId) },
-    { key: "flyMode" },
-    { key: "attributeCapacity" },
-    { key: "attributeDecayRate" },
-    { key: "blastDefenseLevel" },
-    { key: "combatMode" },
-    { key: "interactionMode" },
-    { key: "minimapMode" },
-    { key: "minimapColor" },
-    { key: "interfaceType" },
-    { key: "multipleAttributeMode", flags: { unusedField: true } },
-    { key: "minimapColor" },
-    { key: "helpDialogStringId", versionFrom: "2.7.0" },
-    { key: "helpPageStringId",versionFrom: "2.7.0" },
-    { key: "hotkeyStringId", versionFrom: "2.7.0" },
-    { key: "reusable", versionFrom: "2.7.0", flags: { internalField: true } },
-    { key: "trackAsResource", versionFrom: "3.1.0" },
-    { key: "doppelgangerMode", versionFrom: "3.1.0" },
-    { key: "resourceGroup", versionFrom: "3.1.0" },
-    { key: "selectionOutlineFlags", versionFrom: "3.3.0" },
-    { key: "editorSelectionOutlineColor", versionFrom: "3.3.0" },
-    { key: "selectionOutlineRadius", versionFrom: "3.3.0" },
-    { key: "attributesStored", transformTo: (obj) => trimEnd(obj.attributesStored, entry => entry.attributeId === -1) },
-    { key: "damageSprites", transformTo: (obj) => obj.damageSprites.map(damageSprite => ({
+    { field: "clearanceSize" },
+    { field: "elevationMode" },
+    { field: "fogVisibility" },
+    { field: "habitatId", toJson: (obj) => createReferenceString("Habitat", obj.habitat?.referenceId, obj.habitatId) },
+    { field: "flyMode" },
+    { field: "attributeCapacity" },
+    { field: "attributeDecayRate" },
+    { field: "blastDefenseLevel" },
+    { field: "combatMode" },
+    { field: "interactionMode" },
+    { field: "minimapMode" },
+    { field: "minimapColor" },
+    { field: "interfaceType" },
+    { field: "multipleAttributeMode", flags: { unusedField: true } },
+    { field: "minimapColor" },
+    { field: "helpDialogStringId", versionFrom: "2.7.0" },
+    { field: "helpPageStringId",versionFrom: "2.7.0" },
+    { field: "hotkeyStringId", versionFrom: "2.7.0" },
+    { field: "reusable", versionFrom: "2.7.0", flags: { internalField: true } },
+    { field: "trackAsResource", versionFrom: "3.1.0" },
+    { field: "doppelgangerMode", versionFrom: "3.1.0" },
+    { field: "resourceGroup", versionFrom: "3.1.0" },
+    { field: "selectionOutlineFlags", versionFrom: "3.3.0" },
+    { field: "editorSelectionOutlineColor", versionFrom: "3.3.0" },
+    { field: "selectionOutlineRadius", versionFrom: "3.3.0" },
+    { field: "attributesStored", toJson: (obj) => trimEnd(obj.attributesStored, entry => entry.attributeId === -1) },
+    { field: "damageSprites", toJson: (obj) => obj.damageSprites.map(damageSprite => ({
         spriteId: createReferenceString("Sprite", damageSprite.sprite?.referenceId, damageSprite.spriteId),
         damagePercent: damageSprite.damagePercent,
         applyMode: damageSprite.applyMode
     }))},
-    { key: "selectionSoundId", transformTo: (obj) => createReferenceString("SoundEffect", obj.selectionSound?.referenceId, obj.selectionSoundId)},
-    { key: "deathSoundId", transformTo: (obj) => createReferenceString("SoundEffect", obj.deathSound?.referenceId, obj.deathSoundId)},
-    { key: "attackReaction", flags: { unusedField: true } },
-    { key: "convertTerrain", flags: { unusedField: true } },
-    { key: "upgradeUnitPrototypeId", flags: { internalField: true }, transformTo: (obj) => createReferenceString("ObjectPrototype", obj.upgradeUnitPrototype?.referenceId, obj.upgradeUnitPrototypeId ) }
+    { field: "selectionSoundId", toJson: (obj) => createReferenceString("SoundEffect", obj.selectionSound?.referenceId, obj.selectionSoundId)},
+    { field: "deathSoundId", toJson: (obj) => createReferenceString("SoundEffect", obj.deathSound?.referenceId, obj.deathSoundId)},
+    { field: "attackReaction", flags: { unusedField: true } },
+    { field: "convertTerrain", flags: { unusedField: true } },
+    { field: "upgradeUnitPrototypeId", flags: { internalField: true }, toJson: (obj) => createReferenceString("ObjectPrototype", obj.upgradeUnitPrototype?.referenceId, obj.upgradeUnitPrototypeId ) }
   ];
 
 export class SceneryObjectPrototype {
@@ -547,7 +547,7 @@ export class SceneryObjectPrototype {
             .eol();
     }
 
-    getJsonConfig(): JsonFieldConfig<SceneryObjectPrototype>[] {
+    getJsonConfig(): OldJsonFieldConfig<SceneryObjectPrototype>[] {
         return jsonFields; 
     }
 }

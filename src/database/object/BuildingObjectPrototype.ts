@@ -1,6 +1,6 @@
 import BufferReader from "../../BufferReader";
-import { createReferenceString } from "../../json/filenames";
-import { JsonFieldConfig } from "../../json/json-serializer";
+import { createReferenceString } from "../../json/reference-id";
+import { OldJsonFieldConfig } from "../../json/json-serialization";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { Nullable } from "../../ts/ts-utils";
 import { getDataEntry } from "../../util";
@@ -16,16 +16,16 @@ import { asBool8, asInt16, asUInt8, Bool8, Int16, OverlayId, PrototypeId, SoundE
 import { AdvancedCombatantObjectPrototype } from "./AdvancedCombatantObjectPrototype";
 import { SceneryObjectPrototype } from "./SceneryObjectPrototype";
 
-const jsonFields: JsonFieldConfig<BuildingObjectPrototype>[] = [
-    { key: "constructionSpriteId", transformTo: (obj) => createReferenceString("Sprite", obj.constructionSprite?.referenceId, obj.constructionSpriteId) },
-    { key: "adjacentConnectionMode" },
-    { key: "graphicsOffset" },
-    { key: "removeWhenBuilt" },
-    { key: "createdObjectIdWhenBuilt", transformTo: (obj) => createReferenceString("ObjectPrototype", obj.createdObjectWhenBuilt?.referenceId, obj.createdObjectIdWhenBuilt) },
-    { key: "changedTerrainIdWhenBuilt", transformTo: (obj) => createReferenceString("Terrain", obj.changedTerrainWhenBuilt?.referenceId, obj.changedTerrainIdWhenBuilt) },
-    { key: "placedOverlayIdWhenBuilt", transformTo: (obj) => createReferenceString("Overlay", obj.placedOverlayWhenBuilt?.referenceId, obj.placedOverlayIdWhenBuilt )},
-    { key: "researchedTechnologyIdWhenBuilt", transformTo: (obj) => createReferenceString("Technology", obj.researchedTechnologyWhenBuilt?.referenceId, obj.researchedTechnologyIdWhenBuilt) },
-    { key: "constructionSoundEffectId", transformTo: (obj) => createReferenceString("SoundEffect", obj.constructionSoundEffect?.referenceId, obj.constructionSoundEffectId) },
+const jsonFields: OldJsonFieldConfig<BuildingObjectPrototype>[] = [
+    { field: "constructionSpriteId", toJson: (obj) => createReferenceString("Sprite", obj.constructionSprite?.referenceId, obj.constructionSpriteId) },
+    { field: "adjacentConnectionMode" },
+    { field: "graphicsOffset" },
+    { field: "removeWhenBuilt" },
+    { field: "createdObjectIdWhenBuilt", toJson: (obj) => createReferenceString("ObjectPrototype", obj.createdObjectWhenBuilt?.referenceId, obj.createdObjectIdWhenBuilt) },
+    { field: "changedTerrainIdWhenBuilt", toJson: (obj) => createReferenceString("Terrain", obj.changedTerrainWhenBuilt?.referenceId, obj.changedTerrainIdWhenBuilt) },
+    { field: "placedOverlayIdWhenBuilt", toJson: (obj) => createReferenceString("Overlay", obj.placedOverlayWhenBuilt?.referenceId, obj.placedOverlayIdWhenBuilt )},
+    { field: "researchedTechnologyIdWhenBuilt", toJson: (obj) => createReferenceString("Technology", obj.researchedTechnologyWhenBuilt?.referenceId, obj.researchedTechnologyIdWhenBuilt) },
+    { field: "constructionSoundEffectId", toJson: (obj) => createReferenceString("SoundEffect", obj.constructionSoundEffect?.referenceId, obj.constructionSoundEffectId) },
 ]
 
 export class BuildingObjectPrototype extends AdvancedCombatantObjectPrototype {
@@ -72,8 +72,8 @@ export class BuildingObjectPrototype extends AdvancedCombatantObjectPrototype {
         this.constructionSoundEffect = getDataEntry(soundEffects, this.constructionSoundEffectId, "SoundEffect", this.referenceId, loadingContext);
     }
     
-    getJsonConfig(): JsonFieldConfig<SceneryObjectPrototype>[] {
-        return super.getJsonConfig().concat(jsonFields as JsonFieldConfig<SceneryObjectPrototype>[]);
+    getJsonConfig(): OldJsonFieldConfig<SceneryObjectPrototype>[] {
+        return super.getJsonConfig().concat(jsonFields as OldJsonFieldConfig<SceneryObjectPrototype>[]);
     }
 
     writeToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext): void {

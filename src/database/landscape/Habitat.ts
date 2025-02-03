@@ -8,7 +8,8 @@ import { TextFileNames, textFileStringCompare } from "../../textfile/TextFile";
 import { getDataEntry } from "../../util";
 import path from "path";
 import { mkdirSync, rmSync, writeFileSync } from "fs";
-import { createJson, createReferenceString, jsonNumberCleanup } from "../../json/filenames";
+import { createReferenceString } from "../../json/reference-id";
+import { createJson } from "../../json/json-serialization";
 
 interface TerrainData {
     terrainId: TerrainId<Int16>;
@@ -17,6 +18,7 @@ interface TerrainData {
 }
 export class Habitat {
     referenceId: string = "";
+    internalName: string = "";
     id: Int16 = asInt16(-1); 
     terrainData: TerrainData[] = [];
 

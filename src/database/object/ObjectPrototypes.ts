@@ -22,8 +22,7 @@ import { TreeObjectPrototype } from "./TreeObjectPrototype";
 import { ParsingError } from '../Error';
 import path from 'path';
 import { clearDirectory } from '../../files/file-utils';
-import { createJson, writeJsonFileIndex } from '../../json/filenames';
-import { transformObjectToJson } from '../../json/json-serializer';
+import { createJson, oldTransformObjectToJson, writeJsonFileIndex } from '../../json/json-serialization';
 import { Ability } from './Ability';
 import { writeFileSync } from 'fs';
 
@@ -123,7 +122,11 @@ function mergeCommonFields<T>(values: T[]): T {
         return mostCommonValue(values); // Handle primitive values
     }
     else {
-        return JSON.parse(mostCommonValue(values.map(x => JSON.stringify(x)))) as T;
+        // Need to return the original value because this comparison destroys...
+        const simplifiedEntries = values.map(x => JSON.stringify(x));
+        const result = mostCommonValue(simplifiedEntries);
+        const resultIndex = simplifiedEntries.indexOf(result);
+        return values[resultIndex];
     }
 }
 
@@ -145,6 +148,26 @@ const excludedBaselineFields: (keyof BuildingObjectPrototype)[] = [
     "placementUnderlyingTerrains",
     "habitat"
 ]
+
+function reconstructInstances(obj: any): any {
+    if (obj === null || obj === undefined) return obj;
+
+    if (Array.isArray(obj)) {
+        return obj.map(reconstructInstances);
+    }
+
+    if (typeof obj === "object" && Object.getPrototypeOf(obj) !== Object.prototype) {
+        const newInstance = Object.create(Object.getPrototypeOf(obj));
+
+        for (const key in obj) {
+            newInstance[key] = reconstructInstances(obj[key]);
+        }
+
+        return newInstance;
+    }
+
+    return obj;
+}
 
 export function createBaselineObjectPrototypes(objectPrototypes: Nullable<SceneryObjectPrototype>[][]): Nullable<SceneryObjectPrototype>[] {
     const civilizationCount = objectPrototypes.length;
@@ -175,13 +198,13 @@ export function createBaselineObjectPrototypes(objectPrototypes: Nullable<Scener
             for (const key in fieldValues) {
                 mostCommonFields[key as keyof SceneryObjectPrototype] = mergeCommonFields(fieldValues[key]);
             }
-    
-            const baseLineObject = Object.assign(Object.create(Object.getPrototypeOf(objectInstance)), mostCommonFields);
 
-            // Ability is the only non pure data stuff linked at this point, hopefully stuff will stay this way
-            if ("abilityList" in mostCommonFields) {
-                baseLineObject.abilityList = baseLineObject.abilityList.map((entry: Ability) => Object.assign(Object.create(Object.getPrototypeOf(new Ability())), entry))
-            }
+            const baseLineObject = Object.assign(
+                Object.create(Object.getPrototypeOf(objectInstance)),
+                Object.fromEntries(
+                    Object.entries(mostCommonFields).map(([key, value]) => [key, reconstructInstances(value)])
+                )
+            );
             baselineObjects.push(baseLineObject);
         }
         else {
@@ -198,12 +221,12 @@ export function writeObjectPrototypesToJsonFiles(outputDirectory: string, baseli
 
     const objectsDirectory = path.join(outputDirectory, "objects");
 
-    const jsonBaselineObjects = baselineObjects.map(object => object ? transformObjectToJson(object, object.getJsonConfig(), savingContext) : null);
+    const jsonBaselineObjects = baselineObjects.map(object => object ? oldTransformObjectToJson(object, object.getJsonConfig(), savingContext) : null);
 
     // Need to eliminate all fields that are not actually baseline (we require that more than half of civilizations actually share this value)
     const civilizationCount = objectPrototypes.length;
     const baselineEnableStates: boolean[] = [];
-    const jsonObjects = objectPrototypes.map(civObjects => civObjects.map(object => object ? transformObjectToJson(object, object.getJsonConfig(), savingContext) : null))
+    const jsonObjects = objectPrototypes.map(civObjects => civObjects.map(object => object ? oldTransformObjectToJson(object, object.getJsonConfig(), savingContext) : null))
     for (let i = 0; i < jsonBaselineObjects.length; ++i) {
         let validEntryCount = 0;
         if (jsonBaselineObjects[i]) {

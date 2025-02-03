@@ -65,6 +65,11 @@ export class TextFileWriter {
         return this;
     }
 
+    structure(writerFunction: ((writer: TextFileWriter) => void)) {
+        writerFunction(this);
+        return this;
+    }
+
     conditional(result: boolean, func: (arg: TextFileWriter) => void) {
         if (result) {
             func(this);

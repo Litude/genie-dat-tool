@@ -7,12 +7,13 @@ import { SavingContext } from "../SavingContext";
 import { asInt16, Float32, Int16, UInt8 } from "../Types";
 import path from "path";
 import { clearDirectory } from "../../files/file-utils";
-import { createJson, createReferenceIdFromString, writeJsonFileIndex } from "../../json/filenames";
+import { createReferenceIdFromString } from "../../json/reference-id";
 import { isDefined, Nullable } from "../../ts/ts-utils";
 import { writeFileSync } from "fs";
 import { Civilization } from "../Civilization";
 import { Technology } from "./Technology";
 import { number } from "yargs";
+import { createJson, writeJsonFileIndex } from "../../json/json-serialization";
 
 interface EffectCommand {
     commandType: UInt8;

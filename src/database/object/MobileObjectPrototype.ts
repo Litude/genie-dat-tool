@@ -1,6 +1,6 @@
 import BufferReader from "../../BufferReader";
-import { createReferenceString } from "../../json/filenames";
-import { JsonFieldConfig } from "../../json/json-serializer";
+import { createReferenceString } from "../../json/reference-id";
+import { OldJsonFieldConfig } from "../../json/json-serialization";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { Nullable } from "../../ts/ts-utils";
 import { getDataEntry } from "../../util";
@@ -16,15 +16,15 @@ import { asFloat32, asInt16, asUInt8, Float32, Int16, PrototypeId, SpriteId, UIn
 import { AnimatedObjectPrototype } from "./AnimatedObjectPrototype";
 import { SceneryObjectPrototype } from "./SceneryObjectPrototype";
 
-const jsonFields: JsonFieldConfig<MobileObjectPrototype>[] = [
-    { key: "walkingSpriteId", transformTo: (obj) => createReferenceString("Sprite", obj.walkingSprite?.referenceId, obj.walkingSpriteId) },
-    { key: "runningSpriteId", transformTo: (obj) => createReferenceString("Sprite", obj.runningSprite?.referenceId, obj.runningSpriteId) },
-    { key: "rotationSpeed" },
-    { key: "sizeClass", flags: { unusedField: true } },
-    { key: "trailingUnitPrototypeId", transformTo: (obj) => createReferenceString("ObjectPrototype", obj.trailingUnitPrototype?.referenceId, obj.trailingUnitPrototypeId) },
-    { key: "trailingUnitMode" },
-    { key: "trailingUnitDensity" },
-    { key: "moveAlgorithm", flags: { unusedField: true } },
+const jsonFields: OldJsonFieldConfig<MobileObjectPrototype>[] = [
+    { field: "walkingSpriteId", toJson: (obj) => createReferenceString("Sprite", obj.walkingSprite?.referenceId, obj.walkingSpriteId) },
+    { field: "runningSpriteId", toJson: (obj) => createReferenceString("Sprite", obj.runningSprite?.referenceId, obj.runningSpriteId) },
+    { field: "rotationSpeed" },
+    { field: "sizeClass", flags: { unusedField: true } },
+    { field: "trailingUnitPrototypeId", toJson: (obj) => createReferenceString("ObjectPrototype", obj.trailingUnitPrototype?.referenceId, obj.trailingUnitPrototypeId) },
+    { field: "trailingUnitMode" },
+    { field: "trailingUnitDensity" },
+    { field: "moveAlgorithm", flags: { unusedField: true } },
 ]
 
 export class MobileObjectPrototype extends AnimatedObjectPrototype {
@@ -62,8 +62,8 @@ export class MobileObjectPrototype extends AnimatedObjectPrototype {
         this.trailingUnitPrototype = getDataEntry(objects, this.trailingUnitPrototypeId, "ObjectPrototype", this.referenceId, loadingContext);
     }
     
-    getJsonConfig(): JsonFieldConfig<SceneryObjectPrototype>[] {
-        return super.getJsonConfig().concat(jsonFields as JsonFieldConfig<SceneryObjectPrototype>[]);
+    getJsonConfig(): OldJsonFieldConfig<SceneryObjectPrototype>[] {
+        return super.getJsonConfig().concat(jsonFields as OldJsonFieldConfig<SceneryObjectPrototype>[]);
     }
 
     writeToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext): void {

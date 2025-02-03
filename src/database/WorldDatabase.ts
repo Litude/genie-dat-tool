@@ -1,6 +1,6 @@
 import semver from "semver";
 import BufferReader from "../BufferReader";
-import { Border, readMainBorderData, readSecondaryBorderData, writeBordersToJsonFiles, writeBordersToWorldTextFile } from "./landscape/Border";
+import { Border, readBordersFromDatFile, readAndVerifyBorderCountFromDatFile, writeBordersToJsonFiles, writeBordersToWorldTextFile } from "./landscape/Border";
 import { Colormap, readColormaps, writeColormapsToJsonFiles, writeColormapsToWorldTextFile } from "./Colormap";
 import { Habitat, readHabitats, writeHabitatsToJsonFiles, writeHabitatsToWorldTextFile } from "./landscape/Habitat";
 import { LoadingContext } from "./LoadingContext";
@@ -8,7 +8,7 @@ import { MapProperties, writeMapPropertiesToJsonFile } from "./landscape/MapProp
 import { RandomMap, readRandomMapData, writeRandomMapsToJsonFiles, writeRandomMapsToWorldTextFile } from "./landscape/RandomMap";
 import { readSoundEffects, SoundEffect, writeSoundEffectsToJsonFiles, writeSoundEffectsToWorldTextFile } from "./SoundEffect";
 import { readSprites, Sprite, writeSpritesToJsonFiles, writeSpritesToWorldTextFile } from "./Sprite";
-import { readMainTerrainData, readSecondaryTerrainData, Terrain, writeTerrainsToJsonFiles, writeTerrainsToWorldTextFile } from "./landscape/Terrain";
+import { readAndVerifyTerrainCountFromDatFile, readTerrainsFromDatFile, Terrain, writeTerrainsToJsonFiles, writeTerrainsToWorldTextFile } from "./landscape/Terrain";
 import { createFallbackStateEffectReferenceIdsIfNeeded, readStateEffects, StateEffect, writeStateEffectsToJsonFiles, writeStateEffectsToWorldTextFile } from "./research/StateEffect";
 import { Civilization, writeCivilizationsToJsonFiles, writeCivilizationsToWorldTextFile } from "./Civilization";
 import { BaseObjectPrototype, createBaselineObjectPrototypes, readObjectPrototypesFromBuffer, writeObjectPrototypesToJsonFiles, writeObjectPrototypesToWorldTextFile } from "./object/ObjectPrototypes";
@@ -18,13 +18,13 @@ import { asInt16 } from "./Types";
 import { TextFileWriter } from "../textfile/TextFileWriter";
 import { TextFileNames } from "../textfile/TextFile";
 import { Attribute, readAttributesFromJsonFile } from "./Attributes";
-import { Overlay, readMainOverlayData, readSecondaryOverlayData, writeOverlaysToJsonFiles, writeOverlaysToWorldTextFile } from "./landscape/Overlay";
+import { Overlay, readOverlaysFromDatFile, readAndVerifyOverlayCountFromDatFile, writeOverlaysToJsonFiles, writeOverlaysToWorldTextFile } from "./landscape/Overlay";
 import { readTribeRandomMapData, TribeRandomMap, writeTribeRandomMapsToJsonFiles, writeTribeRandomMapsToWorldTextFile } from "./landscape/TribeRandomMap";
 import { readTribeAiFromBuffer, TribeAi, writeTribeAiToJsonFiles, writeTribeAiToWorldTextFile } from "./TribeAi";
 import { onParsingError, ParsingError } from "./Error";
 import path from "path";
 import { Nullable } from "../ts/ts-utils";
-import { ensureReferenceIdUniqueness } from "../json/filenames";
+import { ensureReferenceIdUniqueness } from "../json/reference-id";
 import { clearDirectory } from "../files/file-utils";
 
 export class WorldDatabase {
@@ -62,16 +62,16 @@ export class WorldDatabase {
             this.mapProperties = new MapProperties();
             this.mapProperties.readMainDataFromBuffer(buffer, loadingContext);
 
-            this.terrains = readMainTerrainData(buffer, this.soundEffects, loadingContext);
+            this.terrains = readTerrainsFromDatFile(buffer, this.soundEffects, loadingContext);
 
-            this.overlays = readMainOverlayData(buffer, this.soundEffects, loadingContext);
+            this.overlays = readOverlaysFromDatFile(buffer, this.soundEffects, loadingContext);
             
-            this.borders = readMainBorderData(buffer, this.soundEffects, this.terrains, loadingContext);
+            this.borders = readBordersFromDatFile(buffer, this.soundEffects, this.terrains, loadingContext);
     
             this.mapProperties.readSecondaryDataFromBuffer(buffer, loadingContext);
-            readSecondaryTerrainData(this.terrains, buffer, loadingContext);
-            readSecondaryOverlayData(this.overlays, buffer, loadingContext);
-            readSecondaryBorderData(this.borders, buffer, loadingContext);
+            readAndVerifyTerrainCountFromDatFile(this.terrains, buffer, loadingContext);
+            readAndVerifyOverlayCountFromDatFile(this.overlays, buffer, loadingContext);
+            readAndVerifyBorderCountFromDatFile(this.borders, buffer, loadingContext);
     
             this.mapProperties.readTertiaryDataFromBuffer(buffer, loadingContext);
     

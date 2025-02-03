@@ -6,14 +6,14 @@ import { SavingContext } from "../SavingContext";
 import { asInt16, asUInt8, AttributeId, Bool8, Int16, PrototypeId, UInt8 } from "../Types";
 import { CombatantObjectPrototype } from "./CombatantObjectPrototype";
 import { SceneryObjectPrototype } from './SceneryObjectPrototype';
-import { JsonFieldConfig } from '../../json/json-serializer';
+import { OldJsonFieldConfig } from '../../json/json-serialization';
 import { Nullable, trimEnd } from '../../ts/ts-utils';
 import { Sprite } from '../Sprite';
 import { SoundEffect } from '../SoundEffect';
 import { Terrain } from '../landscape/Terrain';
 import { Habitat } from '../landscape/Habitat';
 import { getDataEntry } from '../../util';
-import { createReferenceString } from '../../json/filenames';
+import { createReferenceString } from '../../json/reference-id';
 import { Technology } from '../research/Technology';
 import { Overlay } from '../landscape/Overlay';
 
@@ -24,17 +24,17 @@ interface ResourceCost {
     padding05: UInt8;
 }
 
-const jsonFields: JsonFieldConfig<AdvancedCombatantObjectPrototype>[] = [
-    { key: "resourceCosts",
-        transformTo: (obj) => trimEnd(obj.resourceCosts, cost => cost.attributeId === -1).map(cost => ({
+const jsonFields: OldJsonFieldConfig<AdvancedCombatantObjectPrototype>[] = [
+    { field: "resourceCosts",
+        toJson: (obj) => trimEnd(obj.resourceCosts, cost => cost.attributeId === -1).map(cost => ({
             attributeId: cost.attributeId,
             amount: cost.amount,
             costDeducted: cost.costDeducted,
         }))},
-    { key: "creationDuration" },
-    { key: "creationLocationPrototypeId", transformTo: (obj, savingContext) => createReferenceString("ObjectPrototype", obj.creationLocationPrototype?.referenceId, obj.creationLocationPrototypeId ), },
-    { key: "creationButtonIndex" },
-    { key: "originalPierceArmorValue", versionFrom: "3.2.0" }
+    { field: "creationDuration" },
+    { field: "creationLocationPrototypeId", toJson: (obj, savingContext) => createReferenceString("ObjectPrototype", obj.creationLocationPrototype?.referenceId, obj.creationLocationPrototypeId ), },
+    { field: "creationButtonIndex" },
+    { field: "originalPierceArmorValue", versionFrom: "3.2.0" }
 ]
 
 export class AdvancedCombatantObjectPrototype extends CombatantObjectPrototype {
@@ -77,8 +77,8 @@ export class AdvancedCombatantObjectPrototype extends CombatantObjectPrototype {
         this.creationLocationPrototype = getDataEntry(objects, this.creationLocationPrototypeId, "ObjectPrototype", this.referenceId, loadingContext);
     }
     
-    getJsonConfig(): JsonFieldConfig<SceneryObjectPrototype>[] {
-        return super.getJsonConfig().concat(jsonFields as JsonFieldConfig<SceneryObjectPrototype>[]);
+    getJsonConfig(): OldJsonFieldConfig<SceneryObjectPrototype>[] {
+        return super.getJsonConfig().concat(jsonFields as OldJsonFieldConfig<SceneryObjectPrototype>[]);
     }
 
     writeToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext): void {

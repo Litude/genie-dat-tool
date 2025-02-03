@@ -6,12 +6,12 @@ import { LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
 import { asInt16, asInt32, asUInt8, AttributeId, Bool8, Int16, Int32, PrototypeId, StateEffectId, StringId, TechnologyId, TechnologyType, UInt8 } from "../Types";
 import path from 'path';
-import { createReferenceString, createReferenceIdFromString } from '../../json/filenames';
+import { createReferenceString, createReferenceIdFromString } from '../../json/reference-id';
 import { SceneryObjectPrototype } from '../object/SceneryObjectPrototype';
 import { StateEffect } from './StateEffect';
 import { getDataEntry } from '../../util';
 import { isDefined, Nullable, trimEnd } from '../../ts/ts-utils';
-import { JsonFieldConfig, writeDataEntriesToJson } from '../../json/json-serializer';
+import { OldJsonFieldConfig, oldWriteDataEntriesToJson } from '../../json/json-serialization';
 
 interface TechnologyResourceCost {
     attributeId: AttributeId<Int16>;
@@ -19,26 +19,26 @@ interface TechnologyResourceCost {
     costDeducted: Bool8;
 }
 
-const jsonFields: JsonFieldConfig<Technology>[] = [
-    { key: "internalName" },
-    { key: "prerequisiteTechnologyIds",
-        transformTo: (obj) => {
+const jsonFields: OldJsonFieldConfig<Technology>[] = [
+    { field: "internalName" },
+    { field: "prerequisiteTechnologyIds",
+        toJson: (obj) => {
             return obj.prerequisiteTechnologies
                 .slice(0, trimEnd(obj.prerequisiteTechnologyIds, entry => entry === -1).length)
                 .map((entry, index) => createReferenceString("Technology", entry?.referenceId, obj.prerequisiteTechnologyIds[index])) }},
-    { key: 'resourceCosts', transformTo: (obj) => trimEnd(obj.resourceCosts, entry => entry.attributeId === -1) },
-    { key: 'minimumPrerequisites' },
-    { key: 'researchLocationId', transformTo: (obj) => createReferenceString("ObjectPrototype", obj.researchLocation?.referenceId, obj.researchLocationId) },
-    { key: 'nameStringId', versionFrom: "1.5.0" },
-    { key: 'researchStringId', versionFrom: "1.5.0" },
-    { key: 'researchDuration' },
-    { key: 'stateEffectId', transformTo: (obj) => createReferenceString("StateEffect", obj.stateEffect?.referenceId, obj.stateEffectId) },
-    { key: 'technologyType' },
-    { key: 'iconNumber' },
-    { key: 'researchButtonIndex' },
-    { key: 'helpDialogStringId', versionFrom: "2.7.0" },
-    { key: 'helpPageStringId', versionFrom: "2.7.0" },
-    { key: 'hotkeyStringId', versionFrom: "2.7.0" }
+    { field: 'resourceCosts', toJson: (obj) => trimEnd(obj.resourceCosts, entry => entry.attributeId === -1) },
+    { field: 'minimumPrerequisites' },
+    { field: 'researchLocationId', toJson: (obj) => createReferenceString("ObjectPrototype", obj.researchLocation?.referenceId, obj.researchLocationId) },
+    { field: 'nameStringId', versionFrom: "1.5.0" },
+    { field: 'researchStringId', versionFrom: "1.5.0" },
+    { field: 'researchDuration' },
+    { field: 'stateEffectId', toJson: (obj) => createReferenceString("StateEffect", obj.stateEffect?.referenceId, obj.stateEffectId) },
+    { field: 'technologyType' },
+    { field: 'iconNumber' },
+    { field: 'researchButtonIndex' },
+    { field: 'helpDialogStringId', versionFrom: "2.7.0" },
+    { field: 'helpPageStringId', versionFrom: "2.7.0" },
+    { field: 'hotkeyStringId', versionFrom: "2.7.0" }
 ];
 
 export class Technology {
@@ -178,5 +178,5 @@ export function writeTechnologiesToWorldTextFile(outputDirectory: string, techno
 }
 
 export function writeTechnologiesToJsonFiles(outputDirectory: string, technologies: Nullable<Technology>[], savingContext: SavingContext) {
-    writeDataEntriesToJson(outputDirectory, "techs", technologies, jsonFields, savingContext);
+    oldWriteDataEntriesToJson(outputDirectory, "techs", technologies, jsonFields, savingContext);
 }

@@ -12,8 +12,8 @@ import { SceneryObjectPrototype } from "../object/SceneryObjectPrototype";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { TextFileNames } from "../../textfile/TextFile";
 import path from "path";
-import { JsonFieldConfig, writeDataEntriesToJson } from "../../json/json-serializer";
-import { createReferenceString } from "../../json/filenames";
+import { OldJsonFieldConfig, oldWriteDataEntriesToJson } from "../../json/json-serialization";
+import { createReferenceString } from "../../json/reference-id";
 
 interface PreMapData {
     mapTypeId: Int32;
@@ -100,15 +100,15 @@ const internalFields: (keyof RandomMap)[] = [
     "elevationDataPointer"
 ];
 
-const jsonFields: JsonFieldConfig<RandomMap>[] = [
-    { key: "mapTypeId"},
-    { key: "border" },
-    { key: "borderEdgeFade" },
-    { key: "waterShapeLandPlacementEdge" },
-    { key: "baseTerrainId", transformTo: (obj) => createReferenceString("Terrain", obj.baseTerrain?.referenceId, obj.baseTerrainId) },
-    { key: "landCover" },
-    { key: "landId", flags: { unusedField: true } },
-    { key: "baseLandData", transformTo: (obj, savingContext) => obj.baseLandData.map(baseLandEntry => ({
+const jsonFields: OldJsonFieldConfig<RandomMap>[] = [
+    { field: "mapTypeId"},
+    { field: "border" },
+    { field: "borderEdgeFade" },
+    { field: "waterShapeLandPlacementEdge" },
+    { field: "baseTerrainId", toJson: (obj) => createReferenceString("Terrain", obj.baseTerrain?.referenceId, obj.baseTerrainId) },
+    { field: "landCover" },
+    { field: "landId", flags: { unusedField: true } },
+    { field: "baseLandData", toJson: (obj, savingContext) => obj.baseLandData.map(baseLandEntry => ({
         baseLandId: baseLandEntry.baseLandId,
         terrainId: createReferenceString("Terrain", baseLandEntry.terrain?.referenceId, baseLandEntry.terrainId),
         landSpacing: baseLandEntry.landSpacing,
@@ -122,7 +122,7 @@ const jsonFields: JsonFieldConfig<RandomMap>[] = [
         edgeFade: baseLandEntry.edgeFade,
         clumpinessFactor: savingContext.internalFields ? baseLandEntry.clumpinessFactor : undefined,
     }))},
-    { key: "terrainData", transformTo: (obj, savingContext) => obj.terrainData.map(terrainEntry => ({
+    { field: "terrainData", toJson: (obj, savingContext) => obj.terrainData.map(terrainEntry => ({
         terrainId: createReferenceString("Terrain", terrainEntry.terrain?.referenceId, terrainEntry.terrainId),
         coverageProportion: terrainEntry.coverageProportion,
         clumpCount: terrainEntry.clumpCount,
@@ -130,7 +130,7 @@ const jsonFields: JsonFieldConfig<RandomMap>[] = [
         replacedTerrainId: createReferenceString("Terrain", terrainEntry.replacedTerrain?.referenceId, terrainEntry.replacedTerrainId),
         clumpinessFactor: savingContext.internalFields ? terrainEntry.clumpinessFactor : undefined,
     }))},
-    { key: "objectData", transformTo: (obj) => obj.objectData.map(objectEntry => ({
+    { field: "objectData", toJson: (obj) => obj.objectData.map(objectEntry => ({
         prototypeId: createReferenceString("ObjectPrototype", objectEntry.prototype?.referenceId, objectEntry.prototypeId),
         placementTerrainId: createReferenceString("Terrain", objectEntry.placementTerrain?.referenceId, objectEntry.placementTerrainId),
         groupMode: objectEntry.groupMode,
@@ -144,7 +144,7 @@ const jsonFields: JsonFieldConfig<RandomMap>[] = [
         minDistanceToPlayers: objectEntry.minDistanceToPlayers,
         maxDistanceToPlayers: objectEntry.maxDistanceToPlayers,
     }))},
-    { key: "elevationData", flags: { unusedField: true }, transformTo: (obj, savingContext) => obj.elevationData.map(elevationEntry => ({
+    { field: "elevationData", flags: { unusedField: true }, toJson: (obj, savingContext) => obj.elevationData.map(elevationEntry => ({
         elevationHeight: elevationEntry.elevationHeight,
         coverageProportion: elevationEntry.coverageProportion,
         elevationSpacing: elevationEntry.elevationSpacing,
@@ -460,6 +460,6 @@ export function writeRandomMapsToWorldTextFile(outputDirectory: string, randomMa
 
 export function writeRandomMapsToJsonFiles(outputDirectory: string, randomMaps: RandomMap[], savingContext: SavingContext) {
     if (semver.gte(savingContext.version.numbering, "2.0.0")) {
-        writeDataEntriesToJson(outputDirectory, "randommaps", randomMaps, jsonFields, savingContext);
+        oldWriteDataEntriesToJson(outputDirectory, "randommaps", randomMaps, jsonFields, savingContext);
     }
 }

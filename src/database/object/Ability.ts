@@ -1,6 +1,6 @@
 import BufferReader from "../../BufferReader";
-import { createReferenceString } from "../../json/filenames";
-import { JsonFieldConfig } from "../../json/json-serializer";
+import { createReferenceString } from "../../json/reference-id";
+import { OldJsonFieldConfig } from "../../json/json-serialization";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { Nullable } from "../../ts/ts-utils";
 import { getDataEntry } from "../../util";
@@ -13,34 +13,34 @@ import { AbilityId, ActionId, asBool8, asFloat32, asInt16, asUInt8, AttributeId,
 import { ObjectClass, ObjectClasses } from "./ObjectClass";
 import { SceneryObjectPrototype } from "./SceneryObjectPrototype";
 
-const jsonFields: JsonFieldConfig<Ability>[] = [
-    { key: "abilityType" },
-    { key: "defaultAbility" },
-    { key: "actionType" },
-    { key: "objectClass" },
-    { key: "objectPrototypeId", transformTo: (obj) => createReferenceString("ObjectPrototype", obj.objectPrototype?.referenceId, obj.objectPrototypeId) },
-    { key: "terrainId", transformTo: (obj) => createReferenceString("Terrain", obj.terrain?.referenceId, obj.terrainId) },
-    { key: "attributeType1" },
-    { key: "attributeType2" },
-    { key: "attributeType3" },
-    { key: "attributeType4" },
-    { key: "workRate1" },
-    { key: "workRate2" },
-    { key: "autoSearchTargets" },
-    { key: "searchWaitTime" },
-    { key: "enableTargeting" },
-    { key: "combatLevelFlag" },
-    { key: "workFlag1" },
-    { key: "workFlag2" },
-    { key: "targetDiplomacyType" },
-    { key: "holdingAttributeCheck" },
-    { key: "buildingTarget" },
-    { key: "moveSpriteId", transformTo: (obj) => createReferenceString("Sprite", obj.moveSprite?.referenceId, obj.moveSpriteId)},
-    { key: "workPreceedingSpriteId", transformTo: (obj) => createReferenceString("Sprite", obj.workPreceedingSprite?.referenceId, obj.workPreceedingSpriteId)},
-    { key: "workActiveSpriteId", transformTo: (obj) => createReferenceString("Sprite", obj.workActiveSprite?.referenceId, obj.workActiveSpriteId)},
-    { key: "carrySpriteId", transformTo: (obj) => createReferenceString("Sprite", obj.carrySprite?.referenceId, obj.carrySpriteId)},
-    { key: "resourceGatheringSoundId", transformTo: (obj) => createReferenceString("SoundEffect", obj.resourceGatheringSound?.referenceId, obj.resourceGatheringSoundId) },
-    { key: "resourceDepositSoundId", transformTo: (obj) => createReferenceString("SoundEffect", obj.resourceDepositSound?.referenceId, obj.resourceDepositSoundId) },
+const jsonFields: OldJsonFieldConfig<Ability>[] = [
+    { field: "abilityType" },
+    { field: "defaultAbility" },
+    { field: "actionType" },
+    { field: "objectClass" },
+    { field: "objectPrototypeId", toJson: (obj) => createReferenceString("ObjectPrototype", obj.objectPrototype?.referenceId, obj.objectPrototypeId) },
+    { field: "terrainId", toJson: (obj) => createReferenceString("Terrain", obj.terrain?.referenceId, obj.terrainId) },
+    { field: "attributeType1" },
+    { field: "attributeType2" },
+    { field: "attributeType3" },
+    { field: "attributeType4" },
+    { field: "workRate1" },
+    { field: "workRate2" },
+    { field: "autoSearchTargets" },
+    { field: "searchWaitTime" },
+    { field: "enableTargeting" },
+    { field: "combatLevelFlag" },
+    { field: "workFlag1" },
+    { field: "workFlag2" },
+    { field: "targetDiplomacyType" },
+    { field: "holdingAttributeCheck" },
+    { field: "buildingTarget" },
+    { field: "moveSpriteId", toJson: (obj) => createReferenceString("Sprite", obj.moveSprite?.referenceId, obj.moveSpriteId)},
+    { field: "workPreceedingSpriteId", toJson: (obj) => createReferenceString("Sprite", obj.workPreceedingSprite?.referenceId, obj.workPreceedingSpriteId)},
+    { field: "workActiveSpriteId", toJson: (obj) => createReferenceString("Sprite", obj.workActiveSprite?.referenceId, obj.workActiveSpriteId)},
+    { field: "carrySpriteId", toJson: (obj) => createReferenceString("Sprite", obj.carrySprite?.referenceId, obj.carrySpriteId)},
+    { field: "resourceGatheringSoundId", toJson: (obj) => createReferenceString("SoundEffect", obj.resourceGatheringSound?.referenceId, obj.resourceGatheringSoundId) },
+    { field: "resourceDepositSoundId", toJson: (obj) => createReferenceString("SoundEffect", obj.resourceDepositSound?.referenceId, obj.resourceDepositSoundId) },
 ]
 
 export class Ability {
@@ -165,7 +165,7 @@ export class Ability {
             .eol();
     }
     
-    getJsonConfig(): JsonFieldConfig<Ability>[] {
+    getJsonConfig(): OldJsonFieldConfig<Ability>[] {
         return jsonFields; 
     }
 }

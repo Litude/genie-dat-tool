@@ -7,9 +7,9 @@ import { ObjectClass } from "./object/ObjectClass";
 import { SavingContext } from "./SavingContext";
 import { AgeId, asBool16, asBool8, asFloat32, asInt16, asUInt16, asUInt32, asUInt8, Bool16, Bool8, Float32, Int16, Int32, NullPointer, Percentage, Pointer, PrototypeId, TechnologyType, UInt16, UInt32, UInt8 } from "./Types";
 import path from "path";
-import { JsonFieldConfig, writeDataEntriesToJson } from "../json/json-serializer";
+import { OldJsonFieldConfig, oldWriteDataEntriesToJson } from "../json/json-serialization";
 import { Nullable } from "../ts/ts-utils";
-import { createReferenceIdFromString, createReferenceString } from "../json/filenames";
+import { createReferenceIdFromString, createReferenceString } from "../json/reference-id";
 import { BaseObjectPrototype } from "./object/ObjectPrototypes";
 import { getDataEntry } from "../util";
 
@@ -48,8 +48,8 @@ interface AiTechnologyGoal {
     padding2F: UInt8;
 }
 
-const jsonFields: JsonFieldConfig<TribeAi>[] = [
-    { key: "objectGoals", transformTo: (obj) => obj.objectGoals.map(objectGoal => ({
+const jsonFields: OldJsonFieldConfig<TribeAi>[] = [
+    { field: "objectGoals", toJson: (obj) => obj.objectGoals.map(objectGoal => ({
         prototypeId: createReferenceString("ObjectPrototype", objectGoal.prototype?.referenceId, objectGoal.prototypeId),
         objectClass: objectGoal.objectClass,
         objectName: objectGoal.stateName,
@@ -59,15 +59,15 @@ const jsonFields: JsonFieldConfig<TribeAi>[] = [
             percent: objectGoal.targetPercents[index]
         }))
     }))},
-    { key: "technologyGoals", transformTo: (obj) => obj.technologyGoals.map(technologyGoal => ({
+    { field: "technologyGoals", toJson: (obj) => obj.technologyGoals.map(technologyGoal => ({
         technologyType: technologyGoal.technologyType,
         targetPercents: technologyGoal.targetPercents,
     }))},
-    { key: "aiGroups", transformTo: (obj) => obj.aiGroups.map(aiGroup => ({
+    { field: "aiGroups", toJson: (obj) => obj.aiGroups.map(aiGroup => ({
         targetPercents: aiGroup.targetPercents
     }))},
-    { key: "field9C"},
-    { key: "fieldA3"}
+    { field: "field9C"},
+    { field: "fieldA3"}
 ];
 
 export class TribeAi {
@@ -311,6 +311,6 @@ export function writeTribeAiToWorldTextFile(outputDirectory: string, aiEntries: 
 
 export function writeTribeAiToJsonFiles(outputDirectory: string, aiEntries: Nullable<TribeAi>[], savingContext: SavingContext) {
     if (semver.lt(savingContext.version.numbering, "2.0.0")) {
-        writeDataEntriesToJson(outputDirectory, "tribeai", aiEntries, jsonFields, savingContext); 
+        oldWriteDataEntriesToJson(outputDirectory, "tribeai", aiEntries, jsonFields, savingContext); 
     }
 }

@@ -13,9 +13,10 @@ import { getDataEntry } from "../util";
 import { onParsingError } from "./Error";
 import path from "path";
 import { writeFileSync } from "fs";
-import { createJson, createReferenceString, createReferenceIdFromString, jsonNumberCleanup } from "../json/filenames";
+import { createReferenceString, createReferenceIdFromString } from "../json/reference-id";
 import { pick } from "../ts/ts-utils";
 import { clearDirectory } from "../files/file-utils";
+import { createJson } from "../json/json-serialization";
 
 interface SpriteOverlay {
     spriteId: Int16;

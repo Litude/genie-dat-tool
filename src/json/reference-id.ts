@@ -44,7 +44,8 @@ export function createReferenceString(type: ReferenceType, input: string | undef
     }
     else {
         let resultId: number | null = null;
-        if (type === "Border") {
+        // Borders and overlays use 0 as none, otherwise -1 is used
+        if (type === "Border" || type === "Overlay") {
             resultId = fallBackId > 0 ? fallBackId : null;
         }
         else {
@@ -56,12 +57,6 @@ export function createReferenceString(type: ReferenceType, input: string | undef
         }
         return resultId;
     }
-}
-
-// TODO: Is there a risk that we get some other value than what it was originally when reading back these values?
-// Need to read them back using Math.fround and probably check the data to see if errors accumulate..
-export function jsonNumberCleanup(key: string, value: any) {
-    return typeof value === "number" ? parseFloat(value.toFixed(6)) : value
 }
 
 function ensureEntryReferenceIdUniqueness(data: { referenceId: string }, usedIds: Map<string, (typeof data)[]>) {
@@ -87,13 +82,4 @@ export function ensureReferenceIdUniqueness(data: ({ referenceId: string } | nul
             ensureEntryReferenceIdUniqueness(entry, usedIds);
         }
     })
-}
-
-export function createJson(value: any) {
-    return JSON.stringify(value, jsonNumberCleanup, 4);
-}
-
-export function writeJsonFileIndex(outputDirectory: string, entries: ({ referenceId: string} | null)[]) {
-    const referenceIds = entries.map(entry => entry?.referenceId ?? null);
-    writeFileSync(path.join(outputDirectory, "index.json"), createJson(referenceIds));
 }

@@ -7,7 +7,8 @@ import { TextFileNames, textFileStringCompare } from "../textfile/TextFile";
 import { onParsingError } from "./Error";
 import path from "path";
 import { mkdirSync, rmSync, writeFileSync } from "fs";
-import { createJson, createReferenceIdFromString } from "../json/filenames";
+import { createReferenceIdFromString } from "../json/reference-id";
+import { createJson } from "../json/json-serialization";
 
 const enum ColormapType {
     Default = 0,

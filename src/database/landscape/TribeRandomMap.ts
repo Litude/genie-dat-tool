@@ -8,8 +8,8 @@ import { asBool32, asInt16, asInt32, Bool32, BorderId, Int16, Int32, PrototypeId
 import { Border } from "./Border";
 import { Terrain } from "./Terrain";
 import path from 'path';
-import { JsonFieldConfig, writeDataEntriesToJson } from '../../json/json-serializer';
-import { createReferenceIdFromString, createReferenceString } from '../../json/filenames';
+import { OldJsonFieldConfig, oldWriteDataEntriesToJson } from '../../json/json-serialization';
+import { createReferenceIdFromString, createReferenceString } from '../../json/reference-id';
 import { SceneryObjectPrototype } from '../object/SceneryObjectPrototype';
 import { Nullable } from '../../ts/ts-utils';
 import { getDataEntry } from '../../util';
@@ -58,13 +58,13 @@ interface ObjectPlacementData {
     borderingTerrain: Terrain | null;
 }
 
-const jsonFields: JsonFieldConfig<TribeRandomMap>[] = [
-    { key: "internalName", flags: { unusedField: true } },
-    { key: "primaryTerrainId", transformTo: (obj) => createReferenceString("Terrain", obj.primaryTerrain?.referenceId, obj.primaryTerrainId) },
-    { key: "secondaryTerrainId", transformTo: (obj) => createReferenceString("Terrain", obj.secondaryTerrain?.referenceId, obj.secondaryTerrainId) },
-    { key: "startingAvoidingTerrainId", transformTo: (obj) => createReferenceString("Terrain", obj.startingAvoidingTerrain?.referenceId, obj.startingAvoidingTerrainId) },
-    { key: "radiusBetweenPlayers" },
-    { key: "terrainPlacements", transformTo: (obj, savingContext) => obj.terrainPlacements.map(terrainPlacement => ({
+const jsonFields: OldJsonFieldConfig<TribeRandomMap>[] = [
+    { field: "internalName", flags: { unusedField: true } },
+    { field: "primaryTerrainId", toJson: (obj) => createReferenceString("Terrain", obj.primaryTerrain?.referenceId, obj.primaryTerrainId) },
+    { field: "secondaryTerrainId", toJson: (obj) => createReferenceString("Terrain", obj.secondaryTerrain?.referenceId, obj.secondaryTerrainId) },
+    { field: "startingAvoidingTerrainId", toJson: (obj) => createReferenceString("Terrain", obj.startingAvoidingTerrain?.referenceId, obj.startingAvoidingTerrainId) },
+    { field: "radiusBetweenPlayers" },
+    { field: "terrainPlacements", toJson: (obj, savingContext) => obj.terrainPlacements.map(terrainPlacement => ({
         unusedTerrainId: savingContext.excludeUnused ? undefined : createReferenceString("Terrain", terrainPlacement.unusedTerrain?.referenceId, terrainPlacement.unusedTerrainId),
         terrainId: createReferenceString("Terrain", terrainPlacement.terrain?.referenceId, terrainPlacement.terrainId),
         placementType: terrainPlacement.placementType,
@@ -78,7 +78,7 @@ const jsonFields: JsonFieldConfig<TribeRandomMap>[] = [
         windyAvoidingTerrainId: createReferenceString("Terrain", terrainPlacement.windyAvoidingTerrain?.referenceId, terrainPlacement.windyAvoidingTerrainId),
         windyBorderId: createReferenceString("Border", terrainPlacement.windyBorder?.referenceId, terrainPlacement.windyBorderId),
     }))},
-    { key: "objectPlacements", transformTo: (obj) => obj.objectPlacements.map(objectPlacement => ({
+    { field: "objectPlacements", toJson: (obj) => obj.objectPlacements.map(objectPlacement => ({
         prototypeId: createReferenceString("ObjectPrototype", objectPlacement.prototype?.referenceId, objectPlacement.prototypeId),
         placementType: objectPlacement.placementType,
         placementCount: objectPlacement.placementCount,
@@ -90,12 +90,12 @@ const jsonFields: JsonFieldConfig<TribeRandomMap>[] = [
         placementTerrainId3: createReferenceString("Terrain", objectPlacement.placementTerrain3?.referenceId, objectPlacement.placementTerrainId3),
         borderingTerrainId: createReferenceString("Border", objectPlacement.borderingTerrain?.referenceId, objectPlacement.borderingTerrainId),
     }))},
-    { key: "distance" },
-    { key: "distanceBetweenPlayers" },
-    { key: "boolField" },
-    { key: "minimumClearingCount" },
-    { key: "randomizeStartingLocations" },
-    { key: "startingLocationDistributionType" },
+    { field: "distance" },
+    { field: "distanceBetweenPlayers" },
+    { field: "boolField" },
+    { field: "minimumClearingCount" },
+    { field: "randomizeStartingLocations" },
+    { field: "startingLocationDistributionType" },
 ]
 
 
@@ -302,6 +302,6 @@ export function writeTribeRandomMapsToWorldTextFile(outputDirectory: string, map
 
 export function writeTribeRandomMapsToJsonFiles(outputDirectory: string, maps: Nullable<TribeRandomMap>[], savingContext: SavingContext) {
     if (semver.lt(savingContext.version.numbering, "2.0.0")) {
-        writeDataEntriesToJson(outputDirectory, "tribemaps", maps, jsonFields, savingContext);
+        oldWriteDataEntriesToJson(outputDirectory, "tribemaps", maps, jsonFields, savingContext);
     }
 }

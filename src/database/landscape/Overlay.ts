@@ -1,68 +1,40 @@
 import semver from 'semver';
 import BufferReader from "../../BufferReader";
-import { Logger } from "../../Logger";
 import { TextFileNames, textFileStringCompare } from "../../textfile/TextFile";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
-import { isDefined, pick } from "../../ts/ts-utils";
+import { isDefined, Nullable, pick } from "../../ts/ts-utils";
 import { getDataEntry } from "../../util";
 import { LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
 import { SoundEffect } from "../SoundEffect";
-import { asBool16, asBool8, asFloat32, asInt16, asInt32, asUInt8, Bool16, Bool8, Float32, Int16, Int32, NullPointer, PaletteIndex, Pointer, ResourceId, SoundEffectId, TerrainId, UInt8 } from "../Types";
+import { asBool8, asInt16, asInt32, asUInt8, Bool8, Int16, UInt8 } from "../Types";
 import { onParsingError } from '../Error';
 import path from 'path';
 import { clearDirectory } from '../../files/file-utils';
-import { createJson, createReferenceString, writeJsonFileIndex } from '../../json/filenames';
-import { writeFileSync } from 'fs';
+import {  } from '../../json/reference-id';
+import { BaseTerrainAnimation, BaseTerrainFrameMap, BaseTerrainFrameMapJsonMapping, BaseTerrainJsonMapping, BaseTerrainTile, BaseTerrainTileSchema } from './BaseTerrainTile';
+import { int16Schema, JsonFieldMapping, transformObjectToJson, writeDataEntryToJsonFile, writeDataEntriesToJson, writeJsonFileIndex } from '../../json/json-serialization';
+import { z } from 'zod';
 
-interface FrameMap {
-    frameCount: Int16;
-    animationFrames: Int16;
-    frameIndex: Int16;
-}
+const OverlaySchema = BaseTerrainTileSchema.merge(z.object({
+    frameMaps: z.array(z.array(z.object({
+        frameCount: int16Schema,
+        animationFrames: int16Schema,
+        frameIndex: int16Schema.optional()
+    })).length(16)).length(19),
+    drawTerrain: z.boolean(),
+}));
 
-const animationFields: (keyof Overlay)[] = [  
-    "animationFrameCount",
-    "animationFrameDelay",
-    "animationReplayDelay",
+type OverlayJson = z.infer<typeof OverlaySchema>;
+
+const OverlayJsonMapping: JsonFieldMapping<Overlay, OverlayJson>[] = [
+    ...BaseTerrainJsonMapping,
+    { jsonField: "frameMaps", toJson: (obj, savingContext) => obj.frameMaps.map(frameMapEntries => frameMapEntries.map(frameMapEntry => transformObjectToJson(frameMapEntry, BaseTerrainFrameMapJsonMapping, savingContext))) },
+    { field: "drawTerrain" }
 ];
 
-const jsonFields: (keyof Overlay)[] = [
-    "internalName",
-    "resourceFilename",
-    "resourceId",
-    "minimapColor1",
-    "minimapColor2",
-    "minimapColor3",
-    "animated",
-    "drawTerrain",
-];
-
-export class Overlay {
-    referenceId: string = "";
-    id: Int16 = asInt16(-1);
-    enabled: Bool8 = asBool8(false);
-    random: Bool8 = asBool8(false);
-    internalName: string = "";
-    resourceFilename: string = "";
-    resourceId: ResourceId<Int32> = asInt32(-1);
-    graphicPointer: Pointer = NullPointer;
-    soundEffectId: SoundEffectId<Int32> = asInt32(-1);
-    soundEffect: SoundEffect | null = null;
-    minimapColor1: PaletteIndex = asUInt8(0);
-    minimapColor2: PaletteIndex = asUInt8(0);
-    minimapColor3: PaletteIndex = asUInt8(0);
-    animated: Bool8 = asBool8(false);
-    animationFrameCount: Int16 = asInt16(0);
-    animationReplayFrameDelay: Int16 = asInt16(0); // add an additional frameDelay * replayFrameDelay amount of delay?
-    animationFrameDelay: Float32 = asFloat32(0); // seconds
-    animationReplayDelay: Float32 = asFloat32(0); // seconds
-    frame: Int16 = asInt16(0);
-    drawFrame: Int16 = asInt16(0);
-    animationUpdateTime: Float32 = asFloat32(0.0);
-    frameChanged: Bool8 = asBool8(false);
-    drawCount: UInt8 = asUInt8(0); // definitely overwritten...
-    frameMaps: FrameMap[][] = [];
+export class Overlay extends BaseTerrainTile {
+    frameMaps: BaseTerrainFrameMap[][] = [];
     drawTerrain: Bool8 = asBool8(false);
     padding59B: UInt8 = asUInt8(0);
 
@@ -81,26 +53,16 @@ export class Overlay {
             this.resourceId = asInt32(-1);
         }
 
+        // NOTE: Unlike terrains and borders, here the sound effect comes first and then the graphic
         this.soundEffectId = buffer.readInt32();
         this.soundEffect = getDataEntry(soundEffects, this.soundEffectId, "SoundEffect", this.referenceId, loadingContext);
-        this.graphicPointer = buffer.readPointer(); // overwritten quickly by the game
+        this.graphicPointer = buffer.readPointer();
 
         this.minimapColor1 = buffer.readUInt8();
         this.minimapColor2 = buffer.readUInt8();
         this.minimapColor3 = buffer.readUInt8();
 
-        this.animated = buffer.readBool8();
-        this.animationFrameCount = buffer.readInt16();
-        this.animationReplayFrameDelay = buffer.readInt16();
-        this.animationFrameDelay = buffer.readFloat32();
-        this.animationReplayDelay = buffer.readFloat32();
-
-        // TODO: Are these overwritten by the game as well?
-        this.frame = buffer.readInt16();
-        this.drawFrame = buffer.readInt16();
-
-        this.animationUpdateTime = buffer.readFloat32();
-        this.frameChanged = buffer.readBool8();
+        this.animation = BaseTerrainAnimation.readFromBuffer(buffer, loadingContext);
 
         this.drawCount = buffer.readUInt8();        
 
@@ -118,19 +80,26 @@ export class Overlay {
         this.drawTerrain = buffer.readBool8();
         this.padding59B = buffer.readUInt8();
     }
+    
+    appendToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext) {
+        super.appendToTextFile(textFileWriter, savingContext);
+
+        textFileWriter
+            .integer(this.drawTerrain ? 1 : 0)
+        
+        for (let j = 0; j < 19; ++j) {
+            for (let k = 0; k < 16; ++k) {
+                textFileWriter
+                    .integer(this.frameMaps[j][k].frameCount)
+                    .integer(this.frameMaps[j][k].animationFrames);
+            }
+        }
+        textFileWriter.eol();
+        textFileWriter.raw(" ").eol();
+    }
         
     writeToJsonFile(directory: string, savingContext: SavingContext) {
-        writeFileSync(path.join(directory, `${this.referenceId}.json`), createJson({
-            ...pick(this, jsonFields),
-            ...this.animated ? pick(this, animationFields) : {},
-            soundEffectId: createReferenceString("SoundEffect", this.soundEffect?.referenceId, this.soundEffectId),
-            frames: this.frameMaps.map(tileFrames =>
-                tileFrames.map(frameEntry => ({
-                    frameCount: frameEntry.frameCount,
-                    animationFrames: frameEntry.animationFrames
-                }))
-            )
-        }));
+        writeDataEntryToJsonFile(directory, this, OverlayJsonMapping, savingContext);
     }
 
     toString() {
@@ -138,8 +107,8 @@ export class Overlay {
     }
 }
 
-export function readMainOverlayData(buffer: BufferReader, soundEffects: SoundEffect[], loadingContext: LoadingContext): (Overlay | null)[] {
-    const result: (Overlay | null)[] = [];
+export function readOverlaysFromDatFile(buffer: BufferReader, soundEffects: SoundEffect[], loadingContext: LoadingContext): Nullable<Overlay>[] {
+    const result: Nullable<Overlay>[] = [];
     if (semver.lt(loadingContext.version.numbering, "2.0.0")) {
         for (let i = 0; i < 16; ++i) {
             const overlay = new Overlay();
@@ -150,7 +119,7 @@ export function readMainOverlayData(buffer: BufferReader, soundEffects: SoundEff
     return result;
 }
 
-export function readSecondaryOverlayData(overlays: (Overlay | null)[], buffer: BufferReader, loadingContext: LoadingContext) {
+export function readAndVerifyOverlayCountFromDatFile(overlays: Nullable<Overlay>[], buffer: BufferReader, loadingContext: LoadingContext) {
     if (semver.lt(loadingContext.version.numbering, "2.0.0")) {
         const overlayCount = buffer.readInt16();
         if (overlayCount !== overlays.filter(isDefined).length) {
@@ -159,51 +128,19 @@ export function readSecondaryOverlayData(overlays: (Overlay | null)[], buffer: B
     }
 }
 
-
-export function writeOverlaysToWorldTextFile(outputDirectory: string, overlays: (Overlay | null)[], savingContext: SavingContext) {
+export function writeOverlaysToWorldTextFile(outputDirectory: string, overlays: Nullable<Overlay>[], savingContext: SavingContext) {
     const textFileWriter = new TextFileWriter(path.join(outputDirectory, TextFileNames.Overlays));
     textFileWriter.raw(overlays.filter(isDefined).length).eol(); // Total overlay entries
     const sortedOverlays = [...overlays].filter(isDefined).sort((a, b) => textFileStringCompare(a.internalName, b.internalName));
     sortedOverlays.forEach(overlay => {
-        textFileWriter
-            .integer(overlay.id)
-            .string(overlay.internalName.replaceAll(" ", "_"), 17)
-            .filename(overlay.resourceFilename)
-            .conditional(semver.gte(savingContext.version.numbering, "2.0.0"), writer => writer.integer(overlay.resourceId))
-            .integer(overlay.random ? 1 : 0)
-            .integer(overlay.minimapColor2)
-            .integer(overlay.minimapColor1)
-            .integer(overlay.minimapColor3)
-            .integer(overlay.soundEffectId)
-            .integer(overlay.animated ? 1 : 0)
-            .integer(overlay.animationFrameCount)
-            .float(overlay.animationFrameDelay)
-            .float(overlay.animationReplayDelay)
-            .integer(overlay.drawTerrain ? 1 : 0)
-        for (let j = 0; j < 19; ++j) {
-            for (let k = 0; k < 16; ++k) {
-                textFileWriter
-                    .integer(overlay.frameMaps[j][k].frameCount)
-                    .integer(overlay.frameMaps[j][k].animationFrames);
-            }
-        }
-        textFileWriter.eol();
-        textFileWriter.raw(" ").eol();
+        overlay.appendToTextFile(textFileWriter, savingContext);
     })
 
     textFileWriter.close();
 }
 
-
-export function writeOverlaysToJsonFiles(outputDirectory: string, overlay: (Overlay | null)[], savingContext: SavingContext) {
+export function writeOverlaysToJsonFiles(outputDirectory: string, overlays: Nullable<Overlay>[], savingContext: SavingContext) {
     if (semver.lt(savingContext.version.numbering, "2.0.0")) {
-        const overlayDirectory = path.join(outputDirectory, "overlays");
-        clearDirectory(overlayDirectory);
-    
-        overlay.forEach(overlay => {
-            overlay?.writeToJsonFile(overlayDirectory, savingContext)
-        });
-        
-        writeJsonFileIndex(overlayDirectory, overlay);
+        writeDataEntriesToJson(outputDirectory, "overlays", overlays, OverlayJsonMapping, savingContext);
     }
 }

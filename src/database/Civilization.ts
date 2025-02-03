@@ -7,17 +7,17 @@ import { LoadingContext } from "./LoadingContext";
 import { SavingContext } from "./SavingContext";
 import { ArchitectureStyleId, asInt16, asUInt8, Float32, Int16, StateEffectId, UInt8 } from "./Types";
 import path from "path";
-import { JsonFieldConfig, writeDataEntriesToJson } from "../json/json-serializer";
+import { OldJsonFieldConfig, oldWriteDataEntriesToJson } from "../json/json-serialization";
 import { StateEffect } from "./research/StateEffect";
-import { createReferenceString, createReferenceIdFromString as createReferenceIdFromString } from "../json/filenames";
+import { createReferenceString, createReferenceIdFromString as createReferenceIdFromString } from "../json/reference-id";
 import { Nullable } from "../ts/ts-utils";
 import { getDataEntry } from "../util";
 
-const jsonFields: JsonFieldConfig<Civilization>[] = [
-    { key: "civilizationType" },
-    { key: "internalName"},
-    { key: "bonusEffectId", versionFrom: "1.4.0", transformTo: (obj) => createReferenceString("StateEffect", obj.bonusEffect?.referenceId, obj.bonusEffectId) },
-    { key: "attributes", transformTo: (obj) => ({
+const jsonFields: OldJsonFieldConfig<Civilization>[] = [
+    { field: "civilizationType" },
+    { field: "internalName"},
+    { field: "bonusEffectId", versionFrom: "1.4.0", toJson: (obj) => createReferenceString("StateEffect", obj.bonusEffect?.referenceId, obj.bonusEffectId) },
+    { field: "attributes", toJson: (obj) => ({
         totalCount: obj.attributes.length,
         entries: obj.attributes.reduce((acc, cur, index) => {
         if (cur) {
@@ -25,7 +25,7 @@ const jsonFields: JsonFieldConfig<Civilization>[] = [
         }
         return acc;
     }, {} as Record<number, number>)})},
-    { key: "architectureStyle" }
+    { field: "architectureStyle" }
 ];
 
 export class Civilization {
@@ -105,5 +105,5 @@ export function writeCivilizationsToWorldTextFile(outputDirectory: string, civil
 }
 
 export function writeCivilizationsToJsonFiles(outputDirectory: string, civilizations: Nullable<Civilization>[], savingContext: SavingContext) {
-    writeDataEntriesToJson(outputDirectory, "civilizations", civilizations, jsonFields, savingContext);
+    oldWriteDataEntriesToJson(outputDirectory, "civilizations", civilizations, jsonFields, savingContext);
 }

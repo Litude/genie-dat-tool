@@ -6,10 +6,10 @@ import { SavingContext } from "../SavingContext";
 import { AbilityId, asFloat32, asInt16, asUInt8, Float32, Int16, PrototypeId, SoundEffectId, UInt8 } from "../Types";
 import { Ability } from "./Ability";
 import { MobileObjectPrototype } from "./MobileObjectPrototype";
-import { JsonFieldConfig, transformObjectToJson } from '../../json/json-serializer';
+import { OldJsonFieldConfig, oldTransformObjectToJson } from '../../json/json-serialization';
 import { SceneryObjectPrototype } from './SceneryObjectPrototype';
 import { Nullable, trimEnd } from '../../ts/ts-utils';
-import { createReferenceString } from '../../json/filenames';
+import { createReferenceString } from '../../json/reference-id';
 import { Sprite } from '../Sprite';
 import { SoundEffect } from '../SoundEffect';
 import { Terrain } from '../landscape/Terrain';
@@ -18,20 +18,20 @@ import { getDataEntry } from '../../util';
 import { Technology } from '../research/Technology';
 import { Overlay } from '../landscape/Overlay';
 
-const jsonFields: JsonFieldConfig<ActorObjectPrototype>[] = [
-    { key: "defaultAbility" },
-    { key: "searchRadius" },
-    { key: "workRate" },
-    { key: "dropSitePrototypeIds", transformTo: (obj) => {
+const jsonFields: OldJsonFieldConfig<ActorObjectPrototype>[] = [
+    { field: "defaultAbility" },
+    { field: "searchRadius" },
+    { field: "workRate" },
+    { field: "dropSitePrototypeIds", toJson: (obj) => {
         return obj.dropSitePrototypes
             .slice(0, trimEnd(obj.dropSitePrototypeIds, entry => entry === -1).length)
             .map((dropSite, index) => createReferenceString("ObjectPrototype", dropSite?.referenceId, obj.dropSitePrototypeIds[index]))
     }},
-    { key: 'abilitySwapGroup' },
-    { key: 'attackSoundId', transformTo: (obj) => createReferenceString("SoundEffect", obj.attackSound?.referenceId, obj.attackSoundId) },
-    { key: 'moveSoundId', transformTo: (obj) => createReferenceString("SoundEffect", obj.moveSound?.referenceId, obj.moveSoundId) },
-    { key: 'runPattern', flags: { unusedField: true } },
-    { key: 'abilityList', transformTo: (obj, savingContext) => obj.abilityList.map(ability => transformObjectToJson(ability, ability.getJsonConfig(), savingContext)) },
+    { field: 'abilitySwapGroup' },
+    { field: 'attackSoundId', toJson: (obj) => createReferenceString("SoundEffect", obj.attackSound?.referenceId, obj.attackSoundId) },
+    { field: 'moveSoundId', toJson: (obj) => createReferenceString("SoundEffect", obj.moveSound?.referenceId, obj.moveSoundId) },
+    { field: 'runPattern', flags: { unusedField: true } },
+    { field: 'abilityList', toJson: (obj, savingContext) => obj.abilityList.map(ability => oldTransformObjectToJson(ability, ability.getJsonConfig(), savingContext)) },
 ]
 
 export class ActorObjectPrototype extends MobileObjectPrototype {
@@ -95,8 +95,8 @@ export class ActorObjectPrototype extends MobileObjectPrototype {
         })
     }
         
-    getJsonConfig(): JsonFieldConfig<SceneryObjectPrototype>[] {
-        return super.getJsonConfig().concat(jsonFields as JsonFieldConfig<SceneryObjectPrototype>[]);
+    getJsonConfig(): OldJsonFieldConfig<SceneryObjectPrototype>[] {
+        return super.getJsonConfig().concat(jsonFields as OldJsonFieldConfig<SceneryObjectPrototype>[]);
     }
 
     writeToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext): void {
