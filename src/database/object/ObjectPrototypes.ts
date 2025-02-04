@@ -7,7 +7,7 @@ import { isDefined, Nullable } from "../../ts/ts-utils";
 import { Civilization } from "../Civilization";
 import { LoadingContext } from "../LoadingContext"
 import { SavingContext } from "../SavingContext";
-import { asInt16, asInt32, asUInt8, Bool32 } from "../Types";
+import { asInt16, asInt32, asUInt8, Bool32 } from "../../ts/base-types";
 import { ActorObjectPrototype } from "./ActorObjectPrototype";
 import { AdvancedCombatantObjectPrototype } from "./AdvancedCombatantObjectPrototype";
 import { AnimatedObjectPrototype } from "./AnimatedObjectPrototype";
@@ -23,7 +23,6 @@ import { ParsingError } from '../Error';
 import path from 'path';
 import { clearDirectory } from '../../files/file-utils';
 import { createJson, oldTransformObjectToJson, writeJsonFileIndex } from '../../json/json-serialization';
-import { Ability } from './Ability';
 import { writeFileSync } from 'fs';
 
 export type BaseObjectPrototype = SceneryObjectPrototype;

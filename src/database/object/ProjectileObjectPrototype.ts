@@ -3,7 +3,7 @@ import { OldJsonFieldConfig } from "../../json/json-serialization";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
-import { asFloat32, asUInt8, Float32, Int16, UInt8 } from "../Types";
+import { asFloat32, asUInt8, Float32, Int16, UInt8 } from "../../ts/base-types";
 import { CombatantObjectPrototype } from "./CombatantObjectPrototype";
 import { SceneryObjectPrototype } from "./SceneryObjectPrototype";
 

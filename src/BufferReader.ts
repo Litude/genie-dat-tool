@@ -1,4 +1,4 @@
-import { Bool16, Bool32, Bool8, Float32, Float64, Int16, Int32, Int8, Pointer, UInt16, UInt32, UInt8 } from "./database/Types";
+import { Bool16, Bool32, Bool8, Float32, Float64, Int16, Int32, Int8, Pointer, UInt16, UInt32, UInt8 } from "./ts/base-types";
 
 export default class BufferReader {
     private buffer: Buffer;
@@ -27,36 +27,48 @@ export default class BufferReader {
         return Boolean(value) as Bool32;
     }
 
+    readInt8(): Int8;
+    readInt8<T extends Int8>(): T
     readInt8(): Int8 {
         const value = this.buffer.readInt8(this.offset);
         this.offset += 1;
         return value as Int8;
     }
 
+    readInt16(): Int16;
+    readInt16<T extends Int16>(): T
     readInt16(): Int16 {
         const value = this.buffer.readInt16LE(this.offset);
         this.offset += 2;
         return value as Int16;
     }
 
+    readInt32(): Int32;
+    readInt32<T extends Int32>(): T
     readInt32(): Int32 {
         const value = this.buffer.readInt32LE(this.offset);
         this.offset += 4;
         return value as Int32;
     }
     
+    readUInt8(): UInt8;
+    readUInt8<T extends UInt8>(): T
     readUInt8(): UInt8 {
         const value = this.buffer.readUInt8(this.offset);
         this.offset += 1;
         return value as UInt8;
     }
 
+    readUInt16(): UInt16;
+    readUInt16<T extends UInt16>(): T
     readUInt16(): UInt16 {
         const value = this.buffer.readUInt16LE(this.offset);
         this.offset += 2;
         return value as UInt16;
     }
 
+    readUInt32(): UInt32;
+    readUInt32<T extends UInt32>(): T
     readUInt32(): UInt32 {
         const value = this.buffer.readUInt32LE(this.offset);
         this.offset += 4;

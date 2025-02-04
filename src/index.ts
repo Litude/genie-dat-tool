@@ -16,6 +16,8 @@ interface ParseArgs {
     outputVersion: string;
     outputFormat?: "textfile" | "json" | "dat" | "resource-list";
     outputDir: string;
+    attributesFile: string;
+    habitatsFile: string;
   }
 
 const yargsInstance = yargs(hideBin(process.argv))
@@ -49,6 +51,16 @@ const yargsInstance = yargs(hideBin(process.argv))
             type: "string",
             describe: "Directory where output files will be written",
             default: "output",
+          })
+          .option("attributes-file", {
+            type: "string",
+            describe: "Path to JSON file that contains names used for attributes",
+            default: "data/attributes.json5"
+          })
+          .option("habitats-file", {
+            type: "string",
+            describe: "Path to JSON file that contains names used for habitats",
+            default: "data/habitats.json5"
           })
         }
     )
@@ -122,7 +134,7 @@ function getPotentialParsingVersions(headerVersionNumber: string) {
 }
 
 function parseDatFile() {
-    const { filename, inputVersion: inputVersionParameter, outputVersion: outputVersionParameter, outputFormat, outputDir } = argv as unknown as ParseArgs;
+    const { filename, inputVersion: inputVersionParameter, outputVersion: outputVersionParameter, outputFormat, outputDir, habitatsFile, attributesFile } = argv as unknown as ParseArgs;
     const dataBuffer = new BufferReader(decompressFile(filename));
     const headerString = dataBuffer.readFixedSizeString(8);
     const headerVersionNumber = parseVersion(headerString);
@@ -152,7 +164,7 @@ function parseDatFile() {
 
                 Logger.info(`Attempting to parse file as version ${parsingVersion}`);
                 worldDatabase = new WorldDatabase();
-                if (worldDatabase.readFromBuffer(dataBuffer, { version: inputVersion, abortOnError: i !== potentialVersions.length - 1, cleanedData: false } )) {
+                if (worldDatabase.readFromBuffer(dataBuffer, { habitatsFile, attributesFile }, { version: inputVersion, abortOnError: i !== potentialVersions.length - 1, cleanedData: false } )) {
                     Logger.info("File parsed successfully");
                     break;
                 }

@@ -1,4 +1,4 @@
-import { asInt16, Int16 } from "../Types";
+import { asInt16, Int16 } from "../../ts/base-types";
 
 export type ObjectClass = Int16;
 

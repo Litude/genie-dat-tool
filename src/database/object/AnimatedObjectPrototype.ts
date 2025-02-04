@@ -3,7 +3,7 @@ import { OldJsonFieldConfig } from "../../json/json-serialization";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
-import { asFloat32, Float32, Int16 } from "../Types";
+import { asFloat32, Float32, Int16 } from "../../ts/base-types";
 import { SceneryObjectPrototype } from "./SceneryObjectPrototype";
 
 const jsonFields: OldJsonFieldConfig<AnimatedObjectPrototype>[] = [{

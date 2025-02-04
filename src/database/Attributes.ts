@@ -1,6 +1,6 @@
 import JSON5 from 'json5';
 import { PathLike, readFileSync } from "fs";
-import { asInt16, Int16 } from "./Types";
+import { asInt16, Int16 } from "../ts/base-types";
 import { Logger } from '../Logger';
 
 export class Attribute {

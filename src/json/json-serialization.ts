@@ -5,40 +5,6 @@ import { Nullable } from "../ts/ts-utils";
 import path from "path";
 import { clearDirectory } from "../files/file-utils";
 import { writeFileSync } from "fs";
-import { z } from "zod";
-import { Float32, Int16, Int32, Int8, UInt16, UInt32, UInt8 } from "../database/Types";
-
-export const uint8Schema: z.Schema<UInt8> = z.number()
-  .int()
-  .min(0, { message: "Number must be positive (uint8)"})
-  .max(255, { message: "Number must be at most 255 (uint8)"}) as any;
-
-export const uint16Schema: z.Schema<UInt16> = z.number()
-    .int()
-    .min(0, { message: "Number must be positive (uint16)"})
-    .max(65535, { message: "Number must be at most 65535 (uint16)"}) as any;
-
-export const uint32Schema: z.Schema<UInt32> = z.number()
-    .int()
-    .min(0, { message: "Number must be positive (uint32)"})
-    .max(4294967295, { message: "Number must be at most 4294967295 (uint32)"}) as any;
-
-export const int8Schema: z.Schema<Int8> = z.number()
-    .int()
-    .min(-128, { message: "Number must be at least -128 (int8)" })
-    .max(127, { message: "Number must be at most 127 (int8)" }) as any;
-
-export const int16Schema: z.Schema<Int16> = z.number()
-  .int()
-  .min(-32768, { message: "Number must be at least -32768 (int16)" })
-  .max(32767, { message: "Number must be at most 32767 (int16)" }) as any;
-
-export const int32Schema: z.Schema<Int32> = z.number()
-  .int()
-  .min(-2147483648, { message: "Number must be at least -2147483648 (int32)" })
-  .max(2147483647, { message: "Number must be at most 2147483647 (int32)" }) as any;
-
-export const float32Schema: z.Schema<Float32> = z.number() as any;
 
 // TODO: Is there a risk that we get some other value than what it was originally when reading back these values?
 // Need to read them back using Math.fround and probably check the data to see if errors accumulate..
@@ -56,12 +22,22 @@ export function writeJsonFileIndex(outputDirectory: string, entries: ({ referenc
 }
 
 type SimpleFieldMapping<ObjectType, JsonType> = {
-    field: keyof ObjectType & keyof JsonType;
-    objectField?: never;
-    jsonField?: never;
-    toJson?: never;
-    fromJson?: never;
-}
+    [K in keyof ObjectType & keyof JsonType]: 
+        [Extract<JsonType[K], undefined>] extends [never] // Is JsonType[K] *never* undefined?
+            ? ([JsonType[K]] extends [ObjectType[K]] ? K : never) // Must be assignable
+            : ([Exclude<JsonType[K], undefined>] extends [ObjectType[K]] ? K : never);
+}[keyof ObjectType & keyof JsonType] extends infer ValidField
+    ? ValidField extends keyof ObjectType & keyof JsonType
+        ? {
+              field: ValidField;
+              objectField?: never;
+              jsonField?: never;
+              toJson?: never;
+              fromJson?: never;
+          }
+        : never
+    : never;
+
 
 type FromJsonMapping<ObjectType, JsonType> = {
     field?: never;

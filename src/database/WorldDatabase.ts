@@ -1,20 +1,19 @@
 import semver from "semver";
 import BufferReader from "../BufferReader";
 import { Border, readBordersFromDatFile, readAndVerifyBorderCountFromDatFile, writeBordersToJsonFiles, writeBordersToWorldTextFile } from "./landscape/Border";
-import { Colormap, readColormaps, writeColormapsToJsonFiles, writeColormapsToWorldTextFile } from "./Colormap";
-import { Habitat, readHabitats, writeHabitatsToJsonFiles, writeHabitatsToWorldTextFile } from "./landscape/Habitat";
+import { Colormap, readColormapsFromDatFile, writeColormapsToJsonFiles, writeColormapsToWorldTextFile } from "./Colormap";
+import { Habitat, readHabitatNamesFromJsonFile, readHabitatsFromDatFile, writeHabitatsToJsonFiles, writeHabitatsToWorldTextFile } from "./landscape/Habitat";
 import { LoadingContext } from "./LoadingContext";
 import { MapProperties, writeMapPropertiesToJsonFile } from "./landscape/MapProperties";
 import { RandomMap, readRandomMapData, writeRandomMapsToJsonFiles, writeRandomMapsToWorldTextFile } from "./landscape/RandomMap";
-import { readSoundEffects, SoundEffect, writeSoundEffectsToJsonFiles, writeSoundEffectsToWorldTextFile } from "./SoundEffect";
-import { readSprites, Sprite, writeSpritesToJsonFiles, writeSpritesToWorldTextFile } from "./Sprite";
+import { readSoundEffectsFromDatFile, SoundEffect, writeSoundEffectsToJsonFiles, writeSoundEffectsToWorldTextFile } from "./SoundEffect";
+import { readSpritesFromDatFile, Sprite, writeSpritesToJsonFiles, writeSpritesToWorldTextFile } from "./Sprite";
 import { readAndVerifyTerrainCountFromDatFile, readTerrainsFromDatFile, Terrain, writeTerrainsToJsonFiles, writeTerrainsToWorldTextFile } from "./landscape/Terrain";
 import { createFallbackStateEffectReferenceIdsIfNeeded, readStateEffects, StateEffect, writeStateEffectsToJsonFiles, writeStateEffectsToWorldTextFile } from "./research/StateEffect";
 import { Civilization, writeCivilizationsToJsonFiles, writeCivilizationsToWorldTextFile } from "./Civilization";
 import { BaseObjectPrototype, createBaselineObjectPrototypes, readObjectPrototypesFromBuffer, writeObjectPrototypesToJsonFiles, writeObjectPrototypesToWorldTextFile } from "./object/ObjectPrototypes";
 import { readTechnologiesFromBuffer, Technology, writeTechnologiesToJsonFiles, writeTechnologiesToWorldTextFile } from "./research/Technology";
 import { SavingContext } from "./SavingContext";
-import { asInt16 } from "./Types";
 import { TextFileWriter } from "../textfile/TextFileWriter";
 import { TextFileNames } from "../textfile/TextFile";
 import { Attribute, readAttributesFromJsonFile } from "./Attributes";
@@ -26,6 +25,7 @@ import path from "path";
 import { Nullable } from "../ts/ts-utils";
 import { ensureReferenceIdUniqueness } from "../json/reference-id";
 import { clearDirectory } from "../files/file-utils";
+import { asInt16 } from "../ts/base-types";
 
 export class WorldDatabase {
     attributes: Attribute[] = [];
@@ -46,18 +46,19 @@ export class WorldDatabase {
     technologies: Nullable<Technology>[] = [];
     tribeAi:  Nullable<TribeAi>[] = [];
 
-    readFromBuffer(buffer: BufferReader, loadingContext: LoadingContext) {
+    readFromBuffer(buffer: BufferReader, { habitatsFile, attributesFile} : { habitatsFile: string, attributesFile: string}, loadingContext: LoadingContext) {
         try {
 
-            this.attributes = readAttributesFromJsonFile("./data/attributes.json5");
+            this.attributes = readAttributesFromJsonFile(attributesFile);
+            const habitatNames = readHabitatNamesFromJsonFile(habitatsFile);
 
-            this.habitats = readHabitats(buffer, loadingContext);
+            this.habitats = readHabitatsFromDatFile(buffer, habitatNames, loadingContext);
 
-            this.colormaps = readColormaps(buffer, loadingContext);
+            this.colormaps = readColormapsFromDatFile(buffer, loadingContext);
 
-            this.soundEffects = readSoundEffects(buffer, loadingContext);
+            this.soundEffects = readSoundEffectsFromDatFile(buffer, loadingContext);
 
-            this.sprites = readSprites(buffer, this.soundEffects, loadingContext);
+            this.sprites = readSpritesFromDatFile(buffer, this.soundEffects, loadingContext);
     
             this.mapProperties = new MapProperties();
             this.mapProperties.readMainDataFromBuffer(buffer, loadingContext);

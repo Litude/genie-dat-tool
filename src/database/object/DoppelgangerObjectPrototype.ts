@@ -1,6 +1,6 @@
 import BufferReader from "../../BufferReader";
+import { Int16 } from "../../ts/base-types";
 import { LoadingContext } from "../LoadingContext";
-import { Int16 } from "../Types";
 import { AnimatedObjectPrototype } from "./AnimatedObjectPrototype";
 
 export class DoppelgangerObjectPrototype extends AnimatedObjectPrototype {

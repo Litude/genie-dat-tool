@@ -12,7 +12,8 @@ import { Technology } from "../research/Technology";
 import { SavingContext } from "../SavingContext";
 import { SoundEffect } from "../SoundEffect";
 import { Sprite } from "../Sprite";
-import { asFloat32, asInt16, asUInt8, Float32, Int16, PrototypeId, SpriteId, UInt8 } from "../Types";
+import { PrototypeId, SpriteId } from "../Types";
+import { asFloat32, asInt16, asUInt8, Float32, Int16, UInt8 } from "../../ts/base-types";
 import { AnimatedObjectPrototype } from "./AnimatedObjectPrototype";
 import { SceneryObjectPrototype } from "./SceneryObjectPrototype";
 

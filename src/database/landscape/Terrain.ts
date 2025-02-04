@@ -8,15 +8,15 @@ import { LoadingContext } from "../LoadingContext";
 import { SceneryObjectPrototype } from "../object/SceneryObjectPrototype";
 import { SavingContext } from "../SavingContext";
 import { SoundEffect } from "../SoundEffect";
-import { asInt16, asInt32, asUInt16, asUInt8, Bool8, BorderId, Int16, PaletteIndex, PrototypeId, TerrainId, UInt16 } from "../Types";
+import { BorderId, PaletteIndex, PaletteIndexSchema, PrototypeId, ReferenceStringSchema, ResourceId, TerrainId } from "../Types";
+import { asInt16, asInt32, asUInt16, asUInt8, Bool8, Int16, Int16Schema, UInt16, UInt8Schema } from "../../ts/base-types";
 import { Border } from "./Border";
 import { onParsingError } from "../Error";
 import path from "path";
 import { createReferenceString, createReferenceIdFromString } from "../../json/reference-id";
-import { clearDirectory } from "../../files/file-utils";
 import { z } from "zod";
 import { BaseTerrainAnimation, BaseTerrainFrameMap, BaseTerrainFrameMapJsonMapping, BaseTerrainJsonMapping, BaseTerrainTile, BaseTerrainTileSchema } from "./BaseTerrainTile";
-import { int16Schema, uint8Schema, JsonFieldMapping, transformObjectToJson, writeDataEntryToJsonFile, writeJsonFileIndex, writeDataEntriesToJson } from "../../json/json-serialization";
+import { JsonFieldMapping, transformObjectToJson, writeDataEntryToJsonFile, writeDataEntriesToJson } from "../../json/json-serialization";
 
 interface TerrainObjectPlacement {
     prototypeId: PrototypeId<Int16>;
@@ -26,26 +26,26 @@ interface TerrainObjectPlacement {
 }
 
 const TerrainSchema = BaseTerrainTileSchema.merge(z.object({
-    minimapCliffColor1: uint8Schema,
-    minimapCliffColor2: uint8Schema,
-    terrainPatternWidth: int16Schema,
-    terrainPatternHeight: int16Schema,
-    passableTerrainId: z.union([z.string(), z.number(), z.null()]),
-    impassableTerrainId: z.union([z.string(), z.number(), z.null()]),
-    renderedTerrainId: z.union([z.string(), z.number(), z.null()]),
+    minimapCliffColor1: PaletteIndexSchema,
+    minimapCliffColor2: PaletteIndexSchema,
+    terrainPatternWidth: Int16Schema,
+    terrainPatternHeight: Int16Schema,
+    passableTerrainId: ReferenceStringSchema,
+    impassableTerrainId: ReferenceStringSchema,
+    renderedTerrainId: ReferenceStringSchema,
     borders: z.array(z.object({
-        borderId: z.union([z.string(), z.number(), z.null()]),
-        terrainId: z.union([z.string(), z.number(), z.null()]),
+        borderId: ReferenceStringSchema,
+        terrainId: ReferenceStringSchema,
     })),
     objectPlacements: z.array(z.object({
-        prototypeId: z.union([z.string(), z.number(), z.null()]),
-        density: int16Schema,
+        prototypeId: ReferenceStringSchema,
+        density: Int16Schema,
         centralize: z.boolean()
     })).max(30),
     frameMaps: z.array(z.object({
-        frameCount: int16Schema,
-        animationFrames: int16Schema,
-        frameIndex: int16Schema.optional()
+        frameCount: Int16Schema,
+        animationFrames: Int16Schema,
+        frameIndex: Int16Schema.optional()
     })).length(19)
 }));
 
@@ -80,8 +80,8 @@ const TerrainJsonMapping: JsonFieldMapping<Terrain, TerrainJson>[] = [
 ];
 
 export class Terrain extends BaseTerrainTile {
-    minimapCliffColor1: PaletteIndex = asUInt8(0);
-    minimapCliffColor2: PaletteIndex = asUInt8(0);
+    minimapCliffColor1: PaletteIndex = asUInt8<PaletteIndex>(0);
+    minimapCliffColor2: PaletteIndex = asUInt8<PaletteIndex>(0);
     passableTerrainId: TerrainId<Int16> = asInt16(-1); // Note! This is stored as 8 bits in the data!
     passableTerrain: Terrain | null = null;
     impassableTerrainId: TerrainId<Int16> = asInt16(-1); // Note! This is stored as 8 bits in the data!
@@ -106,21 +106,21 @@ export class Terrain extends BaseTerrainTile {
         this.referenceId = createReferenceIdFromString(this.internalName);
         this.resourceFilename = buffer.readFixedSizeString(13);
         if (semver.gte(loadingContext.version.numbering, "2.0.0")) {
-            this.resourceId = buffer.readInt32();
+            this.resourceId = buffer.readInt32<ResourceId>();
         }
         else {
-            this.resourceId = asInt32(-1);
+            this.resourceId = asInt32<ResourceId>(-1);
         }
 
         this.graphicPointer = buffer.readPointer();
         this.soundEffectId = buffer.readInt32();
         this.soundEffect = getDataEntry(soundEffects, this.soundEffectId, "SoundEffect", this.referenceId, loadingContext);
 
-        this.minimapColor1 = buffer.readUInt8();
-        this.minimapColor2 = buffer.readUInt8();
-        this.minimapColor3 = buffer.readUInt8();
-        this.minimapCliffColor1 = buffer.readUInt8();
-        this.minimapCliffColor2 = buffer.readUInt8();
+        this.minimapColor1 = buffer.readUInt8<PaletteIndex>();
+        this.minimapColor2 = buffer.readUInt8<PaletteIndex>();
+        this.minimapColor3 = buffer.readUInt8<PaletteIndex>();
+        this.minimapCliffColor1 = buffer.readUInt8<PaletteIndex>();
+        this.minimapCliffColor2 = buffer.readUInt8<PaletteIndex>();
 
         const rawPassableTerrainId = buffer.readUInt8()
         this.passableTerrainId = asInt16(rawPassableTerrainId === 255 ? -1 : rawPassableTerrainId);

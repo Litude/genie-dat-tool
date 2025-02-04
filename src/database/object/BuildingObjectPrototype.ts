@@ -12,7 +12,8 @@ import { Technology } from "../research/Technology";
 import { SavingContext } from "../SavingContext";
 import { SoundEffect } from "../SoundEffect";
 import { Sprite } from "../Sprite";
-import { asBool8, asInt16, asUInt8, Bool8, Int16, OverlayId, PrototypeId, SoundEffectId, SpriteId, TechnologyId, TerrainId, UInt8 } from "../Types";
+import { OverlayId, PrototypeId, SoundEffectId, SpriteId, TechnologyId, TerrainId } from "../Types";
+import { asBool8, asInt16, asUInt8, Bool8, Int16, UInt8 } from "../../ts/base-types";
 import { AdvancedCombatantObjectPrototype } from "./AdvancedCombatantObjectPrototype";
 import { SceneryObjectPrototype } from "./SceneryObjectPrototype";
 

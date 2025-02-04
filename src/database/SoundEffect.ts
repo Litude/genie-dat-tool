@@ -2,22 +2,52 @@ import semver from "semver";
 import BufferReader from "../BufferReader";
 import { LoadingContext } from "./LoadingContext";
 import { SavingContext } from "./SavingContext";
-import { asInt16, asInt32, asUInt32, Int16, Int32, Percentage, ResourceId, UInt32 } from "./Types";
+import { asInt16, asUInt32, Int16, Int16Schema, UInt32, UInt32Schema } from "../ts/base-types";
+import { asResourceId, asTribeResourceId, Percentage, ResourceId, ResourceIdSchema, TribeResourceId } from "./Types";
 import { TextFileWriter } from "../textfile/TextFileWriter";
 import { TextFileNames } from "../textfile/TextFile";
 import { onParsingError } from "./Error";
 import path from "path";
-import { mkdirSync, rmSync, writeFileSync } from "fs";
 import { createReferenceIdFromString } from "../json/reference-id";
-import { createJson } from "../json/json-serialization";
+import { JsonFieldMapping, transformObjectToJson, writeDataEntriesToJson, writeDataEntryToJsonFile } from "../json/json-serialization";
+import { z } from "zod";
 
 interface SoundSample {
     resourceFilename: string;
-    resourceId: ResourceId<Int32>;
+    resourceId: ResourceId;
     playbackProbability: Percentage<Int16>;
 }
 
+const SoundSampleSchema = z.object({
+    resourceFilename: z.string(),
+    resourceId: ResourceIdSchema,
+    playbackProbability: Int16Schema,
+})
+type SoundSampleJson = z.infer<typeof SoundSampleSchema>;
+
+export const SoundSampleJsonMapping: JsonFieldMapping<SoundSample, SoundSampleJson>[] = [
+    { field: "resourceFilename" },
+    { field: "resourceId" },
+    { field: "playbackProbability" },
+];
+
+const SoundEffectSchema = z.object({
+    internalName: z.string(),
+    playDelay: Int16Schema.optional(),
+    samples: z.array(SoundSampleSchema),
+    cacheTime: UInt32Schema.optional(),
+})
+type SoundEffectJson = z.infer<typeof SoundEffectSchema>;
+
+export const SoundEffectJsonMapping: JsonFieldMapping<SoundEffect, SoundEffectJson>[] = [
+    { field: "internalName" },
+    { field: "playDelay", flags: { internalField: true } },
+    { jsonField: "samples", toJson: (obj, savingContext) => obj.samples.map(sample => transformObjectToJson(sample, SoundSampleJsonMapping, savingContext)) },
+    { field: "cacheTime", flags: { internalField: true } },
+];
+
 export class SoundEffect {
+    internalName: string = "";
     referenceId: string = ""; // TODO: Pick this from the first sound effect filename instead and ensure it is unique by appending a number or so...
     id: Int16 = asInt16(-1);
     playDelay: Int16 = asInt16(0);
@@ -43,22 +73,40 @@ export class SoundEffect {
         for (let i = 0; i < sampleCount; ++i) {
             this.samples.push({
                 resourceFilename: buffer.readFixedSizeString(13),
-                resourceId: semver.gte(loadingContext.version.numbering, "1.3.1") ? buffer.readInt32() : asInt32(buffer.readInt16()),
+                resourceId: semver.gte(loadingContext.version.numbering, "1.3.1") ? buffer.readInt32<ResourceId>() : asResourceId(buffer.readInt16<TribeResourceId>()),
                 playbackProbability: buffer.readInt16(),
             });
         }
 
-        this.referenceId = createReferenceIdFromString(this.samples.at(0)?.resourceFilename ?? 'Empty');
+        // The original internal name is long lost... Best we can do is to take the filename of the first sample
+        let internalName = this.samples.at(0)?.resourceFilename ?? 'Empty';
+        internalName = internalName.charAt(0).toUpperCase() + internalName.slice(1);
+        if (internalName.endsWith(".wav")) {
+            internalName = internalName.slice(0, -4);
+        }
+        this.internalName = internalName;
+        this.referenceId = createReferenceIdFromString(this.internalName);
+    }
+        
+    appendToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext) {
+        textFileWriter
+            .integer(this.id)
+            .integer(this.samples.length)
+            .eol()
+
+        for (let j = 0; j < this.samples.length; ++j) {
+            const sample = this.samples[j];
+            textFileWriter
+                .indent(2)
+                .integer(semver.gte(savingContext.version.numbering, "1.3.1") ? sample.resourceId : asTribeResourceId(sample.resourceId))
+                .filename(sample.resourceFilename)
+                .integer(sample.playbackProbability)
+                .eol()
+        }
     }
 
     writeToJsonFile(directory: string, savingContext: SavingContext) {
-        writeFileSync(path.join(directory, `${this.referenceId}.json`), createJson({
-            samples: this.samples.map(sample => ({
-                resourceFilename: sample.resourceFilename,
-                resourceId: sample.resourceId,
-                playbackProbability: sample.playbackProbability,
-            })),
-        }));
+        writeDataEntryToJsonFile(directory, this, SoundEffectJsonMapping, savingContext);
     }
 
     toString() {
@@ -66,7 +114,7 @@ export class SoundEffect {
     }
 }
 
-export function readSoundEffects(buffer: BufferReader, loadingContext: LoadingContext) {
+export function readSoundEffectsFromDatFile(buffer: BufferReader, loadingContext: LoadingContext) {
     const result: SoundEffect[] = [];
     const soundEffectCount = buffer.readInt16();
     for (let i = 0; i < soundEffectCount; ++i) {
@@ -82,35 +130,13 @@ export function writeSoundEffectsToWorldTextFile(outputDirectory: string, soundE
     textFileWriter.raw(soundEffects.length).eol(); // Total sound effect entries
     textFileWriter.raw(soundEffects.length).eol(); // Entries that have data here (these should always match because there are no null sound entries)
 
-    for (let i = 0; i < soundEffects.length; ++i) {
-        const soundEffect = soundEffects[i];
-        textFileWriter
-            .integer(soundEffect.id)
-            .integer(soundEffect.samples.length)
-            .eol()
+    soundEffects.forEach(soundEffect => {
+        soundEffect.appendToTextFile(textFileWriter, savingContext);
+    })
 
-        for (let j = 0; j < soundEffect.samples.length; ++j) {
-            const sample = soundEffect.samples[j];
-            textFileWriter
-                .indent(2)
-                .integer(sample.resourceId)
-                .filename(sample.resourceFilename)
-                .integer(sample.playbackProbability)
-                .eol()
-        }
-    }
     textFileWriter.close();
 }
 
 export function writeSoundEffectsToJsonFiles(outputDirectory: string, soundEffects: SoundEffect[], savingContext: SavingContext) {
-    const colormapDirectory = path.join(outputDirectory, "sounds");
-    rmSync(colormapDirectory, { recursive: true, force: true });
-    mkdirSync(colormapDirectory, { recursive: true });
-
-    soundEffects.forEach(soundEffect => {
-        soundEffect.writeToJsonFile(colormapDirectory, savingContext);
-    });
-
-    const soundEffectIds = soundEffects.map(soundEffect => soundEffect.referenceId);
-    writeFileSync(path.join(colormapDirectory, "index.json"), createJson(soundEffectIds));
+    writeDataEntriesToJson(outputDirectory, "sounds", soundEffects, SoundEffectJsonMapping, savingContext);
 }

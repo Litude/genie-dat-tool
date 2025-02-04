@@ -7,25 +7,25 @@ import { getDataEntry } from "../../util";
 import { LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
 import { SoundEffect } from "../SoundEffect";
-import { asBool16, asBool8, asInt16, asInt32, asUInt16, asUInt8, Bool16, Bool8, Int16, TerrainId, UInt16, UInt8 } from "../Types";
+import { asBool16, asBool8, asInt16, asInt32, asUInt16, asUInt8, Bool16, Bool16Schema, Bool8, Bool8Schema, Int16, Int16Schema, UInt16, UInt8 } from "../../ts/base-types";
+import { PaletteIndex, ReferenceStringSchema, ResourceId, TerrainId } from "../Types";
 import { Terrain } from "./Terrain";
 import { onParsingError } from '../Error';
 import path from 'path';
 import { createReferenceString, createReferenceIdFromString } from '../../json/reference-id';
-import { clearDirectory } from '../../files/file-utils';
 import { BaseTerrainAnimation, BaseTerrainFrameMap, BaseTerrainFrameMapJsonMapping, BaseTerrainJsonMapping, BaseTerrainTile, BaseTerrainTileSchema } from './BaseTerrainTile';
 import { z } from 'zod';
-import { int16Schema, JsonFieldMapping, transformObjectToJson, writeDataEntryToJsonFile, writeDataEntriesToJson, writeJsonFileIndex } from '../../json/json-serialization';
+import { JsonFieldMapping, transformObjectToJson, writeDataEntryToJsonFile, writeDataEntriesToJson } from '../../json/json-serialization';
 
 const BorderSchema = BaseTerrainTileSchema.merge(z.object({
     frameMaps: z.array(z.array(z.object({
-        frameCount: int16Schema,
-        animationFrames: int16Schema,
-        frameIndex: int16Schema.optional()
+        frameCount: Int16Schema,
+        animationFrames: Int16Schema,
+        frameIndex: Int16Schema.optional()
     })).min(12).max(13)).length(19),
-    drawTerrain: z.boolean(),
-    passabilityTerrainId: z.union([z.string(), z.number(), z.null()]),
-    overlayBorder: z.boolean(),
+    drawTerrain: Bool8Schema,
+    passabilityTerrainId: ReferenceStringSchema,
+    overlayBorder: Bool16Schema,
 }))
 
 type BorderJson = z.infer<typeof BorderSchema>;
@@ -56,19 +56,19 @@ export class Border extends BaseTerrainTile {
         this.referenceId = createReferenceIdFromString(this.internalName);
         this.resourceFilename = buffer.readFixedSizeString(13);
         if (semver.gte(loadingContext.version.numbering, "2.0.0")) {
-            this.resourceId = buffer.readInt32();
+            this.resourceId = buffer.readInt32<ResourceId>();
         }
         else {
-            this.resourceId = asInt32(-1);
+            this.resourceId = asInt32<ResourceId>(-1);
         }
 
         this.graphicPointer = buffer.readPointer();
         this.soundEffectId = buffer.readInt32();
         this.soundEffect = getDataEntry(soundEffects, this.soundEffectId, "SoundEffect", this.referenceId, loadingContext);
 
-        this.minimapColor1 = buffer.readUInt8();
-        this.minimapColor2 = buffer.readUInt8();
-        this.minimapColor3 = buffer.readUInt8();
+        this.minimapColor1 = buffer.readUInt8<PaletteIndex>();
+        this.minimapColor2 = buffer.readUInt8<PaletteIndex>();
+        this.minimapColor3 = buffer.readUInt8<PaletteIndex>();
 
         this.animation =  BaseTerrainAnimation.readFromBuffer(buffer, loadingContext);
 

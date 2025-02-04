@@ -1,30 +1,62 @@
+import JSON5 from 'json5';
 import BufferReader from "../../BufferReader";
 import { LoadingContext } from "../LoadingContext";
-import { asInt16, Float32, Int16, TerrainId } from "../Types";
+import { ReferenceStringSchema, TerrainId } from "../Types";
 import { Terrain } from './Terrain';
 import { SavingContext } from "../SavingContext";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { TextFileNames, textFileStringCompare } from "../../textfile/TextFile";
 import { getDataEntry } from "../../util";
 import path from "path";
-import { mkdirSync, rmSync, writeFileSync } from "fs";
-import { createReferenceString } from "../../json/reference-id";
-import { createJson } from "../../json/json-serialization";
+import { PathLike, readFileSync } from "fs";
+import { createReferenceIdFromString, createReferenceString } from "../../json/reference-id";
+import { JsonFieldMapping, transformObjectToJson, writeDataEntriesToJson, writeDataEntryToJsonFile } from "../../json/json-serialization";
+import { Logger } from '../../Logger';
+import { z } from 'zod';
+import { isDefined, Nullable } from '../../ts/ts-utils';
+import { asInt16, Float32, Float32Schema, Int16 } from '../../ts/base-types';
 
 interface TerrainData {
     terrainId: TerrainId<Int16>;
     terrain: Terrain | null;
     multiplier: Float32;
 }
+
+const TerrainDataSchema = z.object({
+    terrainId: ReferenceStringSchema,
+    multiplier: Float32Schema
+});
+type TerrainDataJson = z.infer<typeof TerrainDataSchema>;
+
+export const TerrainDataJsonMapping: JsonFieldMapping<TerrainData, TerrainDataJson>[] = [
+    { jsonField: "terrainId", toJson: (obj) => createReferenceString("Terrain", obj.terrain?.referenceId, obj.terrainId) },
+    { field: "multiplier" },
+];
+
+export const HabitatSchema = z.object({
+    internalName: z.string(),
+    terrainData: z.array(TerrainDataSchema)
+});
+
+type HabitatJson = z.infer<typeof HabitatSchema>;
+
+export const HabitatJsonMapping: JsonFieldMapping<Habitat, HabitatJson>[] = [
+    { field: "internalName" },
+    { jsonField: "terrainData", toJson: (obj, savingContext) => obj.terrainData
+        .map(terrainEntry => transformObjectToJson(terrainEntry, TerrainDataJsonMapping, savingContext))
+        .filter(entry => entry.multiplier !== 0) }
+];
+
 export class Habitat {
     referenceId: string = "";
     internalName: string = "";
     id: Int16 = asInt16(-1); 
     terrainData: TerrainData[] = [];
 
-    readFromBuffer(buffer: BufferReader, id: Int16, terrainCount: number) {
+    readFromBuffer(buffer: BufferReader, id: Int16, terrainCount: number, habitatNames: string[]) {
         this.id = asInt16(id);
-        this.referenceId = `Habitat_${this.id}`;
+        this.internalName = habitatNames[id] ?? `Habitat ${this.id}`
+        this.referenceId = createReferenceIdFromString(this.internalName);
         this.terrainData = [];
         for (let i = 0; i < terrainCount; ++i) {
             if (buffer) {
@@ -69,26 +101,39 @@ export class Habitat {
     }
 
     writeToJsonFile(directory: string, savingContext: SavingContext) {
-    
-        writeFileSync(path.join(directory, `${this.referenceId}.json`), createJson({
-            terrainData: this.terrainData.filter(entry => entry.multiplier).map(terrainEntry => {
-                return {
-                    terrainId: createReferenceString("Terrain", terrainEntry.terrain?.referenceId, terrainEntry.terrainId),
-                    multiplier: terrainEntry.multiplier
-                }
-            })
-        }));
+        writeDataEntryToJsonFile(directory, this, HabitatJsonMapping, savingContext);
     }
 
     toString() {
         return this.terrainData.map(terrainData => terrainData.multiplier.toFixed(6)).join(', ');
     }
 
-
 }
 
-export function readHabitats(buffer: BufferReader, loadingContext: LoadingContext): (Habitat | null)[] {
-    const habitats: (Habitat | null)[] = [];
+
+export function readHabitatNamesFromJsonFile(path: PathLike): string[] {
+    try {
+        const rawTextData = readFileSync(path);
+        if (rawTextData) {
+            const habitatNamesText = rawTextData.toString('latin1')
+            const parsedHabitatNames = JSON5.parse(habitatNamesText);
+            const verifiedHabitatNames = z.array(z.string()).parse(parsedHabitatNames);
+            return verifiedHabitatNames;
+        }
+        else {
+            return [];
+        }
+    } catch (err: unknown) {
+        if (err instanceof Error) {
+            Logger.error(err.message);
+        }
+        return [];
+    }
+}
+
+
+export function readHabitatsFromDatFile(buffer: BufferReader, habitatNames: string[], loadingContext: LoadingContext): Nullable<Habitat>[] {
+    const habitats: Nullable<Habitat>[] = [];
     const validHabitats: boolean[] = [];
     const habitatCount = buffer.readInt16()
     const terrainCount = buffer.readInt16();
@@ -99,7 +144,7 @@ export function readHabitats(buffer: BufferReader, loadingContext: LoadingContex
     for (let i = 0; i < habitatCount; ++i) {
         if (validHabitats[i]) {
             const habitat = new Habitat();
-            habitat.readFromBuffer(buffer, asInt16(i), terrainCount);
+            habitat.readFromBuffer(buffer, asInt16(i), terrainCount, habitatNames);
             habitats.push(habitat);
         }
         else {
@@ -109,28 +154,21 @@ export function readHabitats(buffer: BufferReader, loadingContext: LoadingContex
     return habitats;
 }
 
-export function writeHabitatsToWorldTextFile(outputDirectory: string, habitats: (Habitat | null)[], terrainCount: number, savingContext: SavingContext) {
+export function writeHabitatsToWorldTextFile(outputDirectory: string, habitats: Nullable<Habitat>[], terrainCount: number, savingContext: SavingContext) {
     const textFileWriter = new TextFileWriter(path.join(outputDirectory, TextFileNames.Habitats));
 
     textFileWriter.raw(habitats.length).eol();
     textFileWriter.raw(terrainCount).eol();
     textFileWriter.raw(" ").eol();
+    
+    const sortedHabitats = [...habitats].filter(isDefined).sort((a, b) => textFileStringCompare(a.internalName, b.internalName));
 
-    habitats.forEach(habitat => {
+    sortedHabitats.forEach(habitat => {
         habitat?.writeToWorldTextFile(textFileWriter);
     })
     textFileWriter.close();
 }
 
-export function writeHabitatsToJsonFiles(outputDirectory: string, habitats: (Habitat | null)[], savingContext: SavingContext) {
-    const habitatDirectory = path.join(outputDirectory, "habitats");
-    rmSync(habitatDirectory, { recursive: true, force: true });
-    mkdirSync(habitatDirectory, { recursive: true });
-
-    habitats.forEach(habitat => {
-        habitat?.writeToJsonFile(habitatDirectory, savingContext)
-    });
-    
-    const habitatIds = habitats.map(habitat => habitat?.referenceId ?? null);
-    writeFileSync(path.join(habitatDirectory, "index.json"), JSON.stringify(habitatIds, undefined, 4));
+export function writeHabitatsToJsonFiles(outputDirectory: string, habitats: Nullable<Habitat>[], savingContext: SavingContext) {
+    writeDataEntriesToJson(outputDirectory, "habitats", habitats, HabitatJsonMapping, savingContext);
 }

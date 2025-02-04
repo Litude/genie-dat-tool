@@ -1,47 +1,74 @@
 import BufferReader from "../BufferReader";
 import { LoadingContext } from "./LoadingContext";
 import { SavingContext } from "./SavingContext";
-import { asInt16, asUInt8, ColorId, Int16, PaletteIndex, ResourceId } from "./Types";
+import { asResourceId, asTribeResourceId, ColorId, ColorMapTypeValue, PaletteIndex, PaletteIndexSchema, ResourceId, ResourceIdSchema, TribeResourceId } from "./Types";
+import { asInt16, asInt32, asUInt8, Int16 } from "../ts/base-types";
 import { TextFileWriter } from "../textfile/TextFileWriter";
 import { TextFileNames, textFileStringCompare } from "../textfile/TextFile";
 import { onParsingError } from "./Error";
 import path from "path";
-import { mkdirSync, rmSync, writeFileSync } from "fs";
 import { createReferenceIdFromString } from "../json/reference-id";
-import { createJson } from "../json/json-serialization";
+import { JsonFieldMapping, writeDataEntriesToJson, writeDataEntryToJsonFile } from "../json/json-serialization";
+import { z } from "zod";
 
-const enum ColormapType {
-    Default = 0,
-    PlayerColor = 1,
-    Shadow = 2
+enum ColormapType {
+    Default = asUInt8<ColorMapTypeValue>(0),
+    PlayerColor = asUInt8<ColorMapTypeValue>(1),
+    Shadow = asUInt8<ColorMapTypeValue>(2)
 }
 
+const ColormapSchema = z.object({
+    internalName: z.string(),
+    resourceFilename: z.string(),
+    resourceId: ResourceIdSchema,
+    minimapColor: PaletteIndexSchema,
+    type: z.nativeEnum(ColormapType),
+})
+
+type ColormapJson = z.infer<typeof ColormapSchema>;
+
+export const ColormapJsonMapping: JsonFieldMapping<Colormap, ColormapJson>[] = [
+    { field: "internalName" },
+    { field: "resourceFilename" },
+    { field: "resourceId" },
+    { field: "minimapColor" },
+    { field: "type" }
+];
+
 export class Colormap {
+    internalName: string = "";
     referenceId: string = "";
     id: ColorId = asInt16(0);
     resourceFilename: string = ""; // includes extension
-    resourceId: ResourceId<Int16> = asInt16(-1);
-    minimapColor: PaletteIndex = asUInt8(0);
+    resourceId: ResourceId = asInt32<ResourceId>(-1);
+    minimapColor: PaletteIndex = asUInt8<PaletteIndex>(0);
     type: ColormapType = ColormapType.Default;
 
     readFromBuffer(buffer: BufferReader, id: Int16, loadingContext: LoadingContext) {
         this.resourceFilename = buffer.readFixedSizeString(30);
-        this.referenceId = createReferenceIdFromString(this.resourceFilename);
+        this.internalName = this.resourceFilename.endsWith(".col") ? this.resourceFilename.slice(0, -4) : this.resourceFilename;
+        this.referenceId = createReferenceIdFromString(this.internalName);
         this.id = buffer.readInt16();
         if (this.id !== id) {
             onParsingError(`Mismatch between stored Colormap id ${this.id} and ordering ${id}, data might be corrupt!`, loadingContext);
         }
-        this.resourceId = buffer.readInt16();
-        this.minimapColor = buffer.readUInt8();
+        this.resourceId = asResourceId(buffer.readInt16<TribeResourceId>());
+        this.minimapColor = buffer.readUInt8<PaletteIndex>();
         this.type = buffer.readUInt8();
+    }
+    
+    appendToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext) {
+        textFileWriter
+            .integer(this.id)
+            .integer(asTribeResourceId(this.resourceId))
+            .filename(this.resourceFilename)
+            .integer(this.minimapColor)
+            .integer(this.type)
+            .eol()
     }
 
     writeToJsonFile(directory: string, savingContext: SavingContext) {
-        writeFileSync(path.join(directory, `${this.referenceId}.json`), createJson({
-            ...this,
-            id: undefined,
-            referenceId: undefined,
-        }));
+        writeDataEntryToJsonFile(directory, this, ColormapJsonMapping, savingContext);
     }
 
     toString() {
@@ -49,7 +76,7 @@ export class Colormap {
     }
 }
 
-export function readColormaps(buffer: BufferReader, loadingContext: LoadingContext) {
+export function readColormapsFromDatFile(buffer: BufferReader, loadingContext: LoadingContext) {
     const result: Colormap[] = [];
     const colormapCount = buffer.readInt16();
     for (let i = 0; i < colormapCount; ++i) {
@@ -67,26 +94,11 @@ export function writeColormapsToWorldTextFile(outputDirectory: string, colormaps
 
     const sortedEntries = [...colormaps].sort((a, b) => textFileStringCompare(a.resourceFilename, b.resourceFilename));
     sortedEntries.forEach(currentEntry => {
-        textFileWriter
-            .integer(currentEntry.id)
-            .integer(currentEntry.resourceId)
-            .filename(currentEntry.resourceFilename)
-            .integer(currentEntry.minimapColor)
-            .integer(currentEntry.type)
-            .eol()
+        currentEntry.appendToTextFile(textFileWriter, savingContext);
     });
     textFileWriter.close();
 }
 
 export function writeColormapsToJsonFiles(outputDirectory: string, colormaps: Colormap[], savingContext: SavingContext) {
-    const colormapDirectory = path.join(outputDirectory, "colormaps");
-    rmSync(colormapDirectory, { recursive: true, force: true });
-    mkdirSync(colormapDirectory, { recursive: true });
-
-    colormaps.forEach(colormap => {
-        colormap.writeToJsonFile(colormapDirectory, savingContext);
-    });
-
-    const colormapIds = colormaps.map(colormap => colormap.referenceId);
-    writeFileSync(path.join(colormapDirectory, "index.json"), JSON.stringify(colormapIds, undefined, 4));
+    writeDataEntriesToJson(outputDirectory, "colormaps", colormaps, ColormapJsonMapping, savingContext);
 }

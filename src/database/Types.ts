@@ -2,80 +2,21 @@
 // export type Integer = number;
 // export type Float = number;
 
-// Size restricted numeric types
-export type Int8 = number & { __brand: "Int8" };
-export type Int16 = number & { __brand: "Int16" };
-export type Int32 = number & { __brand: "Int32" };
+import { z } from "zod";
+import { asInt16, asInt32, Int16, Int32, Int32Schema, UInt8, UInt8Schema } from "../ts/base-types";
 
-export function asInt8(value: number) {
-    return createBrandedInteger(value, -128, 127, "Int8");
-}
-export function asInt16(value: number) {
-    return createBrandedInteger(value, -32768, 32767, "Int16");
-}
-export function asInt32(value: number) {
-    return createBrandedInteger(value, -2147483648, 2147483647, "Int32");
-}
-
-export type UInt8 = number & { __brand: "UInt8" };
-export type UInt16 = number & { __brand: "UInt16" };
-export type UInt32 = number & { __brand: "UInt32" };
-
-export function asUInt8(value: number) {
-    return createBrandedInteger(value, 0, 255, "UInt8");
-}
-export function asUInt16(value: number) {
-    return createBrandedInteger(value, 0, 65535, "UInt16");
-}
-export function asUInt32(value: number) {
-    return createBrandedInteger(value, 0, 4294967295, "UInt32");
-}
-
-export type Float32 = number & { __brand: "Float32" };
-export type Float64 = number & { __brand: "Float64" };
-
-export function asFloat32(value: number) {
-    if (typeof value !== "number" || !Number.isFinite(value)) {
-        throw new Error(`Value ${value} is not a valid finite number for Float32`);
-    }
-    const float32Value = Math.fround(value);
-    if (!Number.isFinite(float32Value)) {
-      throw new Error(`Value ${value} is out of Float32 range`);
-    }
-    return float32Value as Float32;
-}
-export function asFloat64(value: number) {
-    if (typeof value !== "number" || !Number.isFinite(value)) {
-        throw new Error(`Value ${value} is not a valid finite number for Float64`);
-    }
-    return value as Float64;
-}
-
-export type Bool8 = boolean & { __brand: "Bool8" };
-export type Bool16 = boolean & { __brand: "Bool16" };
-export type Bool32 = boolean & { __brand: "Bool32" };
-
-export function asBool8(value: boolean) {
-    return value as Bool8;
-}
-export function asBool16(value: boolean) {
-    return value as Bool16;
-}
-export function asBool32(value: boolean) {
-    return value as Bool32;
-}
-
-export type Pointer = number & { __brand: "Pointer" };
-export const NullPointer = 0 as Pointer;
 
 export type Percentage<T> = T;
+
+// TODO: Move the stuff above and below to a separate file...
 
 // Special types (Most of these can't have size restricted types because the game is very inconsistent in what underlying type is used)
 export type PrototypeId<T> = T;
 export type ObjectId<T> = T;
 export type ColorId = Int16;
-export type PaletteIndex = UInt8; // are these always uint8?
-export type ResourceId<T> = T;
+export type PaletteIndex = UInt8 & { __type: "PaletteIndex" };
+export type TribeResourceId = Int16 & { __type: "TribeResourceId" };
+export type ResourceId = Int32 & { __type: "ResourceId" };
 export type TerrainId<T> = T;
 export type BorderId<T> = T;
 export type SoundEffectId<T> = T;
@@ -93,14 +34,18 @@ export type ArchitectureStyleId<T> = T;
 export type AgeId<T> = T;
 export type TechnologyType = Int16;
 
-function createBrandedInteger<T extends string>(
-    value: number,
-    min: number,
-    max: number,
-    brand: T
-  ): number & { __brand: T } {
-    if (!Number.isInteger(value) || value < min || value > max) {
-      throw new Error(`Value ${value} is not a valid ${brand}`);
-    }
-    return value as number & { __brand: T };
-  }
+export type ColorMapTypeValue = UInt8 & { __type: "ColorMapTypeValue" };
+
+// Legacy 16-bit resource ids seem to have used 0 to indicate no resource, while final 32-bit resource ids use -1
+// These updates the values to match final ids
+export function asResourceId(legacyResourceId: TribeResourceId): ResourceId {
+    return asInt32<ResourceId>(legacyResourceId === 0 ? -1 : legacyResourceId);
+}
+export function asTribeResourceId(resourceId: ResourceId): TribeResourceId {
+    return asInt16<TribeResourceId>(resourceId === -1 ? 0 : resourceId);
+}
+
+export const PaletteIndexSchema: z.Schema<PaletteIndex> = UInt8Schema as any;
+export const ResourceIdSchema: z.Schema<ResourceId> = Int32Schema as any;
+
+export const ReferenceStringSchema = z.union([z.string(), z.number(), z.null()]);

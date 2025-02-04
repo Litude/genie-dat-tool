@@ -1,5 +1,4 @@
 import { Logger } from "../Logger";
-import { LoadingContext } from "./LoadingContext";
 
 export class ParsingError extends Error {
     constructor(message: string) {

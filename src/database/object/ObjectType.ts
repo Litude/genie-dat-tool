@@ -1,4 +1,4 @@
-import { asUInt8, UInt8 } from "../Types";
+import { asUInt8, UInt8 } from "../../ts/base-types";
 
 export type ObjectType = UInt8;
 

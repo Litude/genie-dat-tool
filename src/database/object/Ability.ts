@@ -9,7 +9,8 @@ import { LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
 import { SoundEffect } from "../SoundEffect";
 import { Sprite } from "../Sprite";
-import { AbilityId, ActionId, asBool8, asFloat32, asInt16, asUInt8, AttributeId, Bool8, Float32, Int16, PrototypeId, SoundEffectId, SpriteId, TerrainId, UInt8 } from "../Types";
+import { asBool8, asFloat32, asInt16, asUInt8, Bool8, Float32, Int16, UInt8 } from "../../ts/base-types";
+import { AbilityId, ActionId, AttributeId, PrototypeId, SoundEffectId, SpriteId, TerrainId } from "../Types";
 import { ObjectClass, ObjectClasses } from "./ObjectClass";
 import { SceneryObjectPrototype } from "./SceneryObjectPrototype";
 

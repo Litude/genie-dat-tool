@@ -1,8 +1,9 @@
 import semver from "semver";
 import { z } from "zod";
 import { SoundEffect } from "../SoundEffect";
-import { asBool8, asFloat32, asInt16, asInt32, asUInt8, Bool8, Float32, Int16, Int32, NullPointer, PaletteIndex, Pointer, ResourceId, SoundEffectId, UInt8 } from "../Types";
-import { float32Schema, int16Schema, int32Schema, uint8Schema, JsonFieldMapping, transformObjectToJson } from "../../json/json-serialization";
+import { PaletteIndex, PaletteIndexSchema, ResourceId, ResourceIdSchema, SoundEffectId } from "../Types";
+import { asBool8, asFloat32, asInt16, asInt32, asUInt8, Bool8, Bool8Schema, Float32, Float32Schema, Int16, Int16Schema, Int32, Int32Schema, NullPointer, Pointer, UInt8, UInt8Schema } from "../../ts/base-types";
+import { JsonFieldMapping, transformObjectToJson } from "../../json/json-serialization";
 import { LoadingContext } from "../LoadingContext";
 import BufferReader from "../../BufferReader";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
@@ -51,11 +52,11 @@ export class BaseTerrainAnimation {
 }
 
 export const BaseTerrainAnimationSchema = z.object({
-    animated: z.boolean().default(false),
-    frameCount: int16Schema.default(asInt16(0)),
-    replayFrameDelay: int16Schema.default(asInt16(0)),
-    frameDelay: float32Schema.default(asFloat32(0)),
-    replayDelay: float32Schema.default(asFloat32(0)),
+    animated: Bool8Schema.default(asBool8(false)),
+    frameCount: Int16Schema.default(asInt16(0)),
+    replayFrameDelay: Int16Schema.default(asInt16(0)),
+    frameDelay: Float32Schema.default(asFloat32(0)),
+    replayDelay: Float32Schema.default(asFloat32(0)),
 })
 
 export type BaseTerrainAnimationJson = z.infer<typeof BaseTerrainAnimationSchema>;
@@ -75,13 +76,13 @@ export class BaseTerrainTile {
     random: Bool8 = asBool8(false);
     internalName: string = "";
     resourceFilename: string = "";
-    resourceId: ResourceId<Int32> = asInt32(-1);
+    resourceId: ResourceId = asInt32<ResourceId>(-1);
     graphicPointer: Pointer = NullPointer;
     soundEffectId: SoundEffectId<Int32> = asInt32(-1);
     soundEffect: SoundEffect | null = null;
-    minimapColor1: PaletteIndex = asUInt8(0);
-    minimapColor2: PaletteIndex = asUInt8(0);
-    minimapColor3: PaletteIndex = asUInt8(0);
+    minimapColor1: PaletteIndex = asUInt8<PaletteIndex>(0);
+    minimapColor2: PaletteIndex = asUInt8<PaletteIndex>(0);
+    minimapColor3: PaletteIndex = asUInt8<PaletteIndex>(0);
     animation: BaseTerrainAnimation = new BaseTerrainAnimation();    
     drawCount: UInt8 = asUInt8(0);
 
@@ -102,15 +103,15 @@ export class BaseTerrainTile {
 }
 
 export const BaseTerrainTileSchema = z.object({
-    enabled: z.boolean().optional().default(true).describe("Whether this is a valid entry. Should always be true, else the entry is ignored."),
-    random: z.boolean().optional().default(false).describe("Whether tiles of the terrain are randomized."),
+    enabled: Bool8Schema.optional().default(asBool8(true)).describe("Whether this is a valid entry. Should always be true, else the entry is ignored."),
+    random: Bool8Schema.optional().default(asBool8(false)).describe("Whether tiles of the terrain are randomized."),
     internalName: z.string().max(13),
     resourceFilename: z.string().max(13),
-    resourceId: int32Schema.optional().default(asInt32(-1)),
-    soundEffectId: int32Schema.optional().default(asInt32(-1)),
-    minimapColor1: uint8Schema,
-    minimapColor2: uint8Schema,
-    minimapColor3: uint8Schema,
+    resourceId: ResourceIdSchema.optional().default(asInt32<ResourceId>(-1)),
+    soundEffectId: Int32Schema.optional().default(asInt32(-1)),
+    minimapColor1: PaletteIndexSchema,
+    minimapColor2: PaletteIndexSchema,
+    minimapColor3: PaletteIndexSchema,
     animation: BaseTerrainAnimationSchema.default({}),
 })
 
@@ -136,9 +137,9 @@ export interface BaseTerrainFrameMap {
 }
 
 export const BaseTerrainFrameMapSchema = z.object({
-    frameCount: int16Schema,
-    animationFrames: int16Schema,
-    frameIndex: int16Schema.optional()
+    frameCount: Int16Schema,
+    animationFrames: Int16Schema,
+    frameIndex: Int16Schema.optional()
 });
 
 export type BaseTerrainFrameMapJson = z.infer<typeof BaseTerrainFrameMapSchema>;

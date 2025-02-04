@@ -4,7 +4,7 @@ import { TextFileNames } from "../../textfile/TextFile";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
-import { asInt16, Float32, Int16, UInt8 } from "../Types";
+import { asInt16, Float32, Int16, UInt8 } from "../../ts/base-types";
 import path from "path";
 import { clearDirectory } from "../../files/file-utils";
 import { createReferenceIdFromString } from "../../json/reference-id";
@@ -12,7 +12,6 @@ import { isDefined, Nullable } from "../../ts/ts-utils";
 import { writeFileSync } from "fs";
 import { Civilization } from "../Civilization";
 import { Technology } from "./Technology";
-import { number } from "yargs";
 import { createJson, writeJsonFileIndex } from "../../json/json-serialization";
 
 interface EffectCommand {

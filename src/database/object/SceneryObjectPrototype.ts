@@ -5,7 +5,8 @@ import { Logger } from "../../Logger";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
-import { asBool8, asFloat32, asInt16, asInt32, asUInt8, AttributeId, Bool8, Float32, HabitatId, Int16, Int32, PaletteIndex, PrototypeId, SoundEffectId, SpriteId, StringId, TerrainId, UInt8 } from "../Types";
+import { AttributeId, HabitatId, PaletteIndex, PrototypeId, SoundEffectId, SpriteId, StringId, TerrainId } from "../Types";
+import { asBool8, asFloat32, asInt16, asInt32, asUInt8, Bool8, Float32, Int16, Int32, UInt8 } from "../../ts/base-types";
 import { ObjectClasses } from "./ObjectClass";
 import { ObjectType, ObjectTypes } from "./ObjectType";
 import { createReferenceString, createReferenceIdFromString } from '../../json/reference-id';
@@ -197,7 +198,7 @@ export class SceneryObjectPrototype {
     minimapMode: UInt8 = asUInt8(0);
     interfaceType: UInt8 = asUInt8(0);
     multipleAttributeMode: Float32 = asFloat32(0);
-    minimapColor: PaletteIndex = asUInt8(0);
+    minimapColor: PaletteIndex = asUInt8<PaletteIndex>(0);
     helpDialogStringId: StringId<Int32> = asInt32(-1); // The game actually only supports 16-bit string indexes, higher values will overflow
     helpPageStringId: StringId<Int32> = asInt32(-1);
     hotkeyStringId: StringId<Int32> = asInt32(-1);
@@ -208,7 +209,7 @@ export class SceneryObjectPrototype {
     resourceGroup: UInt8 = asUInt8(0);
 
     selectionOutlineFlags: UInt8 = asUInt8(0); // 0x1 = Always show outline in editor; 0x2 = Don't show health bar
-    editorSelectionOutlineColor: PaletteIndex = asUInt8(0);
+    editorSelectionOutlineColor: PaletteIndex = asUInt8<PaletteIndex>(0);
     selectionOutlineRadius: Point3D<Float32> = {
         x: asFloat32(0),
         y: asFloat32(0),
@@ -301,7 +302,7 @@ export class SceneryObjectPrototype {
         this.interfaceType = buffer.readUInt8();
 
         this.multipleAttributeMode = buffer.readFloat32();
-        this.minimapColor = buffer.readUInt8();
+        this.minimapColor = buffer.readUInt8<PaletteIndex>();
 
         if (semver.gte(loadingContext.version.numbering, "2.7.0")) {
             this.helpDialogStringId = buffer.readInt32();
@@ -325,7 +326,7 @@ export class SceneryObjectPrototype {
 
         if (semver.gte(loadingContext.version.numbering, "3.3.0")) {
             this.selectionOutlineFlags = buffer.readUInt8();
-            this.editorSelectionOutlineColor = buffer.readUInt8();
+            this.editorSelectionOutlineColor = buffer.readUInt8<PaletteIndex>();
             this.selectionOutlineRadius = {
                 x: buffer.readFloat32(),
                 y: buffer.readFloat32(),
@@ -334,7 +335,7 @@ export class SceneryObjectPrototype {
         }
         else {
             this.selectionOutlineFlags = asUInt8(0);
-            this.editorSelectionOutlineColor = asUInt8(0);
+            this.editorSelectionOutlineColor = asUInt8<PaletteIndex>(0);
             this.selectionOutlineRadius = {
                 x: this.collisionRadius.x,
                 y: this.collisionRadius.y,

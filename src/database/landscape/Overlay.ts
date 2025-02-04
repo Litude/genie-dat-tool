@@ -2,27 +2,27 @@ import semver from 'semver';
 import BufferReader from "../../BufferReader";
 import { TextFileNames, textFileStringCompare } from "../../textfile/TextFile";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
-import { isDefined, Nullable, pick } from "../../ts/ts-utils";
+import { isDefined, Nullable } from "../../ts/ts-utils";
 import { getDataEntry } from "../../util";
 import { LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
 import { SoundEffect } from "../SoundEffect";
-import { asBool8, asInt16, asInt32, asUInt8, Bool8, Int16, UInt8 } from "../Types";
+import { PaletteIndex, ResourceId } from "../Types";
+import { asBool8, asInt16, asInt32, asUInt8, Bool8, Bool8Schema, Int16, Int16Schema, UInt8 } from "../../ts/base-types";
 import { onParsingError } from '../Error';
 import path from 'path';
-import { clearDirectory } from '../../files/file-utils';
 import {  } from '../../json/reference-id';
 import { BaseTerrainAnimation, BaseTerrainFrameMap, BaseTerrainFrameMapJsonMapping, BaseTerrainJsonMapping, BaseTerrainTile, BaseTerrainTileSchema } from './BaseTerrainTile';
-import { int16Schema, JsonFieldMapping, transformObjectToJson, writeDataEntryToJsonFile, writeDataEntriesToJson, writeJsonFileIndex } from '../../json/json-serialization';
+import { JsonFieldMapping, transformObjectToJson, writeDataEntryToJsonFile, writeDataEntriesToJson } from '../../json/json-serialization';
 import { z } from 'zod';
 
 const OverlaySchema = BaseTerrainTileSchema.merge(z.object({
     frameMaps: z.array(z.array(z.object({
-        frameCount: int16Schema,
-        animationFrames: int16Schema,
-        frameIndex: int16Schema.optional()
+        frameCount: Int16Schema,
+        animationFrames: Int16Schema,
+        frameIndex: Int16Schema.optional()
     })).length(16)).length(19),
-    drawTerrain: z.boolean(),
+    drawTerrain: Bool8Schema,
 }));
 
 type OverlayJson = z.infer<typeof OverlaySchema>;
@@ -47,10 +47,10 @@ export class Overlay extends BaseTerrainTile {
         this.referenceId = this.internalName;
         this.resourceFilename = buffer.readFixedSizeString(13);
         if (semver.gte(loadingContext.version.numbering, "2.0.0")) {
-            this.resourceId = buffer.readInt32();
+            this.resourceId = buffer.readInt32<ResourceId>();
         }
         else {
-            this.resourceId = asInt32(-1);
+            this.resourceId = asInt32<ResourceId>(-1);
         }
 
         // NOTE: Unlike terrains and borders, here the sound effect comes first and then the graphic
@@ -58,9 +58,9 @@ export class Overlay extends BaseTerrainTile {
         this.soundEffect = getDataEntry(soundEffects, this.soundEffectId, "SoundEffect", this.referenceId, loadingContext);
         this.graphicPointer = buffer.readPointer();
 
-        this.minimapColor1 = buffer.readUInt8();
-        this.minimapColor2 = buffer.readUInt8();
-        this.minimapColor3 = buffer.readUInt8();
+        this.minimapColor1 = buffer.readUInt8<PaletteIndex>();
+        this.minimapColor2 = buffer.readUInt8<PaletteIndex>();
+        this.minimapColor3 = buffer.readUInt8<PaletteIndex>();
 
         this.animation = BaseTerrainAnimation.readFromBuffer(buffer, loadingContext);
 
