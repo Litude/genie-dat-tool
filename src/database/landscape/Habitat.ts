@@ -1,6 +1,6 @@
 import JSON5 from 'json5';
 import BufferReader from "../../BufferReader";
-import { LoadingContext } from "../LoadingContext";
+import { JsonLoadingContext, LoadingContext } from "../LoadingContext";
 import { ReferenceStringSchema, TerrainId } from "../Types";
 import { Terrain } from './Terrain';
 import { SavingContext } from "../SavingContext";
@@ -9,12 +9,12 @@ import { TextFileNames, textFileStringCompare } from "../../textfile/TextFile";
 import { getDataEntry } from "../../util";
 import path from "path";
 import { PathLike, readFileSync } from "fs";
-import { createReferenceIdFromString, createReferenceString } from "../../json/reference-id";
-import { JsonFieldMapping, transformObjectToJson, writeDataEntriesToJson, writeDataEntryToJsonFile } from "../../json/json-serialization";
+import { createReferenceIdFromString, createReferenceString, getIdFromReferenceString } from "../../json/reference-id";
+import { applyJsonFieldsToObject, JsonFieldMapping, readJsonFileIndex, transformObjectToJson, writeDataEntriesToJson, writeDataEntryToJsonFile } from "../../json/json-serialization";
 import { Logger } from '../../Logger';
 import { z } from 'zod';
 import { isDefined, Nullable } from '../../ts/ts-utils';
-import { asInt16, Float32, Float32Schema, Int16 } from '../../ts/base-types';
+import { asFloat32, asInt16, Float32, Float32Schema, Int16 } from '../../ts/base-types';
 
 interface TerrainData {
     terrainId: TerrainId<Int16>;
@@ -44,7 +44,19 @@ export const HabitatJsonMapping: JsonFieldMapping<Habitat, HabitatJson>[] = [
     { field: "internalName" },
     { jsonField: "terrainData", toJson: (obj, savingContext) => obj.terrainData
         .map(terrainEntry => transformObjectToJson(terrainEntry, TerrainDataJsonMapping, savingContext))
-        .filter(entry => entry.multiplier !== 0) }
+        .filter(entry => entry.multiplier !== 0) },
+    { objectField: "terrainData", fromJson: (json, obj, loadingContext) => {
+        const terrainData: TerrainData[] = Array.from({ length: loadingContext.terrainCount }).map((entry, index) => ({
+            terrainId: asInt16(index),
+            terrain: null,
+            multiplier: asFloat32(0),
+        }));
+        const terrains = json.terrainData.reduce((acc, cur) => ({ ...acc, [getIdFromReferenceString("Terrain", obj.referenceId, cur.terrainId, loadingContext.dataIds.terrainIds)]: cur.multiplier }), {} as Record<number, number>);
+        terrainData.forEach((entry, index) => {
+            entry.multiplier = asFloat32(terrains[index] ?? 0);
+        });
+        return terrainData;
+    }}
 ];
 
 export class Habitat {
@@ -69,13 +81,19 @@ export class Habitat {
         }
     }
 
+    readFromJsonFile(jsonFile: HabitatJson, id: Int16, referenceId: string, loadingContext: JsonLoadingContext) {
+        this.id = id;
+        this.referenceId = referenceId;
+        applyJsonFieldsToObject(jsonFile, this, HabitatJsonMapping, loadingContext)
+    }
+
     linkTerrains(terrains: (Terrain | null)[], loadingContext: LoadingContext) {
         for (let i = 0; i < this.terrainData.length; ++i) {
             this.terrainData[i].terrain = getDataEntry(terrains, this.terrainData[i].terrainId, "Terrain", this.referenceId, loadingContext);
         }
     }
 
-    writeToWorldTextFile(file: TextFileWriter) {
+    appendToTextFile(file: TextFileWriter) {
         // These must be sorted alphabetically
         const sortedTerrainData = [...this.terrainData].sort((a, b) => {
             if (a.terrain && b.terrain) {
@@ -154,6 +172,23 @@ export function readHabitatsFromDatFile(buffer: BufferReader, habitatNames: stri
     return habitats;
 }
 
+export function readHabitatsFromJsonFiles(inputDirectory: string, terrainCount: number, habitatIds: (string | null)[], loadingContext: JsonLoadingContext) {
+    const habitatDirectory = path.join(inputDirectory, 'habitats');
+    const habitats: Nullable<Habitat>[] = [];
+    habitatIds.forEach((habitatId, index) => {
+        if (habitatId !== null) {
+            const habitatJson = HabitatSchema.parse(JSON5.parse(readFileSync(path.join(habitatDirectory, `${habitatId}.json`)).toString('utf8')));
+            const habitat = new Habitat();
+            habitat.readFromJsonFile(habitatJson, asInt16(index), habitatId, loadingContext);
+            habitats.push(habitat);
+        }
+        else {
+            habitats.push(null);
+        }
+    })
+    return habitats;
+}
+
 export function writeHabitatsToWorldTextFile(outputDirectory: string, habitats: Nullable<Habitat>[], terrainCount: number, savingContext: SavingContext) {
     const textFileWriter = new TextFileWriter(path.join(outputDirectory, TextFileNames.Habitats));
 
@@ -164,11 +199,15 @@ export function writeHabitatsToWorldTextFile(outputDirectory: string, habitats: 
     const sortedHabitats = [...habitats].filter(isDefined).sort((a, b) => textFileStringCompare(a.internalName, b.internalName));
 
     sortedHabitats.forEach(habitat => {
-        habitat?.writeToWorldTextFile(textFileWriter);
+        habitat?.appendToTextFile(textFileWriter);
     })
     textFileWriter.close();
 }
 
 export function writeHabitatsToJsonFiles(outputDirectory: string, habitats: Nullable<Habitat>[], savingContext: SavingContext) {
     writeDataEntriesToJson(outputDirectory, "habitats", habitats, HabitatJsonMapping, savingContext);
+}
+
+export function readHabitatIdsFromJsonIndex(inputDirectory: string) {
+    return readJsonFileIndex(path.join(inputDirectory, "habitats"));
 }

@@ -48,7 +48,7 @@ export const SoundEffectJsonMapping: JsonFieldMapping<SoundEffect, SoundEffectJs
 
 export class SoundEffect {
     internalName: string = "";
-    referenceId: string = ""; // TODO: Pick this from the first sound effect filename instead and ensure it is unique by appending a number or so...
+    referenceId: string = "";
     id: Int16 = asInt16(-1);
     playDelay: Int16 = asInt16(0);
     samples: SoundSample[] = [];

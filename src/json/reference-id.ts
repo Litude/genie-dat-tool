@@ -59,6 +59,29 @@ export function createReferenceString(type: ReferenceType, input: string | undef
     }
 }
 
+export function getIdFromReferenceString(type: ReferenceType, referencingResource: string, input: string | number | null, referenceMap: Record<string, number>) {
+    if (input === null) {
+        return (type === "Border" || type === "Overlay") ? 0 : -1;
+    }
+    else if (typeof input === "number") {
+        return input;
+    }
+    else {
+        const [prefix, value] = input.split('$');
+        const actualPrefix = `ref${getShortRefName(type)}`;
+        if (prefix !== actualPrefix) {
+            throw new Error(`Resource ${referencingResource} has invalud data reference ${input}, expected a ${actualPrefix} prefix!`)
+        }
+        else {
+            const result: number | undefined = referenceMap[value];
+            if (result === undefined) {
+                throw new Error(`Resource ${referencingResource} references ${input} but no such entry exists!`)
+            }
+            return result;
+        }
+    }
+}
+
 function ensureEntryReferenceIdUniqueness(data: { referenceId: string }, usedIds: Map<string, (typeof data)[]>) {
     const currentEntries = usedIds.get(data.referenceId)
     if (currentEntries === undefined) {

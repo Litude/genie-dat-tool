@@ -1,10 +1,12 @@
+import JSON5 from "json5";
 import semver from "semver";
-import { LoadingContext } from "../database/LoadingContext";
+import { JsonLoadingContext, LoadingContext } from "../database/LoadingContext";
 import { SavingContext } from "../database/SavingContext";
 import { Nullable } from "../ts/ts-utils";
 import path from "path";
 import { clearDirectory } from "../files/file-utils";
-import { writeFileSync } from "fs";
+import { readFileSync, writeFileSync } from "fs";
+import { z } from "zod";
 
 // TODO: Is there a risk that we get some other value than what it was originally when reading back these values?
 // Need to read them back using Math.fround and probably check the data to see if errors accumulate..
@@ -19,6 +21,15 @@ export function createJson(value: any) {
 export function writeJsonFileIndex(outputDirectory: string, entries: ({ referenceId: string} | null)[]) {
     const referenceIds = entries.map(entry => entry?.referenceId ?? null);
     writeFileSync(path.join(outputDirectory, "index.json"), createJson(referenceIds));
+}
+
+export function readJsonFileIndex(inputDirectory: string) {
+    const rawContents = readFileSync(path.join(inputDirectory, "index.json")).toString('latin1');
+    return z.array(z.union([z.string(), z.null()])).parse(JSON5.parse(rawContents));
+}
+
+export function createMappingFromJsonFileIndex(input: (string | null)[]) {
+    return input.reduce((acc, cur, index) => ({ ...acc, ...(cur ? { [cur]: index } : {}) }), {} as Record<string, number>)
 }
 
 type SimpleFieldMapping<ObjectType, JsonType> = {
@@ -45,8 +56,9 @@ type FromJsonMapping<ObjectType, JsonType> = {
     jsonField?: never;
     toJson?: never;
     fromJson: (
-        obj: JsonType, 
-        loadingContext: LoadingContext
+        json: JsonType,
+        obj: ObjectType, 
+        loadingContext: JsonLoadingContext
     ) => JsonType extends { [K in keyof JsonType]: any } 
         ? (FromJsonMapping<ObjectType, JsonType> extends { objectField: infer OF }
             ? OF extends keyof ObjectType
@@ -105,6 +117,23 @@ export function transformObjectToJson<ObjectType extends object, JsonType extend
     return result;
 }
 
+export function applyJsonFieldsToObject<ObjectType extends object, JsonType extends object>(json: JsonType, object: ObjectType, mappings: JsonFieldMapping<ObjectType, JsonType>[], loadingContext: JsonLoadingContext): ObjectType {
+    for (const fieldMapping of mappings) {
+        if (
+            (!fieldMapping.versionFrom || semver.gte(loadingContext.version.numbering, fieldMapping.versionFrom)) &&
+            (!fieldMapping.versionTo || semver.lte(loadingContext.version.numbering, fieldMapping.versionTo)) &&
+            (!fieldMapping.fromCondition || fieldMapping.fromCondition(json, loadingContext))
+        ) {
+            if (fieldMapping.field) {
+                object[fieldMapping.field] = (json as any)[fieldMapping.field]
+            }
+            else if (fieldMapping.fromJson) {
+                object[fieldMapping.objectField] = fieldMapping.fromJson(json, object, loadingContext);
+            }
+        }
+    }
+    return object;
+}
 
 export function writeDataEntryToJsonFile<ObjectType extends { referenceId: string }, JsonType extends object>(directoryPath: string, object: ObjectType, mappings: JsonFieldMapping<ObjectType, JsonType>[], savingContext: SavingContext) {
     const transformedData = transformObjectToJson(object, mappings, savingContext);
@@ -123,7 +152,6 @@ export function writeDataEntriesToJson<ObjectType extends { referenceId: string 
     
     writeJsonFileIndex(directoryPath, objects);
 }
-
 
 // deprecated
 export type OldJsonFieldConfig<T> = {

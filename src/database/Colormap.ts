@@ -1,5 +1,6 @@
+import JSON5 from "json5";
 import BufferReader from "../BufferReader";
-import { LoadingContext } from "./LoadingContext";
+import { JsonLoadingContext, LoadingContext } from "./LoadingContext";
 import { SavingContext } from "./SavingContext";
 import { asResourceId, asTribeResourceId, ColorId, ColorMapTypeValue, PaletteIndex, PaletteIndexSchema, ResourceId, ResourceIdSchema, TribeResourceId } from "./Types";
 import { asInt16, asInt32, asUInt8, Int16 } from "../ts/base-types";
@@ -8,8 +9,9 @@ import { TextFileNames, textFileStringCompare } from "../textfile/TextFile";
 import { onParsingError } from "./Error";
 import path from "path";
 import { createReferenceIdFromString } from "../json/reference-id";
-import { JsonFieldMapping, writeDataEntriesToJson, writeDataEntryToJsonFile } from "../json/json-serialization";
+import { applyJsonFieldsToObject, JsonFieldMapping, readJsonFileIndex, writeDataEntriesToJson, writeDataEntryToJsonFile } from "../json/json-serialization";
 import { z } from "zod";
+import { readFileSync } from "fs";
 
 enum ColormapType {
     Default = asUInt8<ColorMapTypeValue>(0),
@@ -57,6 +59,12 @@ export class Colormap {
         this.type = buffer.readUInt8();
     }
     
+    readFromJsonFile(jsonFile: ColormapJson, id: Int16, referenceId: string, loadingContext: JsonLoadingContext) {
+        this.id = id;
+        this.referenceId = referenceId;
+        applyJsonFieldsToObject(jsonFile, this, ColormapJsonMapping, loadingContext)
+    }
+    
     appendToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext) {
         textFileWriter
             .integer(this.id)
@@ -87,6 +95,22 @@ export function readColormapsFromDatFile(buffer: BufferReader, loadingContext: L
     return result;
 }
 
+export function readColormapsFromJsonFiles(inputDirectory: string, colormapIds: (string | null)[], loadingContext: JsonLoadingContext) {
+    const colormapsDirectory = path.join(inputDirectory, 'colormaps');
+    const colormaps: Colormap[] = [];
+    colormapIds.forEach((colormapId, index) => {
+        if (colormapId === null) {
+            throw new Error(`Received null color map entry (index ${index}) while parsing JSON but such entries are not supported!`);
+        }
+        const colormapJson = ColormapSchema.parse(JSON5.parse(readFileSync(path.join(colormapsDirectory, `${colormapId}.json`)).toString('utf8')));
+        const colormap = new Colormap();
+        colormap.readFromJsonFile(colormapJson, asInt16(index), colormapId, loadingContext);
+        colormaps.push(colormap);
+
+    })
+    return colormaps;
+}
+
 export function writeColormapsToWorldTextFile(outputDirectory: string, colormaps: Colormap[], savingContext: SavingContext) {
     const textFileWriter = new TextFileWriter(path.join(outputDirectory, TextFileNames.Colormaps));
     textFileWriter.raw(colormaps.length).eol(); // Total colormap entries
@@ -101,4 +125,8 @@ export function writeColormapsToWorldTextFile(outputDirectory: string, colormaps
 
 export function writeColormapsToJsonFiles(outputDirectory: string, colormaps: Colormap[], savingContext: SavingContext) {
     writeDataEntriesToJson(outputDirectory, "colormaps", colormaps, ColormapJsonMapping, savingContext);
+}
+
+export function readColormapIdsFromJsonIndex(inputDirectory: string) {
+    return readJsonFileIndex(path.join(inputDirectory, "colormaps"));
 }

@@ -1,13 +1,14 @@
 import semver from "semver";
 import { z } from "zod";
 import { SoundEffect } from "../SoundEffect";
-import { PaletteIndex, PaletteIndexSchema, ResourceId, ResourceIdSchema, SoundEffectId } from "../Types";
+import { PaletteIndex, PaletteIndexSchema, ReferenceStringSchema, ResourceId, ResourceIdSchema, SoundEffectId } from "../Types";
 import { asBool8, asFloat32, asInt16, asInt32, asUInt8, Bool8, Bool8Schema, Float32, Float32Schema, Int16, Int16Schema, Int32, Int32Schema, NullPointer, Pointer, UInt8, UInt8Schema } from "../../ts/base-types";
 import { JsonFieldMapping, transformObjectToJson } from "../../json/json-serialization";
 import { LoadingContext } from "../LoadingContext";
 import BufferReader from "../../BufferReader";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { SavingContext } from "../SavingContext";
+import { createReferenceString } from "../../json/reference-id";
 
 export class BaseTerrainAnimation {
     animated: Bool8 = asBool8(false);
@@ -108,7 +109,7 @@ export const BaseTerrainTileSchema = z.object({
     internalName: z.string().max(13),
     resourceFilename: z.string().max(13),
     resourceId: ResourceIdSchema.optional().default(asInt32<ResourceId>(-1)),
-    soundEffectId: Int32Schema.optional().default(asInt32(-1)),
+    soundEffectId: ReferenceStringSchema,
     minimapColor1: PaletteIndexSchema,
     minimapColor2: PaletteIndexSchema,
     minimapColor3: PaletteIndexSchema,
@@ -123,7 +124,7 @@ export const BaseTerrainJsonMapping: JsonFieldMapping<BaseTerrainTile, BaseTerra
     { field: "internalName" },
     { field: "resourceFilename" },
     { field: "resourceId", versionFrom: "2.0.0" },
-    { field: "soundEffectId" },
+    { jsonField: "soundEffectId", toJson: (obj) => createReferenceString("SoundEffect", obj.soundEffect?.referenceId, obj.soundEffectId) },
     { field: "minimapColor1" },
     { field: "minimapColor2" },
     { field: "minimapColor3" },

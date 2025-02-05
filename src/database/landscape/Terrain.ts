@@ -16,7 +16,7 @@ import path from "path";
 import { createReferenceString, createReferenceIdFromString } from "../../json/reference-id";
 import { z } from "zod";
 import { BaseTerrainAnimation, BaseTerrainFrameMap, BaseTerrainFrameMapJsonMapping, BaseTerrainJsonMapping, BaseTerrainTile, BaseTerrainTileSchema } from "./BaseTerrainTile";
-import { JsonFieldMapping, transformObjectToJson, writeDataEntryToJsonFile, writeDataEntriesToJson } from "../../json/json-serialization";
+import { JsonFieldMapping, transformObjectToJson, writeDataEntryToJsonFile, writeDataEntriesToJson, readJsonFileIndex } from "../../json/json-serialization";
 
 interface TerrainObjectPlacement {
     prototypeId: PrototypeId<Int16>;
@@ -293,4 +293,8 @@ export function writeTerrainsToWorldTextFile(outputDirectory: string, terrains: 
 
 export function writeTerrainsToJsonFiles(outputDirectory: string, terrains: Nullable<Terrain>[], savingContext: SavingContext) {
     writeDataEntriesToJson(outputDirectory, "terrains", terrains, TerrainJsonMapping, savingContext);
+}
+
+export function readTerrainIdsFromJsonIndex(inputDirectory: string) {
+    return readJsonFileIndex(path.join(inputDirectory, "terrains"));
 }

@@ -128,4 +128,4 @@ function createBrandedInteger<T extends string>(
     .min(-2147483648, { message: "Number must be at least -2147483648 (int32)" })
     .max(2147483647, { message: "Number must be at most 2147483647 (int32)" }) as any;
   
-  export const Float32Schema: z.Schema<Float32> = z.number() as any;
+  export const Float32Schema: z.Schema<Float32> = z.number().transform((value) => Math.fround(value)) as any;

@@ -1,14 +1,14 @@
 import semver from "semver";
 import BufferReader from "../BufferReader";
 import { Border, readBordersFromDatFile, readAndVerifyBorderCountFromDatFile, writeBordersToJsonFiles, writeBordersToWorldTextFile } from "./landscape/Border";
-import { Colormap, readColormapsFromDatFile, writeColormapsToJsonFiles, writeColormapsToWorldTextFile } from "./Colormap";
-import { Habitat, readHabitatNamesFromJsonFile, readHabitatsFromDatFile, writeHabitatsToJsonFiles, writeHabitatsToWorldTextFile } from "./landscape/Habitat";
-import { LoadingContext } from "./LoadingContext";
+import { Colormap, readColormapIdsFromJsonIndex, readColormapsFromDatFile, readColormapsFromJsonFiles, writeColormapsToJsonFiles, writeColormapsToWorldTextFile } from "./Colormap";
+import { Habitat, readHabitatIdsFromJsonIndex, readHabitatNamesFromJsonFile, readHabitatsFromDatFile, readHabitatsFromJsonFiles, writeHabitatsToJsonFiles, writeHabitatsToWorldTextFile } from "./landscape/Habitat";
+import { JsonLoadingContext, LoadingContext } from "./LoadingContext";
 import { MapProperties, writeMapPropertiesToJsonFile } from "./landscape/MapProperties";
 import { RandomMap, readRandomMapData, writeRandomMapsToJsonFiles, writeRandomMapsToWorldTextFile } from "./landscape/RandomMap";
 import { readSoundEffectsFromDatFile, SoundEffect, writeSoundEffectsToJsonFiles, writeSoundEffectsToWorldTextFile } from "./SoundEffect";
 import { readSpritesFromDatFile, Sprite, writeSpritesToJsonFiles, writeSpritesToWorldTextFile } from "./Sprite";
-import { readAndVerifyTerrainCountFromDatFile, readTerrainsFromDatFile, Terrain, writeTerrainsToJsonFiles, writeTerrainsToWorldTextFile } from "./landscape/Terrain";
+import { readAndVerifyTerrainCountFromDatFile, readTerrainIdsFromJsonIndex, readTerrainsFromDatFile, Terrain, writeTerrainsToJsonFiles, writeTerrainsToWorldTextFile } from "./landscape/Terrain";
 import { createFallbackStateEffectReferenceIdsIfNeeded, readStateEffects, StateEffect, writeStateEffectsToJsonFiles, writeStateEffectsToWorldTextFile } from "./research/StateEffect";
 import { Civilization, writeCivilizationsToJsonFiles, writeCivilizationsToWorldTextFile } from "./Civilization";
 import { BaseObjectPrototype, createBaselineObjectPrototypes, readObjectPrototypesFromBuffer, writeObjectPrototypesToJsonFiles, writeObjectPrototypesToWorldTextFile } from "./object/ObjectPrototypes";
@@ -22,10 +22,12 @@ import { readTribeRandomMapData, TribeRandomMap, writeTribeRandomMapsToJsonFiles
 import { readTribeAiFromBuffer, TribeAi, writeTribeAiToJsonFiles, writeTribeAiToWorldTextFile } from "./TribeAi";
 import { onParsingError, ParsingError } from "./Error";
 import path from "path";
-import { Nullable } from "../ts/ts-utils";
+import { isDefined, Nullable } from "../ts/ts-utils";
 import { ensureReferenceIdUniqueness } from "../json/reference-id";
 import { clearDirectory } from "../files/file-utils";
 import { asInt16 } from "../ts/base-types";
+import { PathLike } from "fs";
+import { createMappingFromJsonFileIndex } from "../json/json-serialization";
 
 export class WorldDatabase {
     attributes: Attribute[] = [];
@@ -146,6 +148,32 @@ export class WorldDatabase {
                 throw err;
             }
         }
+    }
+
+    readFromJsonFiles(directory: string) {
+        // TODO: Do we need some kind of version file...?
+        // Should all index files be processed first?
+        const terrainIds = readTerrainIdsFromJsonIndex(directory);
+        const terrainCount = terrainIds.filter(isDefined).length;
+        const habitatIds = readHabitatIdsFromJsonIndex(directory);
+        const loadingContext: JsonLoadingContext = {
+            version: {
+                numbering: "2.7.0",
+            },
+            abortOnError: true,
+            cleanedData: false,
+            terrainCount,
+            dataIds: {
+                terrainIds: createMappingFromJsonFileIndex(terrainIds),
+                habitatIds: createMappingFromJsonFileIndex(habitatIds),
+            }
+        }
+        this.habitats = readHabitatsFromJsonFiles(directory, terrainCount, habitatIds, loadingContext);
+
+        const colormapIds = readColormapIdsFromJsonIndex(directory);
+        this.colormaps = readColormapsFromJsonFiles(directory, colormapIds, loadingContext);
+
+        console.log('JSON parsing finished');
     }
 
     writeToWorldTextFile(outputDirectory: string, savingContext: SavingContext) {

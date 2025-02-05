@@ -7,10 +7,10 @@ import { Logger } from "./Logger";
 import { Version } from "./database/Version";
 import { isDefined } from "./ts/ts-utils";
 import path from "path";
-import { mkdirSync } from "fs";
+import { existsSync, mkdirSync, statSync } from "fs";
 import { clearDirectory } from "./files/file-utils";
 
-interface ParseArgs {
+interface ParseDatArgs {
     filename: string;
     inputVersion: string;
     outputVersion: string;
@@ -20,11 +20,15 @@ interface ParseArgs {
     habitatsFile: string;
   }
 
+interface ParseJsonArgs {
+    directory: string;
+}
+
 const yargsInstance = yargs(hideBin(process.argv))
     .scriptName("genie-dat-tool")
     .usage("$0 <command> [options]")
-    .command<ParseArgs>(
-        "parse <filename>",
+    .command<ParseDatArgs>(
+        "parse-dat <filename>",
         "Process a DAT file",
         (yargs) => {
           return yargs.positional("filename", {
@@ -61,6 +65,17 @@ const yargsInstance = yargs(hideBin(process.argv))
             type: "string",
             describe: "Path to JSON file that contains names used for habitats",
             default: "data/habitats.json5"
+          })
+        }
+    )
+    .command(
+        "parse-json <directory>",
+        "Process a directory of JSON files",
+        (yargs) => {
+          return yargs.positional("directory", {
+            type: "string",
+            describe: "Root folder of JSON files that will be parsed",
+            demandOption: true,
           })
         }
     )
@@ -134,7 +149,7 @@ function getPotentialParsingVersions(headerVersionNumber: string) {
 }
 
 function parseDatFile() {
-    const { filename, inputVersion: inputVersionParameter, outputVersion: outputVersionParameter, outputFormat, outputDir, habitatsFile, attributesFile } = argv as unknown as ParseArgs;
+    const { filename, inputVersion: inputVersionParameter, outputVersion: outputVersionParameter, outputFormat, outputDir, habitatsFile, attributesFile } = argv as unknown as ParseDatArgs;
     const dataBuffer = new BufferReader(decompressFile(filename));
     const headerString = dataBuffer.readFixedSizeString(8);
     const headerVersionNumber = parseVersion(headerString);
@@ -211,18 +226,36 @@ function parseDatFile() {
     }
 }
 
+function parseJsonFiles() {
+    const { directory } = argv as unknown as ParseJsonArgs;
+    console.log(directory);
+    if (existsSync(directory) && statSync(directory).isDirectory()) {
+        const worldDatabase = new WorldDatabase();
+        worldDatabase.readFromJsonFiles(directory);
+    }
+    else {
+        console.log('Invalid directory argument')
+    }
+
+}
+
 function main() {
     const { listDatVersions } = argv;
     if (listDatVersions) {
-        console.log(Object.values(SupportedDatVersions).flatMap(x => x).join('\n'));
+        console.log([...new Set(Object.values(SupportedDatVersions).flatMap(x => x))].sort().join('\n'));
     }
     else {
         const commandType = argv._[0];
-        if (commandType === "parse") {
-            parseDatFile();
-        }
-        else {
-            yargsInstance.showHelp();
+        switch (commandType) {
+            case "parse-dat":
+                parseDatFile();
+                break;
+            case "parse-json":
+                parseJsonFiles();
+                break;
+            default:
+                yargsInstance.showHelp();
+                break;
         }
     }
 }

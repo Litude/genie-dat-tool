@@ -109,8 +109,7 @@ export const SpriteJsonMapping: JsonFieldMapping<Sprite, SpriteJson>[] = [
      }},
      { jsonField: "overlays", toJson: (obj, savingContext) => obj.overlays.map(overlay => transformObjectToJson(overlay, SpriteOverlayJsonMapping, savingContext)) },
      { jsonField: "angleSoundEffects", toJson: (obj, savingContext) => {
-        // TODO: If effect is for all angles, just have one entry without an angle specified
-
+        // If all angles have the same sound effect, write only one entry without an angle specified
         const transformedEntries = obj.angleSoundEffects
         .map(soundEffect => transformObjectToJson(soundEffect, SpriteAngleSoundEffectJsonMapping, savingContext))
         .filter(soundEffect => soundEffect.soundEffectId !== null) as (SpriteAngleSoundEffectJson & { angle: Int16 })[];
@@ -176,7 +175,7 @@ export class Sprite {
     overlays: SpriteOverlay[] = [];
     angleSoundEffects: SpriteAngleSoundEffect[] = [];
 
-    constructor(buffer: BufferReader, id: Int16, soundEffects: SoundEffect[], loadingContext: LoadingContext) {
+    readFromBuffer(buffer: BufferReader, id: Int16, soundEffects: SoundEffect[], loadingContext: LoadingContext) {
         this.internalName = buffer.readFixedSizeString(21);
         this.referenceId = createReferenceIdFromString(this.internalName);
         this.resourceFilename = buffer.readFixedSizeString(13);
@@ -361,7 +360,8 @@ export function readSpritesFromDatFile(buffer: BufferReader, soundEffects: Sound
 
     for (let i = 0; i < spriteCount; ++i) {
         if (validSprites[i]) {
-            const sprite = new Sprite(buffer, asInt16(i), soundEffects, loadingContext)
+            const sprite = new Sprite();
+            sprite.readFromBuffer(buffer, asInt16(i), soundEffects, loadingContext);
             if (sprite.internalName && sprite.resourceFilename) {
                 result.push(sprite);
             }
