@@ -59,12 +59,12 @@ export function createReferenceString(type: ReferenceType, input: string | undef
     }
 }
 
-export function getIdFromReferenceString(type: ReferenceType, referencingResource: string, input: string | number | null, referenceMap: Record<string, number>) {
+export function getIdFromReferenceString<T extends number>(type: ReferenceType, referencingResource: string, input: string | number | null, referenceMap: Record<string, number>): T {
     if (input === null) {
-        return (type === "Border" || type === "Overlay") ? 0 : -1;
+        return ((type === "Border" || type === "Overlay") ? 0 : -1) as T;
     }
     else if (typeof input === "number") {
-        return input;
+        return input as T;
     }
     else {
         const [prefix, value] = input.split('$');
@@ -77,7 +77,7 @@ export function getIdFromReferenceString(type: ReferenceType, referencingResourc
             if (result === undefined) {
                 throw new Error(`Resource ${referencingResource} references ${input} but no such entry exists!`)
             }
-            return result;
+            return result as T;
         }
     }
 }

@@ -228,7 +228,6 @@ function parseDatFile() {
 
 function parseJsonFiles() {
     const { directory } = argv as unknown as ParseJsonArgs;
-    console.log(directory);
     if (existsSync(directory) && statSync(directory).isDirectory()) {
         const worldDatabase = new WorldDatabase();
         worldDatabase.readFromJsonFiles(directory);

@@ -6,8 +6,8 @@ import { Habitat, readHabitatIdsFromJsonIndex, readHabitatNamesFromJsonFile, rea
 import { JsonLoadingContext, LoadingContext } from "./LoadingContext";
 import { MapProperties, writeMapPropertiesToJsonFile } from "./landscape/MapProperties";
 import { RandomMap, readRandomMapData, writeRandomMapsToJsonFiles, writeRandomMapsToWorldTextFile } from "./landscape/RandomMap";
-import { readSoundEffectsFromDatFile, SoundEffect, writeSoundEffectsToJsonFiles, writeSoundEffectsToWorldTextFile } from "./SoundEffect";
-import { readSpritesFromDatFile, Sprite, writeSpritesToJsonFiles, writeSpritesToWorldTextFile } from "./Sprite";
+import { readSoundEffectIdsFromJsonIndex, readSoundEffectsFromDatFile, readSoundEffectsFromJsonFiles, SoundEffect, writeSoundEffectsToJsonFiles, writeSoundEffectsToWorldTextFile } from "./SoundEffect";
+import { readSpriteIdsFromJsonIndex, readSpritesFromDatFile, readSpritesFromJsonFiles, Sprite, writeSpritesToJsonFiles, writeSpritesToWorldTextFile } from "./Sprite";
 import { readAndVerifyTerrainCountFromDatFile, readTerrainIdsFromJsonIndex, readTerrainsFromDatFile, Terrain, writeTerrainsToJsonFiles, writeTerrainsToWorldTextFile } from "./landscape/Terrain";
 import { createFallbackStateEffectReferenceIdsIfNeeded, readStateEffects, StateEffect, writeStateEffectsToJsonFiles, writeStateEffectsToWorldTextFile } from "./research/StateEffect";
 import { Civilization, writeCivilizationsToJsonFiles, writeCivilizationsToWorldTextFile } from "./Civilization";
@@ -156,6 +156,8 @@ export class WorldDatabase {
         const terrainIds = readTerrainIdsFromJsonIndex(directory);
         const terrainCount = terrainIds.filter(isDefined).length;
         const habitatIds = readHabitatIdsFromJsonIndex(directory);
+        const spriteIds = readSpriteIdsFromJsonIndex(directory);
+        const soundEffectIds = readSoundEffectIdsFromJsonIndex(directory);
         const loadingContext: JsonLoadingContext = {
             version: {
                 numbering: "2.7.0",
@@ -166,12 +168,16 @@ export class WorldDatabase {
             dataIds: {
                 terrainIds: createMappingFromJsonFileIndex(terrainIds),
                 habitatIds: createMappingFromJsonFileIndex(habitatIds),
+                spriteIds: createMappingFromJsonFileIndex(spriteIds),
+                soundEffectIds: createMappingFromJsonFileIndex(soundEffectIds),
             }
         }
         this.habitats = readHabitatsFromJsonFiles(directory, terrainCount, habitatIds, loadingContext);
 
         const colormapIds = readColormapIdsFromJsonIndex(directory);
         this.colormaps = readColormapsFromJsonFiles(directory, colormapIds, loadingContext);
+        this.soundEffects = readSoundEffectsFromJsonFiles(directory, soundEffectIds, loadingContext);
+        this.sprites = readSpritesFromJsonFiles(directory, spriteIds, loadingContext);
 
         console.log('JSON parsing finished');
     }

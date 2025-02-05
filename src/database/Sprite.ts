@@ -1,10 +1,11 @@
+import JSON5 from "json5";
 import semver from "semver";
 import BufferReader from "../BufferReader";
 import { Point, PointSchema } from "../geometry/Point";
 import { Rectangle, RectangleSchema } from "../geometry/Rectangle";
-import { LoadingContext } from "./LoadingContext";
+import { JsonLoadingContext, LoadingContext } from "./LoadingContext";
 import { SavingContext } from "./SavingContext";
-import { asBool8, asFloat32, asInt16, asInt32, asUInt16, asUInt8, Bool8, Bool8Schema, Float32, Float32Schema, Int16, Int16Schema, Pointer, UInt8, UInt8Schema } from "../ts/base-types";
+import { asBool8, asFloat32, asInt16, asInt32, asUInt16, asUInt8, Bool8, Bool8Schema, Float32, Float32Schema, Int16, Int16Schema, NullPointer, Pointer, UInt8, UInt8Schema } from "../ts/base-types";
 import { asResourceId, asTribeResourceId, ReferenceStringSchema, ResourceId, ResourceIdSchema, SoundEffectId, TribeResourceId } from "./Types";
 import { TextFileWriter } from "../textfile/TextFileWriter";
 import { TextFileNames } from "../textfile/TextFile";
@@ -13,12 +14,13 @@ import { Logger } from "../Logger";
 import { getDataEntry } from "../util";
 import { onParsingError } from "./Error";
 import path from "path";
-import { writeFileSync } from "fs";
-import { createReferenceString, createReferenceIdFromString } from "../json/reference-id";
+import { readFileSync, writeFileSync } from "fs";
+import { createReferenceString, createReferenceIdFromString, getIdFromReferenceString } from "../json/reference-id";
 import { Nullable, pick } from "../ts/ts-utils";
 import { clearDirectory } from "../files/file-utils";
-import { createJson, JsonFieldMapping, transformObjectToJson, writeDataEntriesToJson, writeDataEntryToJsonFile } from "../json/json-serialization";
+import { applyJsonFieldsToObject, createJson, JsonFieldMapping, readJsonFileIndex, transformJsonToObject, transformObjectToJson, writeDataEntriesToJson, writeDataEntryToJsonFile } from "../json/json-serialization";
 import { z } from "zod";
+import { number } from "yargs";
 
 interface SpriteOverlay {
     spriteId: Int16;
@@ -37,6 +39,7 @@ const SpriteOverlaySchema = z.object({
 type SpriteOverlayJson = z.infer<typeof SpriteOverlaySchema>;
 export const SpriteOverlayJsonMapping: JsonFieldMapping<SpriteOverlay, SpriteOverlayJson>[] = [
     { jsonField: "spriteId", toJson: (obj) => createReferenceString("Sprite", obj.sprite?.referenceId, obj.spriteId) },
+    { objectField: "spriteId", fromJson: (json, obj, loadingContext) => getIdFromReferenceString<Int16>("Sprite", "", json.spriteId, loadingContext.dataIds.spriteIds) },
     { field: "offset" },
     { field: "angle" }
 ];
@@ -57,20 +60,20 @@ export const SpriteAngleSoundEffectJsonMapping: JsonFieldMapping<SpriteAngleSoun
     { field: "angle" },
     { field: "frameNumber" },
     { jsonField: "soundEffectId", toJson: (obj) => createReferenceString("SoundEffect", obj.soundEffect?.referenceId, obj.soundEffectId) },
+    { objectField: "soundEffectId", fromJson: (json, obj, loadingContext) => getIdFromReferenceString<Int16>("SoundEffect", "", json.soundEffectId, loadingContext.dataIds.soundEffectIds )},
 ];
 
 const SpriteSchema = z.object({
     internalName: z.string(),
     resourceFilename: z.string(),
     resourceId: ResourceIdSchema,
-    loaded: Bool8Schema,
+    loaded: Bool8Schema.optional(),
     colorTransformType: UInt8Schema,
     layer: UInt8Schema,
     forcedColorTransform: Int16Schema,
     selectionType: UInt8Schema,
     boundingBox: RectangleSchema(Int16Schema),
     soundEffectId: ReferenceStringSchema,
-    // angleSoundEffectsEnabled: Bool8Schema, (this is useless because sounds are enabled if entries are non-empty)
     framesPerAngle: Int16Schema,
     angleCount: Int16Schema,
     objectSpeedMultiplier: Float32Schema,
@@ -90,8 +93,10 @@ export const SpriteJsonMapping: JsonFieldMapping<Sprite, SpriteJson>[] = [
     { field: "colorTransformType" },
     { field: "layer" },
     { field: "forcedColorTransform" },
+    { field: "selectionType" },
     { field: "boundingBox" },
     { jsonField: "soundEffectId", toJson: (obj) => createReferenceString("SoundEffect", obj.soundEffect?.referenceId, obj.soundEffectId) },
+    { objectField: "soundEffectId", fromJson: (json, obj, loadingContext) => getIdFromReferenceString<Int16>("SoundEffect", obj.referenceId, json.soundEffectId, loadingContext.dataIds.soundEffectIds ) },
     { field: "framesPerAngle" },
     { field: "angleCount" },
     { field: "objectSpeedMultiplier" },
@@ -107,7 +112,19 @@ export const SpriteJsonMapping: JsonFieldMapping<Sprite, SpriteJson>[] = [
             return obj.mirroringMode;
         }
      }},
+     { objectField: "mirroringMode", fromJson: (json, obj, loadingContext) => {
+        if (typeof (json.mirroringMode) === "number") {
+            return json.mirroringMode;
+        }
+        else if (json.mirroringMode) {
+            return asUInt8((obj.angleCount >> 1) + (obj.angleCount >> 2));
+        }
+        else {
+            return asUInt8(0);
+        }
+     }},
      { jsonField: "overlays", toJson: (obj, savingContext) => obj.overlays.map(overlay => transformObjectToJson(overlay, SpriteOverlayJsonMapping, savingContext)) },
+     { objectField: "overlays", fromJson: (json, obj, loadingContext) => json.overlays.map(overlay => ({ ...transformJsonToObject(overlay, SpriteOverlayJsonMapping, loadingContext), sprite: null, padding02: asInt16(0), spritePointer: NullPointer, padding0e: asInt16(0) })) },
      { jsonField: "angleSoundEffects", toJson: (obj, savingContext) => {
         // If all angles have the same sound effect, write only one entry without an angle specified
         const transformedEntries = obj.angleSoundEffects
@@ -142,6 +159,21 @@ export const SpriteJsonMapping: JsonFieldMapping<Sprite, SpriteJson>[] = [
 
         return mergedEntries;
      }},
+     { objectField: "angleSoundEffects", fromJson: (json, obj, loadingContext) => {
+        const result: SpriteAngleSoundEffect[] = [];
+        json.angleSoundEffects.forEach(angleSoundEffect => {
+            if (angleSoundEffect.angle !== undefined) {
+                result.push(transformJsonToObject(angleSoundEffect, SpriteAngleSoundEffectJsonMapping, loadingContext))
+            }
+            else {
+                const baseObject: SpriteAngleSoundEffect = transformJsonToObject(angleSoundEffect, SpriteAngleSoundEffectJsonMapping, loadingContext)
+                for (let i = 0; i < obj.angleCount; ++i) {
+                    result.push({ ...baseObject, angle: asInt16(i), soundEffect: null })
+                }
+            }
+        });
+        return result;
+     }}
 
 ];
 
@@ -248,6 +280,16 @@ export class Sprite {
                     });
                 }
             }
+        }
+    }
+            
+    readFromJsonFile(jsonFile: SpriteJson, id: Int16, referenceId: string, loadingContext: JsonLoadingContext) {
+        this.id = id;
+        this.referenceId = referenceId;
+        applyJsonFieldsToObject(jsonFile, this, SpriteJsonMapping, loadingContext)
+        this.angleSoundEffectsEnabled = asBool8(this.angleSoundEffects.length > 0)
+        if (jsonFile.loaded === undefined) {
+            this.loaded = asBool8(false);
         }
     }
 
@@ -376,6 +418,24 @@ export function readSpritesFromDatFile(buffer: BufferReader, soundEffects: Sound
     return result;
 }
 
+export function readSpritesFromJsonFiles(inputDirectory: string, spriteIds: (string | null)[], loadingContext: JsonLoadingContext) {
+    const spritesDirectory = path.join(inputDirectory, 'sprites');
+    const sprites: Nullable<Sprite>[] = [];
+    spriteIds.forEach((spriteReferenceId, spriteNumberId) => {
+        if (spriteReferenceId === null) {
+            sprites.push(null);
+        }
+        else {
+            const spriteJson = SpriteSchema.parse(JSON5.parse(readFileSync(path.join(spritesDirectory, `${spriteReferenceId}.json`)).toString('utf8')));
+            const sprite = new Sprite();
+            sprite.readFromJsonFile(spriteJson, asInt16(spriteNumberId), spriteReferenceId, loadingContext);
+            sprites.push(sprite);
+        }
+
+    })
+    return sprites;
+}
+
 export function writeSpritesToWorldTextFile(outputDirectory: string, sprites: Nullable<Sprite>[], savingContext: SavingContext) {
     const textFileWriter = new TextFileWriter(path.join(outputDirectory, TextFileNames.Sprites));
     textFileWriter.raw(sprites.length).eol(); // Total sprites entries
@@ -393,4 +453,8 @@ export function writeSpritesToWorldTextFile(outputDirectory: string, sprites: Nu
 
 export function writeSpritesToJsonFiles(outputDirectory: string, sprites: Nullable<Sprite>[], savingContext: SavingContext) {
     writeDataEntriesToJson(outputDirectory, "sprites", sprites, SpriteJsonMapping, savingContext);
+}
+
+export function readSpriteIdsFromJsonIndex(inputDirectory: string) {
+    return readJsonFileIndex(path.join(inputDirectory, "sprites"));
 }

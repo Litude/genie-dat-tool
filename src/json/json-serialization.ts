@@ -117,6 +117,25 @@ export function transformObjectToJson<ObjectType extends object, JsonType extend
     return result;
 }
 
+export function transformJsonToObject<ObjectType extends object, JsonType extends object>(json: JsonType, mappings: JsonFieldMapping<ObjectType, JsonType>[], loadingContext: JsonLoadingContext): ObjectType {
+    const result: any = {};
+    for (const fieldMapping of mappings) {
+        if (
+            (!fieldMapping.versionFrom || semver.gte(loadingContext.version.numbering, fieldMapping.versionFrom)) &&
+            (!fieldMapping.versionTo || semver.lte(loadingContext.version.numbering, fieldMapping.versionTo)) &&
+            (!fieldMapping.fromCondition || fieldMapping.fromCondition(json, loadingContext))
+        ) {
+            if (fieldMapping.field) {
+                result[fieldMapping.field] = json[fieldMapping.field]
+            }
+            else if (fieldMapping.fromJson) {
+                result[fieldMapping.objectField] = fieldMapping.fromJson(json, result, loadingContext);
+            }
+        }
+    }
+    return result;
+}
+
 export function applyJsonFieldsToObject<ObjectType extends object, JsonType extends object>(json: JsonType, object: ObjectType, mappings: JsonFieldMapping<ObjectType, JsonType>[], loadingContext: JsonLoadingContext): ObjectType {
     for (const fieldMapping of mappings) {
         if (
