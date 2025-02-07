@@ -178,7 +178,7 @@ export function writeSoundEffectsToWorldTextFile(outputDirectory: string, soundE
 }
 
 export function writeSoundEffectsToJsonFiles(outputDirectory: string, soundEffects: SoundEffect[], savingContext: SavingContext) {
-    writeDataEntriesToJson(outputDirectory, "sounds", soundEffects, SoundEffectJsonMapping, savingContext);
+    writeDataEntriesToJson(outputDirectory, "sounds", soundEffects, savingContext);
 }
 
 export function readSoundEffectIdsFromJsonIndex(inputDirectory: string) {

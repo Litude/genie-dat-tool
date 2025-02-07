@@ -1,35 +1,44 @@
+import JSON5 from 'json5';
 import semver from 'semver';
 import BufferReader from "../../BufferReader";
 import { TextFileNames, textFileStringCompare } from "../../textfile/TextFile";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { isDefined, Nullable } from "../../ts/ts-utils";
 import { getDataEntry } from "../../util";
-import { LoadingContext } from "../LoadingContext";
+import { JsonLoadingContext, LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
 import { SoundEffect } from "../SoundEffect";
 import { PaletteIndex, ResourceId } from "../Types";
-import { asBool8, asInt16, asInt32, asUInt8, Bool8, Bool8Schema, Int16, Int16Schema, UInt8 } from "../../ts/base-types";
+import { asBool8, asInt16, asInt32, asUInt8, Bool8, Bool8Schema, Int16, UInt8 } from "../../ts/base-types";
 import { onParsingError } from '../Error';
 import path from 'path';
 import {  } from '../../json/reference-id';
-import { BaseTerrainAnimation, BaseTerrainFrameMap, BaseTerrainFrameMapJsonMapping, BaseTerrainJsonMapping, BaseTerrainTile, BaseTerrainTileSchema } from './BaseTerrainTile';
-import { JsonFieldMapping, transformObjectToJson, writeDataEntryToJsonFile, writeDataEntriesToJson } from '../../json/json-serialization';
+import { BaseTerrainAnimation, BaseTerrainFrameMap, BaseTerrainFrameMapJsonMapping, BaseTerrainFrameMapSchema, BaseTerrainTile, BaseTerrainTileSchema } from './BaseTerrainTile';
+import { applyJsonFieldsToObject, JsonFieldMapping, readJsonFileIndex, transformObjectToJson, writeDataEntriesToJson } from '../../json/json-serialization';
 import { z } from 'zod';
+import { readFileSync } from 'fs';
 
 const OverlaySchema = BaseTerrainTileSchema.merge(z.object({
-    frameMaps: z.array(z.array(z.object({
-        frameCount: Int16Schema,
-        animationFrames: Int16Schema,
-        frameIndex: Int16Schema.optional()
-    })).length(16)).length(19),
+    frameMaps: z.array(z.array(BaseTerrainFrameMapSchema).length(16)).length(19),
     drawTerrain: Bool8Schema,
 }));
 
 type OverlayJson = z.infer<typeof OverlaySchema>;
 
 const OverlayJsonMapping: JsonFieldMapping<Overlay, OverlayJson>[] = [
-    ...BaseTerrainJsonMapping,
     { jsonField: "frameMaps", toJson: (obj, savingContext) => obj.frameMaps.map(frameMapEntries => frameMapEntries.map(frameMapEntry => transformObjectToJson(frameMapEntry, BaseTerrainFrameMapJsonMapping, savingContext))) },
+    { objectField: "frameMaps", fromJson: (json, obj, loadingContext) => {
+        let frameCounter = 0;
+        return json.frameMaps.map(nestedMap => nestedMap.map(entry => {
+            let frameIndex = frameCounter;
+            frameCounter += entry.frameCount * entry.animationFrames;
+            return {
+                frameCount: entry.frameCount,
+                animationFrames: entry.animationFrames,
+                frameIndex: entry.frameIndex === undefined ? asInt16(frameIndex) : entry.frameIndex,
+            }
+        }));
+    }},
     { field: "drawTerrain" }
 ];
 
@@ -80,6 +89,11 @@ export class Overlay extends BaseTerrainTile {
         this.drawTerrain = buffer.readBool8();
         this.padding59B = buffer.readUInt8();
     }
+
+    readFromJsonFile(jsonFile: OverlayJson, id: Int16, referenceId: string, soundEffects: SoundEffect[], loadingContext: JsonLoadingContext) {
+        super.readFromJsonFile(jsonFile, id, referenceId, soundEffects, loadingContext);
+        applyJsonFieldsToObject(jsonFile, this, OverlayJsonMapping, loadingContext);
+    }
     
     appendToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext) {
         super.appendToTextFile(textFileWriter, savingContext);
@@ -97,9 +111,12 @@ export class Overlay extends BaseTerrainTile {
         textFileWriter.eol();
         textFileWriter.raw(" ").eol();
     }
-        
-    writeToJsonFile(directory: string, savingContext: SavingContext) {
-        writeDataEntryToJsonFile(directory, this, OverlayJsonMapping, savingContext);
+    
+    toJson(savingContext: SavingContext) {
+        return {
+            ...super.toJson(savingContext),
+            ...transformObjectToJson(this, OverlayJsonMapping, savingContext)
+        }
     }
 
     toString() {
@@ -128,6 +145,25 @@ export function readAndVerifyOverlayCountFromDatFile(overlays: Nullable<Overlay>
     }
 }
 
+export function readOverlaysFromJsonFiles(inputDirectory: string, overlayIds: (string | null)[], soundEffects: SoundEffect[], loadingContext: JsonLoadingContext) {
+    const overlaysDirectory = path.join(inputDirectory, 'overlays');
+    const overlays: Nullable<Overlay>[] = [];
+    overlayIds.forEach((overlayReferenceId, overlayNumberId) => {
+        if (overlayReferenceId === null) {
+            overlays.push(null);
+        }
+        else {
+            const overlayJson = OverlaySchema.parse(JSON5.parse(readFileSync(path.join(overlaysDirectory, `${overlayReferenceId}.json`)).toString('utf8')));
+            const overlay = new Overlay();
+            overlay.readFromJsonFile(overlayJson, asInt16(overlayNumberId), overlayReferenceId, soundEffects, loadingContext);
+            overlays.push(overlay);
+        }
+
+    })
+    return overlays;
+}
+
+
 export function writeOverlaysToWorldTextFile(outputDirectory: string, overlays: Nullable<Overlay>[], savingContext: SavingContext) {
     const textFileWriter = new TextFileWriter(path.join(outputDirectory, TextFileNames.Overlays));
     textFileWriter.raw(overlays.filter(isDefined).length).eol(); // Total overlay entries
@@ -141,6 +177,15 @@ export function writeOverlaysToWorldTextFile(outputDirectory: string, overlays: 
 
 export function writeOverlaysToJsonFiles(outputDirectory: string, overlays: Nullable<Overlay>[], savingContext: SavingContext) {
     if (semver.lt(savingContext.version.numbering, "2.0.0")) {
-        writeDataEntriesToJson(outputDirectory, "overlays", overlays, OverlayJsonMapping, savingContext);
+        writeDataEntriesToJson(outputDirectory, "overlays", overlays, savingContext);
+    }
+}
+
+export function readOverlayIdsFromJsonIndex(inputDirectory: string) {
+    try {
+        return readJsonFileIndex(path.join(inputDirectory, "overlays"));
+    }
+    catch (err: unknown) {
+        return [];
     }
 }

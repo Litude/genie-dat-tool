@@ -1,10 +1,11 @@
+import JSON5 from "json5";
 import semver from 'semver';
 import BufferReader from "../../BufferReader";
 import { TextFileNames, textFileStringCompare } from "../../textfile/TextFile";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { isDefined, Nullable } from "../../ts/ts-utils";
 import { getDataEntry } from "../../util";
-import { LoadingContext } from "../LoadingContext";
+import { JsonLoadingContext, LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
 import { SoundEffect } from "../SoundEffect";
 import { asBool16, asBool8, asInt16, asInt32, asUInt16, asUInt8, Bool16, Bool16Schema, Bool8, Bool8Schema, Int16, Int16Schema, UInt16, UInt8 } from "../../ts/base-types";
@@ -12,17 +13,14 @@ import { PaletteIndex, ReferenceStringSchema, ResourceId, TerrainId } from "../T
 import { Terrain } from "./Terrain";
 import { onParsingError } from '../Error';
 import path from 'path';
-import { createReferenceString, createReferenceIdFromString } from '../../json/reference-id';
-import { BaseTerrainAnimation, BaseTerrainFrameMap, BaseTerrainFrameMapJsonMapping, BaseTerrainJsonMapping, BaseTerrainTile, BaseTerrainTileSchema } from './BaseTerrainTile';
+import { createReferenceString, createReferenceIdFromString, getIdFromReferenceString } from '../../json/reference-id';
+import { BaseTerrainAnimation, BaseTerrainFrameMap, BaseTerrainFrameMapJsonMapping, BaseTerrainFrameMapSchema, BaseTerrainTileJsonMapping, BaseTerrainTile, BaseTerrainTileSchema } from './BaseTerrainTile';
 import { z } from 'zod';
-import { JsonFieldMapping, transformObjectToJson, writeDataEntryToJsonFile, writeDataEntriesToJson } from '../../json/json-serialization';
+import { JsonFieldMapping, transformObjectToJson, writeDataEntryToJsonFile, readJsonFileIndex, writeDataEntriesToJson, applyJsonFieldsToObject } from '../../json/json-serialization';
+import { readFileSync } from "fs";
 
 const BorderSchema = BaseTerrainTileSchema.merge(z.object({
-    frameMaps: z.array(z.array(z.object({
-        frameCount: Int16Schema,
-        animationFrames: Int16Schema,
-        frameIndex: Int16Schema.optional()
-    })).min(12).max(13)).length(19),
+    frameMaps: z.array(z.array(BaseTerrainFrameMapSchema).min(12).max(13)).length(19),
     drawTerrain: Bool8Schema,
     passabilityTerrainId: ReferenceStringSchema,
     overlayBorder: Bool16Schema,
@@ -31,10 +29,22 @@ const BorderSchema = BaseTerrainTileSchema.merge(z.object({
 type BorderJson = z.infer<typeof BorderSchema>;
 
 const BorderJsonMapping: JsonFieldMapping<Border, BorderJson>[] = [
-    ...BaseTerrainJsonMapping,
     { jsonField: "frameMaps", toJson: (obj, savingContext) => obj.frameMaps.map(frameMapEntries => frameMapEntries.map(frameMapEntry => transformObjectToJson(frameMapEntry, BaseTerrainFrameMapJsonMapping, savingContext))) },
+    { objectField: "frameMaps", fromJson: (json, obj, loadingContext) => {
+        let frameCounter = 0;
+        return json.frameMaps.map(nestedMap => nestedMap.map(entry => {
+            let frameIndex = frameCounter;
+            frameCounter += entry.frameCount * entry.animationFrames;
+            return {
+                frameCount: entry.frameCount,
+                animationFrames: entry.animationFrames,
+                frameIndex: entry.frameIndex === undefined ? asInt16(frameIndex) : entry.frameIndex,
+            }
+        }));
+    }},
     { field: "drawTerrain" },
     { jsonField: "passabilityTerrainId", toJson: (obj, savingContext) => createReferenceString("Terrain", obj.passabilityTerrain?.referenceId, obj.passabilityTerrainId) },
+    { objectField: "passabilityTerrainId", fromJson: (json, obj, loadingContext) => getIdFromReferenceString<Int16>("Terrain", obj.referenceId, json.passabilityTerrainId, loadingContext.dataIds.terrainIds) },
     { field: "overlayBorder"}
 ]
 
@@ -47,7 +57,7 @@ export class Border extends BaseTerrainTile {
     overlayBorder: Bool16 = asBool16(false);
     padding59E: UInt16 = asUInt16(0);
 
-    readFromBuffer(buffer: BufferReader, id: Int16, soundEffects: SoundEffect[], terrains: (Terrain | null)[], loadingContext: LoadingContext): void {
+    readFromBuffer(buffer: BufferReader, id: Int16, soundEffects: SoundEffect[], terrains: Nullable<Terrain>[], loadingContext: LoadingContext): void {
         this.id = id
         this.enabled = buffer.readBool8();
         this.random = buffer.readBool8();
@@ -100,6 +110,15 @@ export class Border extends BaseTerrainTile {
             }
         }
     }
+    
+    readFromJsonFile(jsonFile: BorderJson, id: Int16, referenceId: string, soundEffects: SoundEffect[], loadingContext: JsonLoadingContext) {
+        super.readFromJsonFile(jsonFile, id, referenceId, soundEffects, loadingContext);
+        applyJsonFieldsToObject(jsonFile, this, BorderJsonMapping, loadingContext);
+    }
+    
+    linkOtherData(terrains: Nullable<Terrain>[], loadingContext: LoadingContext) {
+        this.passabilityTerrain = getDataEntry(terrains, this.passabilityTerrainId, "Terrain", this.referenceId, loadingContext);
+    }
 
     appendToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext) {
         super.appendToTextFile(textFileWriter, savingContext);
@@ -120,9 +139,12 @@ export class Border extends BaseTerrainTile {
         textFileWriter.eol();
         textFileWriter.raw(" ").eol();
     }
-    
-    writeToJsonFile(directory: string, savingContext: SavingContext) {
-        writeDataEntryToJsonFile(directory, this, BorderJsonMapping, savingContext);
+        
+    toJson(savingContext: SavingContext) {
+        return {
+            ...super.toJson(savingContext),
+            ...transformObjectToJson(this, BorderJsonMapping, savingContext)
+        }
     }
 
     toString() {
@@ -147,6 +169,23 @@ export function readAndVerifyBorderCountFromDatFile(borders: Nullable<Border>[],
     }
 }
 
+export function readBordersFromJsonFiles(inputDirectory: string, borderIds: (string | null)[], soundEffects: SoundEffect[], loadingContext: JsonLoadingContext) {
+    const bordersDirectory = path.join(inputDirectory, 'borders');
+    const borders: Nullable<Border>[] = [];
+    borderIds.forEach((borderReferenceId, borderNumberId) => {
+        if (borderReferenceId === null) {
+            borders.push(null);
+        }
+        else {
+            const borderJson = BorderSchema.parse(JSON5.parse(readFileSync(path.join(bordersDirectory, `${borderReferenceId}.json`)).toString('utf8')));
+            const border = new Border();
+            border.readFromJsonFile(borderJson, asInt16(borderNumberId), borderReferenceId, soundEffects, loadingContext);
+            borders.push(border);
+        }
+
+    })
+    return borders;
+}
 
 export function writeBordersToWorldTextFile(outputDirectory: string, borders: Nullable<Border>[], savingContext: SavingContext) {
     const textFileWriter = new TextFileWriter(path.join(outputDirectory, TextFileNames.Borders));
@@ -159,5 +198,9 @@ export function writeBordersToWorldTextFile(outputDirectory: string, borders: Nu
 }
 
 export function writeBordersToJsonFiles(outputDirectory: string, borders: Nullable<Border>[], savingContext: SavingContext) {
-    writeDataEntriesToJson(outputDirectory, "borders", borders, BorderJsonMapping, savingContext);
+    writeDataEntriesToJson(outputDirectory, "borders", borders, savingContext);
+}
+
+export function readBorderIdsFromJsonIndex(inputDirectory: string) {
+    return readJsonFileIndex(path.join(inputDirectory, "borders"));
 }

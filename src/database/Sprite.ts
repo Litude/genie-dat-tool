@@ -452,7 +452,7 @@ export function writeSpritesToWorldTextFile(outputDirectory: string, sprites: Nu
 
 
 export function writeSpritesToJsonFiles(outputDirectory: string, sprites: Nullable<Sprite>[], savingContext: SavingContext) {
-    writeDataEntriesToJson(outputDirectory, "sprites", sprites, SpriteJsonMapping, savingContext);
+    writeDataEntriesToJson(outputDirectory, "sprites", sprites, savingContext);
 }
 
 export function readSpriteIdsFromJsonIndex(inputDirectory: string) {

@@ -9,10 +9,13 @@ export interface LoadingContext {
 
 export interface JsonLoadingContext extends LoadingContext {
     terrainCount: number,
+    maxTerrainCount: number,
     dataIds: {
         habitatIds: Record<string, number>,
         terrainIds: Record<string, number>,
+        borderIds: Record<string, number>,
         spriteIds: Record<string, number>,
         soundEffectIds: Record<string, number>,
+        prototypeIds: Record<string, number>,
     }
 }

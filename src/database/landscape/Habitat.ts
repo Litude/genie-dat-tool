@@ -205,7 +205,7 @@ export function writeHabitatsToWorldTextFile(outputDirectory: string, habitats: 
 }
 
 export function writeHabitatsToJsonFiles(outputDirectory: string, habitats: Nullable<Habitat>[], savingContext: SavingContext) {
-    writeDataEntriesToJson(outputDirectory, "habitats", habitats, HabitatJsonMapping, savingContext);
+    writeDataEntriesToJson(outputDirectory, "habitats", habitats, savingContext);
 }
 
 export function readHabitatIdsFromJsonIndex(inputDirectory: string) {

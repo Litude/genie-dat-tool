@@ -22,7 +22,7 @@ import { TreeObjectPrototype } from "./TreeObjectPrototype";
 import { ParsingError } from '../Error';
 import path from 'path';
 import { clearDirectory } from '../../files/file-utils';
-import { createJson, oldTransformObjectToJson, writeJsonFileIndex } from '../../json/json-serialization';
+import { createJson, oldTransformObjectToJson, readJsonFileIndex, writeJsonFileIndex } from '../../json/json-serialization';
 import { writeFileSync } from 'fs';
 
 export type BaseObjectPrototype = SceneryObjectPrototype;
@@ -291,4 +291,8 @@ export function writeObjectPrototypesToJsonFiles(outputDirectory: string, baseli
     })
     
     writeJsonFileIndex(objectsDirectory, baselineObjects);
+}
+
+export function readObjectPrototypeIdsFromJsonIndex(inputDirectory: string) {
+    return readJsonFileIndex(path.join(inputDirectory, "objects"));
 }

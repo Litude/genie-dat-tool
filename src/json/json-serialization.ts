@@ -126,7 +126,9 @@ export function transformJsonToObject<ObjectType extends object, JsonType extend
             (!fieldMapping.fromCondition || fieldMapping.fromCondition(json, loadingContext))
         ) {
             if (fieldMapping.field) {
-                result[fieldMapping.field] = json[fieldMapping.field]
+                if (json[fieldMapping.field] !== undefined) {
+                    result[fieldMapping.field] = json[fieldMapping.field]
+                }
             }
             else if (fieldMapping.fromJson) {
                 result[fieldMapping.objectField] = fieldMapping.fromJson(json, result, loadingContext);
@@ -144,7 +146,9 @@ export function applyJsonFieldsToObject<ObjectType extends object, JsonType exte
             (!fieldMapping.fromCondition || fieldMapping.fromCondition(json, loadingContext))
         ) {
             if (fieldMapping.field) {
-                object[fieldMapping.field] = (json as any)[fieldMapping.field]
+                if (json[fieldMapping.field] !== undefined) {
+                    object[fieldMapping.field] = (json as any)[fieldMapping.field];
+                }
             }
             else if (fieldMapping.fromJson) {
                 object[fieldMapping.objectField] = fieldMapping.fromJson(json, object, loadingContext);
@@ -159,15 +163,16 @@ export function writeDataEntryToJsonFile<ObjectType extends { referenceId: strin
     writeFileSync(path.join(directoryPath, `${object.referenceId}.json`), createJson(transformedData));
 }
 
-export function writeDataEntriesToJson<ObjectType extends { referenceId: string }, JsonType extends object>(baseDirectory: string, dataDirectory: string, objects: Nullable<ObjectType>[], mappings: JsonFieldMapping<ObjectType, JsonType>[], savingContext: SavingContext) {
+
+export function writeDataEntriesToJson<ObjectType extends { referenceId: string, writeToJsonFile: (directory: string, savingContext: SavingContext) => void }>(baseDirectory: string, dataDirectory: string, objects: Nullable<ObjectType>[], savingContext: SavingContext) {
     const directoryPath = path.join(baseDirectory, dataDirectory);
     clearDirectory(directoryPath);
 
     objects.forEach(object => {
         if (object) {
-            writeDataEntryToJsonFile(directoryPath, object, mappings, savingContext);
+            object.writeToJsonFile(directoryPath, savingContext);
         }
-    });
+    })
     
     writeJsonFileIndex(directoryPath, objects);
 }

@@ -3,12 +3,15 @@ import { z } from "zod";
 import { SoundEffect } from "../SoundEffect";
 import { PaletteIndex, PaletteIndexSchema, ReferenceStringSchema, ResourceId, ResourceIdSchema, SoundEffectId } from "../Types";
 import { asBool8, asFloat32, asInt16, asInt32, asUInt8, Bool8, Bool8Schema, Float32, Float32Schema, Int16, Int16Schema, Int32, Int32Schema, NullPointer, Pointer, UInt8, UInt8Schema } from "../../ts/base-types";
-import { JsonFieldMapping, transformObjectToJson } from "../../json/json-serialization";
-import { LoadingContext } from "../LoadingContext";
+import { applyJsonFieldsToObject, createJson, JsonFieldMapping, transformJsonToObject, transformObjectToJson } from "../../json/json-serialization";
+import { JsonLoadingContext, LoadingContext } from "../LoadingContext";
 import BufferReader from "../../BufferReader";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { SavingContext } from "../SavingContext";
-import { createReferenceString } from "../../json/reference-id";
+import { createReferenceString, getIdFromReferenceString } from "../../json/reference-id";
+import { getDataEntry } from "../../util";
+import { writeFileSync } from "fs";
+import path from "path";
 
 export class BaseTerrainAnimation {
     animated: Bool8 = asBool8(false);
@@ -87,6 +90,13 @@ export class BaseTerrainTile {
     animation: BaseTerrainAnimation = new BaseTerrainAnimation();    
     drawCount: UInt8 = asUInt8(0);
 
+    readFromJsonFile(jsonFile: BaseTerrainTileJson, id: Int16, referenceId: string, soundEffects: SoundEffect[], loadingContext: JsonLoadingContext) {
+        this.id = id;
+        this.referenceId = referenceId;
+        applyJsonFieldsToObject(jsonFile, this, BaseTerrainTileJsonMapping, loadingContext);
+        this.soundEffect = getDataEntry(soundEffects, this.soundEffectId, "SoundEffect", this.referenceId, loadingContext);
+    }
+
     appendToTextFile(textFile: TextFileWriter, savingContext: SavingContext) {
         textFile
             .integer(this.id)
@@ -100,6 +110,14 @@ export class BaseTerrainTile {
             .integer(this.soundEffectId)
 
         this.animation.appendToTextFile(textFile, savingContext);
+    }
+
+    writeToJsonFile(directory: string, savingContext: SavingContext) {
+        writeFileSync(path.join(directory, `${this.referenceId}.json`), createJson(this.toJson(savingContext)));
+    }
+
+    toJson(savingContext: SavingContext) {
+        return transformObjectToJson(this, BaseTerrainTileJsonMapping, savingContext)
     }
 }
 
@@ -118,17 +136,19 @@ export const BaseTerrainTileSchema = z.object({
 
 export type BaseTerrainTileJson = z.infer<typeof BaseTerrainTileSchema>;
 
-export const BaseTerrainJsonMapping: JsonFieldMapping<BaseTerrainTile, BaseTerrainTileJson>[] = [
+export const BaseTerrainTileJsonMapping: JsonFieldMapping<BaseTerrainTile, BaseTerrainTileJson>[] = [
     { field: "enabled", flags: { internalField: true } },
     { field: "random", flags: { internalField: true } },
     { field: "internalName" },
     { field: "resourceFilename" },
     { field: "resourceId", versionFrom: "2.0.0" },
     { jsonField: "soundEffectId", toJson: (obj) => createReferenceString("SoundEffect", obj.soundEffect?.referenceId, obj.soundEffectId) },
+    { objectField: "soundEffectId", fromJson: (json, obj, loadingContext) => getIdFromReferenceString<Int16>("SoundEffect", obj.referenceId, json.soundEffectId, loadingContext.dataIds.soundEffectIds) },
     { field: "minimapColor1" },
     { field: "minimapColor2" },
     { field: "minimapColor3" },
     { jsonField: "animation", toJson: (obj, savingContext) => transformObjectToJson(obj.animation, BaseTerrainAnimationJsonMapping, savingContext) },
+    { objectField: "animation", fromJson: (json, obj, loadingContext) => transformJsonToObject(json.animation, BaseTerrainAnimationJsonMapping, loadingContext) },
 ]
 
 export interface BaseTerrainFrameMap {
@@ -148,5 +168,5 @@ export type BaseTerrainFrameMapJson = z.infer<typeof BaseTerrainFrameMapSchema>;
 export const BaseTerrainFrameMapJsonMapping: JsonFieldMapping<BaseTerrainFrameMap, BaseTerrainFrameMapJson>[] = [
     { field: "frameCount" },
     { field: "animationFrames" },
-    { field: "frameIndex", flags: { internalField: true } },
+    { field: "frameIndex", flags: { internalField: true } }, // TODO: Write this to json if it differs from the default value
 ];

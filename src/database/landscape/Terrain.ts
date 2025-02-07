@@ -1,22 +1,25 @@
+import JSON5 from "json5";
 import semver from "semver";
 import BufferReader from "../../BufferReader";
 import { TextFileNames, textFileStringCompare } from "../../textfile/TextFile";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { isDefined, Nullable } from "../../ts/ts-utils";
 import { getDataEntry } from "../../util";
-import { LoadingContext } from "../LoadingContext";
+import { JsonLoadingContext, LoadingContext } from "../LoadingContext";
 import { SceneryObjectPrototype } from "../object/SceneryObjectPrototype";
 import { SavingContext } from "../SavingContext";
 import { SoundEffect } from "../SoundEffect";
 import { BorderId, PaletteIndex, PaletteIndexSchema, PrototypeId, ReferenceStringSchema, ResourceId, TerrainId } from "../Types";
-import { asInt16, asInt32, asUInt16, asUInt8, Bool8, Int16, Int16Schema, UInt16, UInt8Schema } from "../../ts/base-types";
+import { asInt16, asInt32, asUInt16, asUInt8, Bool8, Bool8Schema, Int16, Int16Schema, UInt16 } from "../../ts/base-types";
 import { Border } from "./Border";
 import { onParsingError } from "../Error";
 import path from "path";
-import { createReferenceString, createReferenceIdFromString } from "../../json/reference-id";
+import { createReferenceString, createReferenceIdFromString, getIdFromReferenceString } from "../../json/reference-id";
 import { z } from "zod";
-import { BaseTerrainAnimation, BaseTerrainFrameMap, BaseTerrainFrameMapJsonMapping, BaseTerrainJsonMapping, BaseTerrainTile, BaseTerrainTileSchema } from "./BaseTerrainTile";
-import { JsonFieldMapping, transformObjectToJson, writeDataEntryToJsonFile, writeDataEntriesToJson, readJsonFileIndex } from "../../json/json-serialization";
+import { BaseTerrainAnimation, BaseTerrainFrameMap, BaseTerrainFrameMapJsonMapping, BaseTerrainFrameMapSchema, BaseTerrainTile, BaseTerrainTileSchema } from "./BaseTerrainTile";
+import { JsonFieldMapping, transformObjectToJson, readJsonFileIndex, applyJsonFieldsToObject, writeDataEntriesToJson } from "../../json/json-serialization";
+import { readFileSync } from "fs";
+import { BaseObjectPrototype } from "../object/ObjectPrototypes";
 
 interface TerrainObjectPlacement {
     prototypeId: PrototypeId<Int16>;
@@ -40,26 +43,25 @@ const TerrainSchema = BaseTerrainTileSchema.merge(z.object({
     objectPlacements: z.array(z.object({
         prototypeId: ReferenceStringSchema,
         density: Int16Schema,
-        centralize: z.boolean()
+        centralize: Bool8Schema,
     })).max(30),
-    frameMaps: z.array(z.object({
-        frameCount: Int16Schema,
-        animationFrames: Int16Schema,
-        frameIndex: Int16Schema.optional()
-    })).length(19)
+    frameMaps: z.array(BaseTerrainFrameMapSchema).length(19)
 }));
 
 type TerrainJson = z.infer<typeof TerrainSchema>;
 
 const TerrainJsonMapping: JsonFieldMapping<Terrain, TerrainJson>[] = [
-    ...BaseTerrainJsonMapping,
+    //...BaseTerrainJsonMapping,
     { field: "minimapCliffColor1" },
     { field: "minimapCliffColor2" },
     { field: "terrainPatternWidth" },
     { field: "terrainPatternHeight" },
     { jsonField: "passableTerrainId", toJson: (obj, savingContext) => createReferenceString("Terrain", obj.passableTerrain?.referenceId, obj.passableTerrainId) },
+    { objectField: "passableTerrainId", fromJson: (json, obj, loadingContext) => getIdFromReferenceString<Int16>("Terrain", obj.referenceId, json.passableTerrainId, loadingContext.dataIds.terrainIds) },
     { jsonField: "impassableTerrainId", toJson: (obj, savingContext) => createReferenceString("Terrain", obj.impassableTerrain?.referenceId, obj.impassableTerrainId) },
+    { objectField: "impassableTerrainId", fromJson: (json, obj, loadingContext) => getIdFromReferenceString<Int16>("Terrain", obj.referenceId, json.impassableTerrainId, loadingContext.dataIds.terrainIds) },
     { jsonField: "renderedTerrainId", toJson: (obj, savingContext) => createReferenceString("Terrain", obj.renderedTerrain?.referenceId, obj.renderedTerrainId) },
+    { objectField: "renderedTerrainId", fromJson: (json, obj, loadingContext) => getIdFromReferenceString<Int16>("Terrain", obj.referenceId, json.renderedTerrainId, loadingContext.dataIds.terrainIds) },
     { jsonField: "borders", toJson: (obj, savingContext) => obj.borderTypes.map((entry, index) => {
         if (entry?.border) {
             return {
@@ -71,12 +73,47 @@ const TerrainJsonMapping: JsonFieldMapping<Terrain, TerrainJson>[] = [
             return null
         }
     }).filter(isDefined)},
+    { objectField: "borderTypeIds", fromJson: (json, obj, loadingContext) => {
+        const borderTypeIds: BorderId<Int16>[] = Array.from({ length: loadingContext.maxTerrainCount }).map(entry => asInt16(0));
+
+        const mappedBorders = json.borders.map(entry => ({
+            terrainId: getIdFromReferenceString("Terrain", obj.referenceId, entry.terrainId, loadingContext.dataIds.terrainIds),
+            borderId: getIdFromReferenceString<Int16>("Border", obj.referenceId, entry.borderId, loadingContext.dataIds.borderIds),
+        }))
+        return borderTypeIds.map((entry, index) => {
+            const borderEntry = mappedBorders.find(entry => entry.terrainId === index);
+            if (borderEntry) {
+                return borderEntry.borderId;
+            }
+            else {
+                return asInt16(0);
+            }
+        })
+    }},
     { jsonField: "objectPlacements", toJson: (obj, savingContext) => obj.objectPlacements.map(objectPlacement => ({
         prototypeId: createReferenceString("ObjectPrototype", objectPlacement.object?.referenceId, objectPlacement.prototypeId),
         density: objectPlacement.density,
         centralize: objectPlacement.centralize
     }))},
-    { jsonField: "frameMaps", toJson: (obj, savingContext) => obj.frameMaps.map(frameMapEntry => transformObjectToJson(frameMapEntry, BaseTerrainFrameMapJsonMapping, savingContext)) }
+    { objectField: "objectPlacements", fromJson: (json, obj, loadingContext) => json.objectPlacements.map(objectPlacement => ({
+        prototypeId: getIdFromReferenceString<Int16>("ObjectPrototype", obj.referenceId, objectPlacement.prototypeId, loadingContext.dataIds.prototypeIds),
+        object: null,
+        density: objectPlacement.density,
+        centralize: objectPlacement.centralize,
+    }))},
+    { jsonField: "frameMaps", toJson: (obj, savingContext) => obj.frameMaps.map(frameMapEntry => transformObjectToJson(frameMapEntry, BaseTerrainFrameMapJsonMapping, savingContext)) },
+    { objectField: "frameMaps", fromJson: (json, obj, loadingContext) => {
+        let frameCounter = 0;
+        return json.frameMaps.map(entry => {
+            let frameIndex = frameCounter;
+            frameCounter += entry.frameCount * entry.animationFrames;
+            return {
+                frameCount: entry.frameCount,
+                animationFrames: entry.animationFrames,
+                frameIndex: entry.frameIndex === undefined ? asInt16(frameIndex) : entry.frameIndex,
+            }
+        });
+    }}
 ];
 
 export class Terrain extends BaseTerrainTile {
@@ -173,8 +210,13 @@ export class Terrain extends BaseTerrainTile {
         
         this.padding0196 = buffer.readUInt16();
     }
+                
+    readFromJsonFile(jsonFile: TerrainJson, id: Int16, referenceId: string, soundEffects: SoundEffect[], loadingContext: JsonLoadingContext) {
+        super.readFromJsonFile(jsonFile, id, referenceId, soundEffects, loadingContext);
+        applyJsonFieldsToObject(jsonFile, this, TerrainJsonMapping, loadingContext);
+    }
 
-    linkOtherData(terrains: (Terrain | null)[], borders: (Border | null)[], objects: (SceneryObjectPrototype | null)[], loadingContext: LoadingContext) {
+    linkOtherData(terrains: Nullable<Terrain>[], borders: Nullable<Border>[], objects: Nullable<BaseObjectPrototype>[], loadingContext: LoadingContext) {
         this.passableTerrain = this.passableTerrainId !== 255 ? getDataEntry(terrains, this.passableTerrainId, "Terrain", this.referenceId, loadingContext) : null;
         this.impassableTerrain = this.impassableTerrainId !== 255 ? getDataEntry(terrains, this.impassableTerrainId, "Terrain", this.referenceId, loadingContext) : null;
         this.renderedTerrain = getDataEntry(terrains, this.renderedTerrainId, "Terrain", this.referenceId, loadingContext);
@@ -231,8 +273,11 @@ export class Terrain extends BaseTerrainTile {
         textFileWriter.eol();
     }
 
-    writeToJsonFile(directory: string, savingContext: SavingContext) {
-        writeDataEntryToJsonFile(directory, this, TerrainJsonMapping, savingContext);
+    toJson(savingContext: SavingContext) {
+        return {
+            ...super.toJson(savingContext),
+            ...transformObjectToJson(this, TerrainJsonMapping, savingContext)
+        }
     }
 
     toString() {
@@ -278,6 +323,25 @@ function writeTerrainObjectsToWorldTextFile(outputDirectory: string, terrains: N
     textFileWriter.close();
 }
 
+export function readTerrainsFromJsonFiles(inputDirectory: string, terrainIds: (string | null)[], soundEffects: SoundEffect[], loadingContext: JsonLoadingContext) {
+    const terrainDirectory = path.join(inputDirectory, 'terrains');
+    const terrains: Nullable<Terrain>[] = [];
+    terrainIds.forEach((terrainReferenceId, terrainNumberId) => {
+        if (terrainReferenceId === null) {
+            terrains.push(null);
+        }
+        else {
+            const terrainJson = TerrainSchema.parse(JSON5.parse(readFileSync(path.join(terrainDirectory, `${terrainReferenceId}.json`)).toString('utf8')));
+            const terrain = new Terrain();
+            terrain.readFromJsonFile(terrainJson, asInt16(terrainNumberId), terrainReferenceId, soundEffects, loadingContext);
+            terrains.push(terrain);
+        }
+
+    })
+    return terrains;
+}
+
+
 export function writeTerrainsToWorldTextFile(outputDirectory: string, terrains: Nullable<Terrain>[], savingContext: SavingContext) {
     const textFileWriter = new TextFileWriter(path.join(outputDirectory, TextFileNames.Terrains));
     textFileWriter.raw(terrains.filter(isDefined).length).eol(); // Total terrain entries
@@ -292,7 +356,7 @@ export function writeTerrainsToWorldTextFile(outputDirectory: string, terrains: 
 }
 
 export function writeTerrainsToJsonFiles(outputDirectory: string, terrains: Nullable<Terrain>[], savingContext: SavingContext) {
-    writeDataEntriesToJson(outputDirectory, "terrains", terrains, TerrainJsonMapping, savingContext);
+    writeDataEntriesToJson(outputDirectory, "terrains", terrains, savingContext);
 }
 
 export function readTerrainIdsFromJsonIndex(inputDirectory: string) {

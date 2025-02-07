@@ -124,7 +124,7 @@ export function writeColormapsToWorldTextFile(outputDirectory: string, colormaps
 }
 
 export function writeColormapsToJsonFiles(outputDirectory: string, colormaps: Colormap[], savingContext: SavingContext) {
-    writeDataEntriesToJson(outputDirectory, "colormaps", colormaps, ColormapJsonMapping, savingContext);
+    writeDataEntriesToJson(outputDirectory, "colormaps", colormaps, savingContext);
 }
 
 export function readColormapIdsFromJsonIndex(inputDirectory: string) {

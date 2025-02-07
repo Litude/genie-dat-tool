@@ -48,7 +48,7 @@ interface ObjectPlacementData {
     placementCount: Int32;
     placementSpread: Int32;
     objectsPerGroupMax: Int32;
-    objectGroupsPerPlayer: Int32; // TODO: Was this per player...?
+    objectGroups: Int32; // TODO: Was this per player...?
     placementTerrainId1: TerrainId<Int32>;
     placementTerrainId2: TerrainId<Int32>;
     placementTerrainId3: TerrainId<Int32>;
@@ -85,7 +85,7 @@ const jsonFields: OldJsonFieldConfig<TribeRandomMap>[] = [
         placementCount: objectPlacement.placementCount,
         placementSpread: objectPlacement.placementSpread,
         objectsPerGroupMax: objectPlacement.objectsPerGroupMax,
-        objectGroupsPerPlayer: objectPlacement.objectGroupsPerPlayer,
+        objectGroups: objectPlacement.objectGroups,
         placementTerrainId1: createReferenceString("Terrain", objectPlacement.placementTerrain1?.referenceId, objectPlacement.placementTerrainId1),
         placementTerrainId2: createReferenceString("Terrain", objectPlacement.placementTerrain2?.referenceId, objectPlacement.placementTerrainId2),
         placementTerrainId3: createReferenceString("Terrain", objectPlacement.placementTerrain3?.referenceId, objectPlacement.placementTerrainId3),
@@ -178,7 +178,7 @@ export class TribeRandomMap {
                 placementCount: buffer.readInt32(),
                 placementSpread: buffer.readInt32(),
                 objectsPerGroupMax: buffer.readInt32(),
-                objectGroupsPerPlayer: buffer.readInt32(),
+                objectGroups: buffer.readInt32(),
                 placementTerrainId1: buffer.readInt32(),
                 placementTerrainId2: buffer.readInt32(),
                 placementTerrainId3: buffer.readInt32(),
@@ -289,7 +289,7 @@ export function writeTribeRandomMapsToWorldTextFile(outputDirectory: string, map
                 .integer(objectPlacement.placementCount)
                 .integer(objectPlacement.placementSpread)
                 .integer(objectPlacement.objectsPerGroupMax)
-                .integer(objectPlacement.objectGroupsPerPlayer)
+                .integer(objectPlacement.objectGroups)
                 .integer(objectPlacement.placementTerrainId1)
                 .integer(objectPlacement.placementTerrainId2)
                 .integer(objectPlacement.placementTerrainId3)

@@ -1,6 +1,6 @@
 import semver from "semver";
 import BufferReader from "../BufferReader";
-import { Border, readBordersFromDatFile, readAndVerifyBorderCountFromDatFile, writeBordersToJsonFiles, writeBordersToWorldTextFile } from "./landscape/Border";
+import { Border, readBordersFromDatFile, readAndVerifyBorderCountFromDatFile, writeBordersToJsonFiles, writeBordersToWorldTextFile, readBorderIdsFromJsonIndex, readBordersFromJsonFiles } from "./landscape/Border";
 import { Colormap, readColormapIdsFromJsonIndex, readColormapsFromDatFile, readColormapsFromJsonFiles, writeColormapsToJsonFiles, writeColormapsToWorldTextFile } from "./Colormap";
 import { Habitat, readHabitatIdsFromJsonIndex, readHabitatNamesFromJsonFile, readHabitatsFromDatFile, readHabitatsFromJsonFiles, writeHabitatsToJsonFiles, writeHabitatsToWorldTextFile } from "./landscape/Habitat";
 import { JsonLoadingContext, LoadingContext } from "./LoadingContext";
@@ -8,16 +8,16 @@ import { MapProperties, writeMapPropertiesToJsonFile } from "./landscape/MapProp
 import { RandomMap, readRandomMapData, writeRandomMapsToJsonFiles, writeRandomMapsToWorldTextFile } from "./landscape/RandomMap";
 import { readSoundEffectIdsFromJsonIndex, readSoundEffectsFromDatFile, readSoundEffectsFromJsonFiles, SoundEffect, writeSoundEffectsToJsonFiles, writeSoundEffectsToWorldTextFile } from "./SoundEffect";
 import { readSpriteIdsFromJsonIndex, readSpritesFromDatFile, readSpritesFromJsonFiles, Sprite, writeSpritesToJsonFiles, writeSpritesToWorldTextFile } from "./Sprite";
-import { readAndVerifyTerrainCountFromDatFile, readTerrainIdsFromJsonIndex, readTerrainsFromDatFile, Terrain, writeTerrainsToJsonFiles, writeTerrainsToWorldTextFile } from "./landscape/Terrain";
+import { readAndVerifyTerrainCountFromDatFile, readTerrainIdsFromJsonIndex, readTerrainsFromDatFile, readTerrainsFromJsonFiles, Terrain, writeTerrainsToJsonFiles, writeTerrainsToWorldTextFile } from "./landscape/Terrain";
 import { createFallbackStateEffectReferenceIdsIfNeeded, readStateEffects, StateEffect, writeStateEffectsToJsonFiles, writeStateEffectsToWorldTextFile } from "./research/StateEffect";
 import { Civilization, writeCivilizationsToJsonFiles, writeCivilizationsToWorldTextFile } from "./Civilization";
-import { BaseObjectPrototype, createBaselineObjectPrototypes, readObjectPrototypesFromBuffer, writeObjectPrototypesToJsonFiles, writeObjectPrototypesToWorldTextFile } from "./object/ObjectPrototypes";
+import { BaseObjectPrototype, createBaselineObjectPrototypes, readObjectPrototypeIdsFromJsonIndex, readObjectPrototypesFromBuffer, writeObjectPrototypesToJsonFiles, writeObjectPrototypesToWorldTextFile } from "./object/ObjectPrototypes";
 import { readTechnologiesFromBuffer, Technology, writeTechnologiesToJsonFiles, writeTechnologiesToWorldTextFile } from "./research/Technology";
 import { SavingContext } from "./SavingContext";
 import { TextFileWriter } from "../textfile/TextFileWriter";
 import { TextFileNames } from "../textfile/TextFile";
 import { Attribute, readAttributesFromJsonFile } from "./Attributes";
-import { Overlay, readOverlaysFromDatFile, readAndVerifyOverlayCountFromDatFile, writeOverlaysToJsonFiles, writeOverlaysToWorldTextFile } from "./landscape/Overlay";
+import { Overlay, readOverlaysFromDatFile, readAndVerifyOverlayCountFromDatFile, writeOverlaysToJsonFiles, writeOverlaysToWorldTextFile, readOverlayIdsFromJsonIndex, readOverlaysFromJsonFiles } from "./landscape/Overlay";
 import { readTribeRandomMapData, TribeRandomMap, writeTribeRandomMapsToJsonFiles, writeTribeRandomMapsToWorldTextFile } from "./landscape/TribeRandomMap";
 import { readTribeAiFromBuffer, TribeAi, writeTribeAiToJsonFiles, writeTribeAiToWorldTextFile } from "./TribeAi";
 import { onParsingError, ParsingError } from "./Error";
@@ -154,10 +154,14 @@ export class WorldDatabase {
         // TODO: Do we need some kind of version file...?
         // Should all index files be processed first?
         const terrainIds = readTerrainIdsFromJsonIndex(directory);
+        const overlayIds = readOverlayIdsFromJsonIndex(directory);
+        const borderIds = readBorderIdsFromJsonIndex(directory);
         const terrainCount = terrainIds.filter(isDefined).length;
         const habitatIds = readHabitatIdsFromJsonIndex(directory);
         const spriteIds = readSpriteIdsFromJsonIndex(directory);
         const soundEffectIds = readSoundEffectIdsFromJsonIndex(directory);
+        const prototypeIds = readObjectPrototypeIdsFromJsonIndex(directory);
+
         const loadingContext: JsonLoadingContext = {
             version: {
                 numbering: "2.7.0",
@@ -165,11 +169,14 @@ export class WorldDatabase {
             abortOnError: true,
             cleanedData: false,
             terrainCount,
+            maxTerrainCount: 32, // TODO: Based on version...
             dataIds: {
                 terrainIds: createMappingFromJsonFileIndex(terrainIds),
+                borderIds: createMappingFromJsonFileIndex(borderIds),
                 habitatIds: createMappingFromJsonFileIndex(habitatIds),
                 spriteIds: createMappingFromJsonFileIndex(spriteIds),
                 soundEffectIds: createMappingFromJsonFileIndex(soundEffectIds),
+                prototypeIds: createMappingFromJsonFileIndex(prototypeIds),
             }
         }
         this.habitats = readHabitatsFromJsonFiles(directory, terrainCount, habitatIds, loadingContext);
@@ -178,6 +185,11 @@ export class WorldDatabase {
         this.colormaps = readColormapsFromJsonFiles(directory, colormapIds, loadingContext);
         this.soundEffects = readSoundEffectsFromJsonFiles(directory, soundEffectIds, loadingContext);
         this.sprites = readSpritesFromJsonFiles(directory, spriteIds, loadingContext);
+        this.terrains = readTerrainsFromJsonFiles(directory, terrainIds, this.soundEffects, loadingContext);
+        this.overlays = readOverlaysFromJsonFiles(directory, overlayIds, this.soundEffects, loadingContext);
+        this.borders = readBordersFromJsonFiles(directory, borderIds, this.soundEffects, loadingContext);
+
+        this.borders.forEach(border => border?.linkOtherData(this.terrains, loadingContext));
 
         console.log('JSON parsing finished');
     }
