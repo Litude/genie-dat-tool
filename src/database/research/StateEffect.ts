@@ -1,18 +1,19 @@
+import JSON5 from "json5";
 import semver from "semver";
 import BufferReader from "../../BufferReader";
 import { TextFileNames } from "../../textfile/TextFile";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
-import { LoadingContext } from "../LoadingContext";
+import { JsonLoadingContext, LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
-import { asInt16, Float32, Int16, UInt8 } from "../../ts/base-types";
+import { asInt16, Float32, Float32Schema, Int16, Int16Schema, UInt8, UInt8Schema } from "../../ts/base-types";
 import path from "path";
-import { clearDirectory } from "../../files/file-utils";
 import { createReferenceIdFromString } from "../../json/reference-id";
 import { isDefined, Nullable } from "../../ts/ts-utils";
-import { writeFileSync } from "fs";
+import { readFileSync, writeFileSync } from "fs";
 import { Civilization } from "../Civilization";
 import { Technology } from "./Technology";
-import { createJson, writeJsonFileIndex } from "../../json/json-serialization";
+import { applyJsonFieldsToObject, createJson, JsonFieldMapping, readJsonFileIndex, transformObjectToJson, writeDataEntriesToJson } from "../../json/json-serialization";
+import { z } from "zod";
 
 interface EffectCommand {
     commandType: UInt8;
@@ -21,6 +22,24 @@ interface EffectCommand {
     value3: Int16;
     value4: Float32;
 }
+
+const StateEffectSchema = z.object({
+    internalName: z.string(),
+    commands: z.array(z.object({
+        commandType: UInt8Schema,
+        value1: Int16Schema,
+        value2: Int16Schema,
+        value3: Int16Schema,
+        value4: Float32Schema
+    }))
+});
+
+type StateEffectJson = z.infer<typeof StateEffectSchema>;
+
+const StateEffectJsonMapping: JsonFieldMapping<StateEffect, StateEffectJson>[] = [
+    { field: "internalName" },
+    { field: "commands"}
+];
 
 export class StateEffect {
     referenceId: string = "";
@@ -45,16 +64,23 @@ export class StateEffect {
             });
         }
     }
+        
+    readFromJsonFile(jsonFile: StateEffectJson, id: Int16, referenceId: string, loadingContext: JsonLoadingContext) {
+        this.id = id;
+        this.referenceId = referenceId;
+        applyJsonFieldsToObject(jsonFile, this, StateEffectJsonMapping, loadingContext)
+    }
+    
+    writeToJsonFile(directory: string, savingContext: SavingContext) {
+        writeFileSync(path.join(directory, `${this.referenceId}.json`), createJson(this.toJson(savingContext)));
+    }
 
     isValid() {
         return this.internalName !== "";
     }
-
-    writeToJsonFile(directory: string, savingContext: SavingContext) {
-        writeFileSync(path.join(directory, `${this.referenceId}.json`), createJson({
-            internalName: this.internalName,
-            commands: this.commands,
-        }));
+        
+    toJson(savingContext: SavingContext) {
+        return transformObjectToJson(this, StateEffectJsonMapping, savingContext);
     }
 
     toString() {
@@ -154,12 +180,27 @@ export function createFallbackStateEffectReferenceIdsIfNeeded(stateEffects: Null
 }
 
 export function writeStateEffectsToJsonFiles(outputDirectory: string, stateEffects: (StateEffect | null)[], savingContext: SavingContext) {
-    const stateEffectDirectory = path.join(outputDirectory, "effects");
-    clearDirectory(stateEffectDirectory);
+    writeDataEntriesToJson(outputDirectory, "effects", stateEffects, savingContext);
+}
 
-    stateEffects.forEach(stateEffect => {
-        stateEffect?.writeToJsonFile(stateEffectDirectory, savingContext)
-    });
-    
-    writeJsonFileIndex(stateEffectDirectory, stateEffects);
+export function readStateEffectsFromJsonFiles(inputDirectory: string, stateEffectIds: (string | null)[], loadingContext: JsonLoadingContext) {
+    const stateEffectsDirectory = path.join(inputDirectory, 'effects');
+    const stateEffects: Nullable<StateEffect>[] = [];
+    stateEffectIds.forEach((stateEffectReferenceId, stateEffectNumberId) => {
+        if (stateEffectReferenceId === null) {
+            stateEffects.push(null);
+        }
+        else {
+            const stateEffectJson = StateEffectSchema.parse(JSON5.parse(readFileSync(path.join(stateEffectsDirectory, `${stateEffectReferenceId}.json`)).toString('utf8')));
+            const stateEffect = new StateEffect();
+            stateEffect.readFromJsonFile(stateEffectJson, asInt16(stateEffectNumberId), stateEffectReferenceId, loadingContext);
+            stateEffects.push(stateEffect);
+        }
+
+    })
+    return stateEffects;
+}
+
+export function readStateEffectIdsFromJsonIndex(inputDirectory: string) {
+    return readJsonFileIndex(path.join(inputDirectory, "effects"));
 }

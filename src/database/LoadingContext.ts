@@ -16,6 +16,7 @@ export interface JsonLoadingContext extends LoadingContext {
         borderIds: Record<string, number>,
         spriteIds: Record<string, number>,
         soundEffectIds: Record<string, number>,
+        stateEffectIds: Record<string, number>,
         prototypeIds: Record<string, number>,
     }
 }

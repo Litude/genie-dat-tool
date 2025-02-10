@@ -12,7 +12,7 @@ import { PaletteIndex, ResourceId } from "../Types";
 import { asBool8, asInt16, asInt32, asUInt8, Bool8, Bool8Schema, Int16, UInt8 } from "../../ts/base-types";
 import { onParsingError } from '../Error';
 import path from 'path';
-import {  } from '../../json/reference-id';
+import { createReferenceIdFromString } from '../../json/reference-id';
 import { BaseTerrainAnimation, BaseTerrainFrameMap, BaseTerrainFrameMapJsonMapping, BaseTerrainFrameMapSchema, BaseTerrainTile, BaseTerrainTileSchema } from './BaseTerrainTile';
 import { applyJsonFieldsToObject, JsonFieldMapping, readJsonFileIndex, transformObjectToJson, writeDataEntriesToJson } from '../../json/json-serialization';
 import { z } from 'zod';
@@ -53,7 +53,7 @@ export class Overlay extends BaseTerrainTile {
         this.random = buffer.readBool8();
 
         this.internalName = buffer.readFixedSizeString(13);
-        this.referenceId = this.internalName;
+        this.referenceId = createReferenceIdFromString(this.internalName);
         this.resourceFilename = buffer.readFixedSizeString(13);
         if (semver.gte(loadingContext.version.numbering, "2.0.0")) {
             this.resourceId = buffer.readInt32<ResourceId>();

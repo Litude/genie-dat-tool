@@ -30,7 +30,7 @@ export type ActionId<T> = T;
 export type OverlayId<T> = T;
 export type StateEffectId<T> = T;
 export type TechnologyId<T> = T;
-export type ArchitectureStyleId<T> = T;
+export type ArchitectureStyleId = UInt8 & { __type: "ArchitectureStyleId"};
 export type AgeId<T> = T;
 export type TechnologyType = Int16;
 
@@ -47,5 +47,6 @@ export function asTribeResourceId(resourceId: ResourceId): TribeResourceId {
 
 export const PaletteIndexSchema: z.Schema<PaletteIndex> = UInt8Schema as any;
 export const ResourceIdSchema: z.Schema<ResourceId> = Int32Schema as any;
+export const ArchitectureStyleIdSchema: z.Schema<ArchitectureStyleId> = UInt8Schema as any;
 
 export const ReferenceStringSchema = z.union([z.string(), z.number(), z.null()]);

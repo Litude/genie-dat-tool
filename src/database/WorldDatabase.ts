@@ -9,8 +9,8 @@ import { RandomMap, readRandomMapData, writeRandomMapsToJsonFiles, writeRandomMa
 import { readSoundEffectIdsFromJsonIndex, readSoundEffectsFromDatFile, readSoundEffectsFromJsonFiles, SoundEffect, writeSoundEffectsToJsonFiles, writeSoundEffectsToWorldTextFile } from "./SoundEffect";
 import { readSpriteIdsFromJsonIndex, readSpritesFromDatFile, readSpritesFromJsonFiles, Sprite, writeSpritesToJsonFiles, writeSpritesToWorldTextFile } from "./Sprite";
 import { readAndVerifyTerrainCountFromDatFile, readTerrainIdsFromJsonIndex, readTerrainsFromDatFile, readTerrainsFromJsonFiles, Terrain, writeTerrainsToJsonFiles, writeTerrainsToWorldTextFile } from "./landscape/Terrain";
-import { createFallbackStateEffectReferenceIdsIfNeeded, readStateEffects, StateEffect, writeStateEffectsToJsonFiles, writeStateEffectsToWorldTextFile } from "./research/StateEffect";
-import { Civilization, writeCivilizationsToJsonFiles, writeCivilizationsToWorldTextFile } from "./Civilization";
+import { createFallbackStateEffectReferenceIdsIfNeeded, readStateEffectIdsFromJsonIndex, readStateEffects, readStateEffectsFromJsonFiles, StateEffect, writeStateEffectsToJsonFiles, writeStateEffectsToWorldTextFile } from "./research/StateEffect";
+import { Civilization, readCivilizationIdsFromJsonIndex, readCivilizationsFromJsonFiles, writeCivilizationsToJsonFiles, writeCivilizationsToWorldTextFile } from "./Civilization";
 import { BaseObjectPrototype, createBaselineObjectPrototypes, readObjectPrototypeIdsFromJsonIndex, readObjectPrototypesFromBuffer, writeObjectPrototypesToJsonFiles, writeObjectPrototypesToWorldTextFile } from "./object/ObjectPrototypes";
 import { readTechnologiesFromBuffer, Technology, writeTechnologiesToJsonFiles, writeTechnologiesToWorldTextFile } from "./research/Technology";
 import { SavingContext } from "./SavingContext";
@@ -160,6 +160,8 @@ export class WorldDatabase {
         const habitatIds = readHabitatIdsFromJsonIndex(directory);
         const spriteIds = readSpriteIdsFromJsonIndex(directory);
         const soundEffectIds = readSoundEffectIdsFromJsonIndex(directory);
+        const stateEffectIds = readStateEffectIdsFromJsonIndex(directory);
+        const civilizationIds = readCivilizationIdsFromJsonIndex(directory);
         const prototypeIds = readObjectPrototypeIdsFromJsonIndex(directory);
 
         const loadingContext: JsonLoadingContext = {
@@ -176,6 +178,7 @@ export class WorldDatabase {
                 habitatIds: createMappingFromJsonFileIndex(habitatIds),
                 spriteIds: createMappingFromJsonFileIndex(spriteIds),
                 soundEffectIds: createMappingFromJsonFileIndex(soundEffectIds),
+                stateEffectIds: createMappingFromJsonFileIndex(stateEffectIds),
                 prototypeIds: createMappingFromJsonFileIndex(prototypeIds),
             }
         }
@@ -188,6 +191,8 @@ export class WorldDatabase {
         this.terrains = readTerrainsFromJsonFiles(directory, terrainIds, this.soundEffects, loadingContext);
         this.overlays = readOverlaysFromJsonFiles(directory, overlayIds, this.soundEffects, loadingContext);
         this.borders = readBordersFromJsonFiles(directory, borderIds, this.soundEffects, loadingContext);
+        this.stateEffects = readStateEffectsFromJsonFiles(directory, stateEffectIds, loadingContext);
+        this.civilizations = readCivilizationsFromJsonFiles(directory, civilizationIds, loadingContext);
 
         this.borders.forEach(border => border?.linkOtherData(this.terrains, loadingContext));
 

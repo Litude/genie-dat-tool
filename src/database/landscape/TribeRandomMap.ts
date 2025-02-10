@@ -48,7 +48,7 @@ interface ObjectPlacementData {
     placementCount: Int32;
     placementSpread: Int32;
     objectsPerGroupMax: Int32;
-    objectGroups: Int32; // TODO: Was this per player...?
+    objectGroups: Int32;
     placementTerrainId1: TerrainId<Int32>;
     placementTerrainId2: TerrainId<Int32>;
     placementTerrainId3: TerrainId<Int32>;
