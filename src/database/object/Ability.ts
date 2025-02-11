@@ -1,6 +1,6 @@
 import BufferReader from "../../BufferReader";
-import { createReferenceString } from "../../json/reference-id";
-import { OldJsonFieldConfig } from "../../json/json-serialization";
+import { createReferenceString, getIdFromReferenceString } from "../../json/reference-id";
+import { JsonFieldMapping, transformObjectToJson } from "../../json/json-serialization";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { Nullable } from "../../ts/ts-utils";
 import { getDataEntry } from "../../util";
@@ -9,24 +9,60 @@ import { LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
 import { SoundEffect } from "../SoundEffect";
 import { Sprite } from "../Sprite";
-import { asBool8, asFloat32, asInt16, asUInt8, Bool8, Float32, Int16, UInt8 } from "../../ts/base-types";
-import { AbilityId, ActionId, AttributeId, PrototypeId, SoundEffectId, SpriteId, TerrainId } from "../Types";
-import { ObjectClass, ObjectClasses } from "./ObjectClass";
+import { asBool8, asFloat32, asInt16, asUInt8, Bool8, Bool8Schema, Float32, Float32Schema, Int16, Int16Schema, UInt8, UInt8Schema } from "../../ts/base-types";
+import { AbilityId, ActionId, AttributeId, PrototypeId, ReferenceStringSchema, SoundEffectId, SpriteId, TerrainId } from "../Types";
+import { ObjectClass, ObjectClasses, ObjectClassSchema } from "./ObjectClass";
 import { SceneryObjectPrototype } from "./SceneryObjectPrototype";
+import { z } from "zod";
 
-const jsonFields: OldJsonFieldConfig<Ability>[] = [
-    { field: "abilityType" },
+export const AbilitySchema = z.object({
+    abilityType: Int16Schema.optional(),
+    defaultAbility: Bool8Schema,
+    actionType: Int16Schema,
+    objectClass: ObjectClassSchema,
+    objectPrototypeId: ReferenceStringSchema,
+    terrainId: ReferenceStringSchema,
+    attributeType1: Int16Schema,
+    attributeType2: Int16Schema,
+    attributeType3: Int16Schema,
+    attributeType4: Int16Schema,
+    workRate1: Float32Schema,
+    workRate2: Float32Schema,
+    workRange: Float32Schema,
+    autoSearchTargets: Bool8Schema,
+    searchWaitTime: Float32Schema,
+    enableTargeting: UInt8Schema,
+    combatLevelFlag: UInt8Schema,
+    workFlag1: Int16Schema,
+    workFlag2: Int16Schema,
+    targetDiplomacyType: UInt8Schema,
+    holdingAttributeCheck: UInt8Schema,
+    buildingTarget: Bool8Schema,
+    moveSpriteId: ReferenceStringSchema,
+    workPreceedingSpriteId: ReferenceStringSchema,
+    workActiveSpriteId: ReferenceStringSchema,
+    carrySpriteId: ReferenceStringSchema,
+    resourceGatheringSoundId: ReferenceStringSchema,
+    resourceDepositSoundId: ReferenceStringSchema,
+});
+type AbilityJson = z.infer<typeof AbilitySchema>;
+
+export const AbilityJsonMapping: JsonFieldMapping<Ability, AbilityJson>[] = [
+    { field: "abilityType", flags: { internalField: true } },
     { field: "defaultAbility" },
     { field: "actionType" },
     { field: "objectClass" },
-    { field: "objectPrototypeId", toJson: (obj) => createReferenceString("ObjectPrototype", obj.objectPrototype?.referenceId, obj.objectPrototypeId) },
-    { field: "terrainId", toJson: (obj) => createReferenceString("Terrain", obj.terrain?.referenceId, obj.terrainId) },
+    { jsonField: "objectPrototypeId", toJson: (obj) => createReferenceString("ObjectPrototype", obj.objectPrototype?.referenceId, obj.objectPrototypeId) },
+    { objectField: "objectPrototypeId", fromJson: (json, obj, loadingContext) => getIdFromReferenceString<PrototypeId<Int16>>("ObjectPrototype", "Ability", json.objectPrototypeId, loadingContext.dataIds.prototypeIds) },
+    { jsonField: "terrainId", toJson: (obj) => createReferenceString("Terrain", obj.terrain?.referenceId, obj.terrainId) },
+    { objectField: "terrainId", fromJson: (json, obj, loadingContext) => getIdFromReferenceString<TerrainId<Int16>>("Terrain", "Ability", json.terrainId, loadingContext.dataIds.terrainIds) },
     { field: "attributeType1" },
     { field: "attributeType2" },
     { field: "attributeType3" },
     { field: "attributeType4" },
     { field: "workRate1" },
     { field: "workRate2" },
+    { field: "workRange" },
     { field: "autoSearchTargets" },
     { field: "searchWaitTime" },
     { field: "enableTargeting" },
@@ -36,13 +72,19 @@ const jsonFields: OldJsonFieldConfig<Ability>[] = [
     { field: "targetDiplomacyType" },
     { field: "holdingAttributeCheck" },
     { field: "buildingTarget" },
-    { field: "moveSpriteId", toJson: (obj) => createReferenceString("Sprite", obj.moveSprite?.referenceId, obj.moveSpriteId)},
-    { field: "workPreceedingSpriteId", toJson: (obj) => createReferenceString("Sprite", obj.workPreceedingSprite?.referenceId, obj.workPreceedingSpriteId)},
-    { field: "workActiveSpriteId", toJson: (obj) => createReferenceString("Sprite", obj.workActiveSprite?.referenceId, obj.workActiveSpriteId)},
-    { field: "carrySpriteId", toJson: (obj) => createReferenceString("Sprite", obj.carrySprite?.referenceId, obj.carrySpriteId)},
-    { field: "resourceGatheringSoundId", toJson: (obj) => createReferenceString("SoundEffect", obj.resourceGatheringSound?.referenceId, obj.resourceGatheringSoundId) },
-    { field: "resourceDepositSoundId", toJson: (obj) => createReferenceString("SoundEffect", obj.resourceDepositSound?.referenceId, obj.resourceDepositSoundId) },
-]
+    { jsonField: "moveSpriteId", toJson: (obj) => createReferenceString("Sprite", obj.moveSprite?.referenceId, obj.moveSpriteId)},
+    { objectField: "moveSpriteId", fromJson: (json, obj, loadingContext) => getIdFromReferenceString<SpriteId>("Sprite", "Ability", json.moveSpriteId, loadingContext.dataIds.spriteIds)},
+    { jsonField: "workPreceedingSpriteId", toJson: (obj) => createReferenceString("Sprite", obj.workPreceedingSprite?.referenceId, obj.workPreceedingSpriteId)},
+    { objectField: "workPreceedingSpriteId", fromJson: (json, obj, loadingContext) => getIdFromReferenceString<SpriteId>("Sprite", "Ability", json.workPreceedingSpriteId, loadingContext.dataIds.spriteIds)},
+    { jsonField: "workActiveSpriteId", toJson: (obj) => createReferenceString("Sprite", obj.workActiveSprite?.referenceId, obj.workActiveSpriteId)},
+    { objectField: "workActiveSpriteId", fromJson: (json, obj, loadingContext) => getIdFromReferenceString<SpriteId>("Sprite", "Ability", json.workActiveSpriteId, loadingContext.dataIds.spriteIds)},
+    { jsonField: "carrySpriteId", toJson: (obj) => createReferenceString("Sprite", obj.carrySprite?.referenceId, obj.carrySpriteId)},
+    { objectField: "carrySpriteId", fromJson: (json, obj, loadingContext) => getIdFromReferenceString<SpriteId>("Sprite", "Ability", json.carrySpriteId, loadingContext.dataIds.spriteIds)},
+    { jsonField: "resourceGatheringSoundId", toJson: (obj) => createReferenceString("SoundEffect", obj.resourceGatheringSound?.referenceId, obj.resourceGatheringSoundId) },
+    { objectField: "resourceGatheringSoundId", fromJson: (json, obj, loadingContext) => getIdFromReferenceString<SoundEffectId<Int16>>("SoundEffect", "Ability", json.resourceGatheringSoundId, loadingContext.dataIds.soundEffectIds) },
+    { jsonField: "resourceDepositSoundId", toJson: (obj) => createReferenceString("SoundEffect", obj.resourceDepositSound?.referenceId, obj.resourceDepositSoundId) },
+    { objectField: "resourceDepositSoundId", fromJson: (json, obj, loadingContext) => getIdFromReferenceString<SoundEffectId<Int16>>("SoundEffect", "Ability", json.resourceDepositSoundId, loadingContext.dataIds.soundEffectIds) },
+];
 
 export class Ability {
     abilityType: AbilityId<Int16> = asInt16(1); // always 1;
@@ -50,9 +92,9 @@ export class Ability {
     defaultAbility: Bool8 = asBool8(false);
     actionType: ActionId<Int16> = asInt16(0);
     objectClass: ObjectClass = ObjectClasses.None;
-    objectPrototypeId: PrototypeId<Int16> = asInt16(-1);
+    objectPrototypeId: PrototypeId<Int16> = asInt16<PrototypeId<Int16>>(-1);
     objectPrototype: SceneryObjectPrototype | null = null;
-    terrainId: TerrainId<Int16> = asInt16(-1);
+    terrainId: TerrainId<Int16> = asInt16<TerrainId<Int16>>(-1);
     terrain: Terrain | null = null;
     attributeType1: AttributeId<Int16> = asInt16(-1);
     attributeType2: AttributeId<Int16> = asInt16(-1);
@@ -70,17 +112,17 @@ export class Ability {
     targetDiplomacyType: UInt8 = asUInt8(0); // is this a bit flag?
     holdingAttributeCheck: UInt8 = asUInt8(0);
     buildingTarget: Bool8 = asBool8(false);
-    moveSpriteId: SpriteId<Int16> = asInt16(-1);
+    moveSpriteId: SpriteId = asInt16<SpriteId>(-1);
     moveSprite: Sprite | null = null;
-    workPreceedingSpriteId: SpriteId<Int16> = asInt16(-1);
+    workPreceedingSpriteId: SpriteId = asInt16<SpriteId>(-1);
     workPreceedingSprite: Sprite | null = null;
-    workActiveSpriteId: SpriteId<Int16> = asInt16(-1);
+    workActiveSpriteId: SpriteId = asInt16<SpriteId>(-1);
     workActiveSprite: Sprite | null = null;
-    carrySpriteId: SpriteId<Int16> = asInt16(-1);
+    carrySpriteId: SpriteId = asInt16<SpriteId>(-1);
     carrySprite: Sprite | null = null;
-    resourceGatheringSoundId: SoundEffectId<Int16> = asInt16(-1);
+    resourceGatheringSoundId: SoundEffectId<Int16> = asInt16<SoundEffectId<Int16>>(-1);
     resourceGatheringSound: SoundEffect | null = null;
-    resourceDepositSoundId: SoundEffectId<Int16> = asInt16(-1);
+    resourceDepositSoundId: SoundEffectId<Int16> = asInt16<SoundEffectId<Int16>>(-1);
     resourceDepositSound: SoundEffect | null = null;
 
     readFromBuffer(buffer: BufferReader, loadingContext: LoadingContext): void {
@@ -88,9 +130,9 @@ export class Ability {
         this.index = buffer.readInt16();
         this.defaultAbility = buffer.readBool8();
         this.actionType = buffer.readInt16();
-        this.objectClass = buffer.readInt16();
-        this.objectPrototypeId = buffer.readInt16();
-        this.terrainId = buffer.readInt16();
+        this.objectClass = buffer.readInt16<ObjectClass>();
+        this.objectPrototypeId = buffer.readInt16<PrototypeId<Int16>>();
+        this.terrainId = buffer.readInt16<TerrainId<Int16>>();
         this.attributeType1 = buffer.readInt16();
         this.attributeType2 = buffer.readInt16();
         this.attributeType3 = buffer.readInt16();
@@ -107,12 +149,12 @@ export class Ability {
         this.targetDiplomacyType = buffer.readUInt8();
         this.holdingAttributeCheck = buffer.readUInt8();
         this.buildingTarget = buffer.readBool8();
-        this.moveSpriteId = buffer.readInt16();
-        this.workPreceedingSpriteId = buffer.readInt16();
-        this.workActiveSpriteId = buffer.readInt16();
-        this.carrySpriteId = buffer.readInt16();
-        this.resourceGatheringSoundId = buffer.readInt16();
-        this.resourceDepositSoundId = buffer.readInt16();
+        this.moveSpriteId = buffer.readInt16<SpriteId>();
+        this.workPreceedingSpriteId = buffer.readInt16<SpriteId>();
+        this.workActiveSpriteId = buffer.readInt16<SpriteId>();
+        this.carrySpriteId = buffer.readInt16<SpriteId>();
+        this.resourceGatheringSoundId = buffer.readInt16<SoundEffectId<Int16>>();
+        this.resourceDepositSoundId = buffer.readInt16<SoundEffectId<Int16>>();
     }
     
     linkOtherData(parentReferenceId: string, sprites: Nullable<Sprite>[], soundEffects: Nullable<SoundEffect>[], terrains: Nullable<Terrain>[], objects: Nullable<SceneryObjectPrototype>[], loadingContext: LoadingContext) {
@@ -165,8 +207,8 @@ export class Ability {
             .integer(this.resourceDepositSoundId)
             .eol();
     }
-    
-    getJsonConfig(): OldJsonFieldConfig<Ability>[] {
-        return jsonFields; 
+        
+    toJson(savingContext: SavingContext) {
+        return transformObjectToJson(this, AbilityJsonMapping, savingContext)
     }
 }

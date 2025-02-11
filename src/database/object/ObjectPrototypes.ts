@@ -3,7 +3,7 @@ import BufferReader from "../../BufferReader"
 import isEqual from "fast-deep-equal";
 import { TextFileNames, textFileStringCompare } from "../../textfile/TextFile";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
-import { isDefined, Nullable } from "../../ts/ts-utils";
+import { forEachObjectEntry, isDefined, Nullable } from "../../ts/ts-utils";
 import { Civilization } from "../Civilization";
 import { LoadingContext } from "../LoadingContext"
 import { SavingContext } from "../SavingContext";
@@ -15,9 +15,9 @@ import { BuildingObjectPrototype } from "./BuildingObjectPrototype";
 import { CombatantObjectPrototype } from "./CombatantObjectPrototype";
 import { DoppelgangerObjectPrototype } from "./DoppelgangerObjectPrototype";
 import { MobileObjectPrototype } from "./MobileObjectPrototype";
-import { ObjectTypes } from "./ObjectType";
+import { ObjectType, ObjectTypes } from "./ObjectType";
 import { ProjectileObjectPrototype } from "./ProjectileObjectPrototype";
-import { SceneryObjectPrototype } from "./SceneryObjectPrototype";
+import { SceneryObjectPrototype, SceneryObjectPrototypeJson } from "./SceneryObjectPrototype";
 import { TreeObjectPrototype } from "./TreeObjectPrototype";
 import { ParsingError } from '../Error';
 import path from 'path';
@@ -26,6 +26,7 @@ import { createJson, oldTransformObjectToJson, readJsonFileIndex, writeJsonFileI
 import { writeFileSync } from 'fs';
 
 export type BaseObjectPrototype = SceneryObjectPrototype;
+export type BaseObjectPrototypeJson = SceneryObjectPrototypeJson;
 
 export function readObjectPrototypesFromBuffer(buffer: BufferReader, loadingContext: LoadingContext) {
     const result: (SceneryObjectPrototype | null)[] = [];
@@ -38,9 +39,9 @@ export function readObjectPrototypesFromBuffer(buffer: BufferReader, loadingCont
     for (let i = 0; i < objectCount; ++i) {
         let object: SceneryObjectPrototype | null = null;
         if (validObjects[i]) {
-            let objectType = buffer.readUInt8();
+            let objectType = buffer.readUInt8<ObjectType>();
             if (semver.lt(loadingContext.version.numbering, "2.0.0")) {
-                objectType = asUInt8(Math.round(objectType * 10));
+                objectType = asUInt8<ObjectType>(Math.round(objectType * 10));
             }
             switch (objectType) {
                 case ObjectTypes.Scenery:
@@ -139,15 +140,6 @@ function mostCommonValue<T>(values: T[]): T {
     return [...freqMap.entries()].reduce((a, b) => (b[1] > a[1] ? b : a))[0];
 }
 
-// Circular structures need to be excluded
-const excludedBaselineFields: (keyof BuildingObjectPrototype)[] = [
-    "creationSound",
-    "deadUnitPrototype",
-    "placementNeighbouringTerrains",
-    "placementUnderlyingTerrains",
-    "habitat"
-]
-
 function reconstructInstances(obj: any): any {
     if (obj === null || obj === undefined) return obj;
 
@@ -171,7 +163,7 @@ function reconstructInstances(obj: any): any {
 export function createBaselineObjectPrototypes(objectPrototypes: Nullable<SceneryObjectPrototype>[][]): Nullable<SceneryObjectPrototype>[] {
     const civilizationCount = objectPrototypes.length;
     const objectCount = objectPrototypes[0].length;
-    const baselineObjects: Nullable<SceneryObjectPrototype>[] = []; //= Array.from({ length: rowCount }, () => Array(colCount).fill(null));
+    const baselineObjects: Nullable<SceneryObjectPrototype>[] = [];
     for (let objectIndex = 0; objectIndex < objectCount; ++objectIndex) {
         const fieldValues: Record<string, any[]> = {};
         let objectInstance: SceneryObjectPrototype | null = null;
@@ -179,14 +171,12 @@ export function createBaselineObjectPrototypes(objectPrototypes: Nullable<Scener
             const instance = objectPrototypes[civilizationIndex][objectIndex];
             if (instance) {
                 objectInstance = instance;
-                // TODO: exclude reference fields and relink them later...
+                // References should not be linked yet when this function is called!
                 for (const key of Object.keys(instance)) {
-                    if (!excludedBaselineFields.includes(key as keyof SceneryObjectPrototype)) {
-                        if (!fieldValues[key]) {
-                            fieldValues[key] = [];
-                        }
-                        fieldValues[key].push(instance[key as keyof SceneryObjectPrototype]);
+                    if (!fieldValues[key]) {
+                        fieldValues[key] = [];
                     }
+                    fieldValues[key].push(instance[key as keyof SceneryObjectPrototype]);
                 }
             }
         }
@@ -216,35 +206,37 @@ export function createBaselineObjectPrototypes(objectPrototypes: Nullable<Scener
 
 }
 
-export function writeObjectPrototypesToJsonFiles(outputDirectory: string, baselineObjects: Nullable<SceneryObjectPrototype>[], objectPrototypes: Nullable<SceneryObjectPrototype>[][], savingContext: SavingContext) {
+export function writeObjectPrototypesToJsonFiles(outputDirectory: string, baselineObjects: Nullable<BaseObjectPrototype>[], objectPrototypes: Nullable<BaseObjectPrototype>[][], savingContext: SavingContext) {
 
     const objectsDirectory = path.join(outputDirectory, "objects");
 
-    const jsonBaselineObjects = baselineObjects.map(object => object ? oldTransformObjectToJson(object, object.getJsonConfig(), savingContext) : null);
+    const jsonBaselineObjects: Nullable<Partial<BaseObjectPrototypeJson>>[] = baselineObjects.map(object => object ? object.toJson(savingContext) : null);
 
     // Need to eliminate all fields that are not actually baseline (we require that more than half of civilizations actually share this value)
     const civilizationCount = objectPrototypes.length;
     const baselineEnableStates: boolean[] = [];
-    const jsonObjects = objectPrototypes.map(civObjects => civObjects.map(object => object ? oldTransformObjectToJson(object, object.getJsonConfig(), savingContext) : null))
+    const jsonObjects: Nullable<Partial<BaseObjectPrototypeJson>>[][] = objectPrototypes.map(civObjects => civObjects.map(object => object ? object.toJson(savingContext) : null))
     for (let i = 0; i < jsonBaselineObjects.length; ++i) {
         let validEntryCount = 0;
-        if (jsonBaselineObjects[i]) {
+        const baselineObject = jsonBaselineObjects[i];
+        if (baselineObject) {
             jsonObjects.forEach(civObjects => {
                 if (civObjects[i]) {
                     ++validEntryCount;
                 }
             })
-            Object.entries(jsonBaselineObjects[i]).forEach(([key, value]) => {
+            forEachObjectEntry(baselineObject, (key, value) => {
                 let matchCount = 0;
                 jsonObjects.forEach(civObjects => {
-                    if (civObjects[i]) {
-                        if (isEqual(civObjects[i][key], value)) {
+                    const civObject = civObjects[i];
+                    if (civObject) {
+                        if (isEqual(civObject[key], value)) {
                             ++matchCount;
                         }
                     }
                 })
                 if (matchCount / validEntryCount <= 0.5) {
-                    jsonBaselineObjects[i][key] = undefined;
+                    baselineObject[key] = undefined;
                 }
             });
             baselineEnableStates.push((validEntryCount / civilizationCount) > 0.5);
@@ -256,12 +248,14 @@ export function writeObjectPrototypesToJsonFiles(outputDirectory: string, baseli
 
     // Remove fields that match the baseline from civilization objects
     for (let i = 0; i < jsonBaselineObjects.length; ++i) {
-        if (jsonBaselineObjects[i]) {
-            Object.entries(jsonBaselineObjects[i]).forEach(([key, value]) => {
+        const baselineObject = jsonBaselineObjects[i];
+        if (baselineObject) {
+            forEachObjectEntry(baselineObject, (key, value) => {
                 if (value !== undefined) { // Only fields that we have "deleted" should be undefined, otherwise null is used. Fields that don't exist in the baseline should be kept
                     jsonObjects.forEach(civObjects => {
-                        if (civObjects[i] && isEqual(civObjects[i][key], value)) {
-                            delete civObjects[i][key];
+                        const civObject = civObjects[i];
+                        if (civObject && isEqual(civObject[key], value)) {
+                            delete civObject[key];
                         }
                     })
                 }

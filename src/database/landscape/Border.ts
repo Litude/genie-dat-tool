@@ -8,8 +8,8 @@ import { getDataEntry } from "../../util";
 import { JsonLoadingContext, LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
 import { SoundEffect } from "../SoundEffect";
-import { asBool16, asBool8, asInt16, asInt32, asUInt16, asUInt8, Bool16, Bool16Schema, Bool8, Bool8Schema, Int16, Int16Schema, UInt16, UInt8 } from "../../ts/base-types";
-import { PaletteIndex, ReferenceStringSchema, ResourceId, TerrainId } from "../Types";
+import { asBool16, asBool8, asInt16, asInt32, asUInt16, asUInt8, Bool16, Bool16Schema, Bool8, Bool8Schema, Int16, Int16Schema, Int32, UInt16, UInt8 } from "../../ts/base-types";
+import { PaletteIndex, ReferenceStringSchema, ResourceId, SoundEffectId, TerrainId } from "../Types";
 import { Terrain } from "./Terrain";
 import { onParsingError } from '../Error';
 import path from 'path';
@@ -52,7 +52,7 @@ export class Border extends BaseTerrainTile {
     frameMaps: BaseTerrainFrameMap[][] = [];
     drawTerrain: Bool8 = asBool8(false);
     padding59B: UInt8 = asUInt8(0);
-    passabilityTerrainId: TerrainId<Int16> = asInt16(-1);
+    passabilityTerrainId: TerrainId<Int16> = asInt16<TerrainId<Int16>>(-1);
     passabilityTerrain: Terrain | null = null;
     overlayBorder: Bool16 = asBool16(false);
     padding59E: UInt16 = asUInt16(0);
@@ -73,7 +73,7 @@ export class Border extends BaseTerrainTile {
         }
 
         this.graphicPointer = buffer.readPointer();
-        this.soundEffectId = buffer.readInt32();
+        this.soundEffectId = buffer.readInt32<SoundEffectId<Int32>>();
         this.soundEffect = getDataEntry(soundEffects, this.soundEffectId, "SoundEffect", this.referenceId, loadingContext);
 
         this.minimapColor1 = buffer.readUInt8<PaletteIndex>();
@@ -99,7 +99,7 @@ export class Border extends BaseTerrainTile {
         }
         this.drawTerrain = buffer.readBool8();
         this.padding59B = buffer.readUInt8();
-        this.passabilityTerrainId = buffer.readInt16();
+        this.passabilityTerrainId = buffer.readInt16<TerrainId<Int16>>();
         this.passabilityTerrain = getDataEntry(terrains, this.passabilityTerrainId, "Terrain", this.referenceId, loadingContext);
         if (semver.gte(loadingContext.version.numbering, "2.0.0")) {
             this.overlayBorder = buffer.readBool16();

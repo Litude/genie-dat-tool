@@ -15,6 +15,8 @@ import { Technology } from "./Technology";
 import { applyJsonFieldsToObject, createJson, JsonFieldMapping, readJsonFileIndex, transformObjectToJson, writeDataEntriesToJson } from "../../json/json-serialization";
 import { z } from "zod";
 
+// TODO: Split different command types in JSON to make the JSON more readable and allow usage of references
+
 interface EffectCommand {
     commandType: UInt8;
     value1: Int16;

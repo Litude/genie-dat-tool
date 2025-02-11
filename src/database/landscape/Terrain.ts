@@ -9,8 +9,8 @@ import { JsonLoadingContext, LoadingContext } from "../LoadingContext";
 import { SceneryObjectPrototype } from "../object/SceneryObjectPrototype";
 import { SavingContext } from "../SavingContext";
 import { SoundEffect } from "../SoundEffect";
-import { BorderId, PaletteIndex, PaletteIndexSchema, PrototypeId, ReferenceStringSchema, ResourceId, TerrainId } from "../Types";
-import { asInt16, asInt32, asUInt16, asUInt8, Bool8, Bool8Schema, Int16, Int16Schema, UInt16 } from "../../ts/base-types";
+import { BorderId, PaletteIndex, PaletteIndexSchema, PrototypeId, ReferenceStringSchema, ResourceId, SoundEffectId, TerrainId } from "../Types";
+import { asInt16, asInt32, asUInt16, asUInt8, Bool8, Bool8Schema, Int16, Int16Schema, Int32, UInt16, UInt8 } from "../../ts/base-types";
 import { Border } from "./Border";
 import { onParsingError } from "../Error";
 import path from "path";
@@ -96,7 +96,7 @@ const TerrainJsonMapping: JsonFieldMapping<Terrain, TerrainJson>[] = [
         centralize: objectPlacement.centralize
     }))},
     { objectField: "objectPlacements", fromJson: (json, obj, loadingContext) => json.objectPlacements.map(objectPlacement => ({
-        prototypeId: getIdFromReferenceString<Int16>("ObjectPrototype", obj.referenceId, objectPlacement.prototypeId, loadingContext.dataIds.prototypeIds),
+        prototypeId: getIdFromReferenceString<PrototypeId<Int16>>("ObjectPrototype", obj.referenceId, objectPlacement.prototypeId, loadingContext.dataIds.prototypeIds),
         object: null,
         density: objectPlacement.density,
         centralize: objectPlacement.centralize,
@@ -119,13 +119,13 @@ const TerrainJsonMapping: JsonFieldMapping<Terrain, TerrainJson>[] = [
 export class Terrain extends BaseTerrainTile {
     minimapCliffColor1: PaletteIndex = asUInt8<PaletteIndex>(0);
     minimapCliffColor2: PaletteIndex = asUInt8<PaletteIndex>(0);
-    passableTerrainId: TerrainId<Int16> = asInt16(-1); // Note! This is stored as 8 bits in the data!
+    passableTerrainId: TerrainId<Int16> = asInt16<TerrainId<Int16>>(-1); // Note! This is stored as 8 bits in the data!
     passableTerrain: Terrain | null = null;
-    impassableTerrainId: TerrainId<Int16> = asInt16(-1); // Note! This is stored as 8 bits in the data!
+    impassableTerrainId: TerrainId<Int16> = asInt16<TerrainId<Int16>>(-1); // Note! This is stored as 8 bits in the data!
     impassableTerrain: Terrain | null = null;
 
     frameMaps: BaseTerrainFrameMap[] = [];
-    renderedTerrainId: TerrainId<Int16> = asInt16(-1);
+    renderedTerrainId: TerrainId<Int16> = asInt16<TerrainId<Int16>>(-1);
     renderedTerrain: Terrain | null = null;
     terrainPatternHeight: Int16 = asInt16(0);
     terrainPatternWidth: Int16 = asInt16(0);
@@ -150,7 +150,7 @@ export class Terrain extends BaseTerrainTile {
         }
 
         this.graphicPointer = buffer.readPointer();
-        this.soundEffectId = buffer.readInt32();
+        this.soundEffectId = buffer.readInt32<SoundEffectId<Int32>>();
         this.soundEffect = getDataEntry(soundEffects, this.soundEffectId, "SoundEffect", this.referenceId, loadingContext);
 
         this.minimapColor1 = buffer.readUInt8<PaletteIndex>();
@@ -159,10 +159,10 @@ export class Terrain extends BaseTerrainTile {
         this.minimapCliffColor1 = buffer.readUInt8<PaletteIndex>();
         this.minimapCliffColor2 = buffer.readUInt8<PaletteIndex>();
 
-        const rawPassableTerrainId = buffer.readUInt8()
-        this.passableTerrainId = asInt16(rawPassableTerrainId === 255 ? -1 : rawPassableTerrainId);
-        const rawImpassableTerrainId = buffer.readUInt8();
-        this.impassableTerrainId = asInt16(rawImpassableTerrainId === 255 ? -1 : rawImpassableTerrainId);
+        const rawPassableTerrainId = buffer.readUInt8<TerrainId<UInt8>>()
+        this.passableTerrainId = asInt16<TerrainId<Int16>>(rawPassableTerrainId === 255 ? -1 : rawPassableTerrainId);
+        const rawImpassableTerrainId = buffer.readUInt8<TerrainId<UInt8>>();
+        this.impassableTerrainId = asInt16<TerrainId<Int16>>(rawImpassableTerrainId === 255 ? -1 : rawImpassableTerrainId);
 
         this.animation = BaseTerrainAnimation.readFromBuffer(buffer, loadingContext);
 
@@ -176,7 +176,7 @@ export class Terrain extends BaseTerrainTile {
                 frameIndex: buffer.readInt16()
             });
         }
-        this.renderedTerrainId = buffer.readInt16();
+        this.renderedTerrainId = buffer.readInt16<TerrainId<Int16>>();
         this.terrainPatternHeight = buffer.readInt16();
         this.terrainPatternWidth = buffer.readInt16();
 
@@ -189,7 +189,7 @@ export class Terrain extends BaseTerrainTile {
         const placementObjectDensities: Int16[] = [];
         const placementObjectCentralize: Bool8[] = [];
         for (let i = 0; i < 30; ++i) {
-            placementObjectTypes.push(buffer.readInt16());
+            placementObjectTypes.push(buffer.readInt16<PrototypeId<Int16>>());
         }
         for (let i = 0; i < 30; ++i) {
             placementObjectDensities.push(buffer.readInt16());

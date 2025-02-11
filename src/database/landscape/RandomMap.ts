@@ -168,7 +168,7 @@ export class RandomMap {
     };
     borderEdgeFade: Int32 = asInt32(0);
     waterShapeLandPlacementEdge: Int32 = asInt32(0);
-    baseTerrainId: TerrainId<Int32> = asInt32(0);
+    baseTerrainId: TerrainId<Int32> = asInt32<TerrainId<Int32>>(0);
     baseTerrain: Terrain | null = null;
     landCover: Int32 = asInt32(0);
     landId: Int32 = asInt32(0);
@@ -195,7 +195,7 @@ export class RandomMap {
         this.border.bottom = buffer.readInt32();
         this.borderEdgeFade = buffer.readInt32();
         this.waterShapeLandPlacementEdge = buffer.readInt32();
-        this.baseTerrainId = buffer.readInt32();
+        this.baseTerrainId = buffer.readInt32<TerrainId<Int32>>();
         this.baseTerrain = getDataEntry(terrains, this.baseTerrainId, "Terrain", this.referenceId, loadingContext);
         this.landCover = buffer.readInt32();
         this.landId = buffer.readInt32();
@@ -206,7 +206,7 @@ export class RandomMap {
         for (let i = 0; i < baseLandEntryCount; ++i) {
             const landEntry: BaseLandData = {
                 baseLandId: buffer.readInt32(),
-                terrainId: buffer.readUInt8(),
+                terrainId: buffer.readUInt8<TerrainId<UInt8>>(),
                 terrain: null,
                 padding05: buffer.readUInt8(),
                 padding06: buffer.readUInt16(),
@@ -236,11 +236,11 @@ export class RandomMap {
         for (let i = 0; i < terrainEntryCount; ++i) {
             const terrainDataEntry: TerrainPlacementData = {
                 coverageProportion: buffer.readInt32(),
-                terrainId: buffer.readInt32(),
+                terrainId: buffer.readInt32<TerrainId<Int32>>(),
                 terrain: null,
                 clumpCount: buffer.readInt32(),
                 terrainSpacing: buffer.readInt32(),
-                replacedTerrainId: buffer.readInt32(),
+                replacedTerrainId: buffer.readInt32<TerrainId<Int32>>(),
                 replacedTerrain: null,
                 clumpinessFactor: buffer.readInt32()
             }
@@ -254,9 +254,9 @@ export class RandomMap {
         this.objectData = [];
         for (let i = 0; i < objectEntryCount; ++i) {
             const objectData: ObjectPlacementData = {
-                prototypeId: buffer.readInt32(),
+                prototypeId: buffer.readInt32<PrototypeId<Int32>>(),
                 prototype: null,
-                placementTerrainId: buffer.readInt32(),
+                placementTerrainId: buffer.readInt32<TerrainId<Int32>>(),
                 placementTerrain: null,
                 groupMode: buffer.readUInt8(),
                 scaleByMapSize: buffer.readBool8(),
@@ -283,7 +283,7 @@ export class RandomMap {
                 elevationHeight: buffer.readInt32(),
                 clumpinessFactor: buffer.readInt32(),
                 elevationSpacing: buffer.readInt32(),
-                placementTerrainId: buffer.readInt32(),
+                placementTerrainId: buffer.readInt32<TerrainId<Int32>>(),
                 placementTerrain: null,
                 placementElevation: buffer.readInt32()
             }
@@ -319,7 +319,7 @@ export function readRandomMapData(randomMapCount: number, buffer: BufferReader, 
                 },
                 borderEdgeFade: buffer.readInt32(),
                 waterShapeLandPlacementEdge: buffer.readInt32(),
-                baseTerrain: buffer.readInt32(),
+                baseTerrain: buffer.readInt32<TerrainId<Int32>>(),
                 landCover: buffer.readInt32(),
                 landId: buffer.readInt32(),
                 baseLandDataEntryCount: buffer.readInt32(),

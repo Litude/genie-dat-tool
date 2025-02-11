@@ -82,7 +82,7 @@ export class BaseTerrainTile {
     resourceFilename: string = "";
     resourceId: ResourceId = asInt32<ResourceId>(-1);
     graphicPointer: Pointer = NullPointer;
-    soundEffectId: SoundEffectId<Int32> = asInt32(-1);
+    soundEffectId: SoundEffectId<Int32> = asInt32<SoundEffectId<Int32>>(-1);
     soundEffect: SoundEffect | null = null;
     minimapColor1: PaletteIndex = asUInt8<PaletteIndex>(0);
     minimapColor2: PaletteIndex = asUInt8<PaletteIndex>(0);

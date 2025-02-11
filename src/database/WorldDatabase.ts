@@ -12,7 +12,7 @@ import { readAndVerifyTerrainCountFromDatFile, readTerrainIdsFromJsonIndex, read
 import { createFallbackStateEffectReferenceIdsIfNeeded, readStateEffectIdsFromJsonIndex, readStateEffects, readStateEffectsFromJsonFiles, StateEffect, writeStateEffectsToJsonFiles, writeStateEffectsToWorldTextFile } from "./research/StateEffect";
 import { Civilization, readCivilizationIdsFromJsonIndex, readCivilizationsFromJsonFiles, writeCivilizationsToJsonFiles, writeCivilizationsToWorldTextFile } from "./Civilization";
 import { BaseObjectPrototype, createBaselineObjectPrototypes, readObjectPrototypeIdsFromJsonIndex, readObjectPrototypesFromBuffer, writeObjectPrototypesToJsonFiles, writeObjectPrototypesToWorldTextFile } from "./object/ObjectPrototypes";
-import { readTechnologiesFromBuffer, Technology, writeTechnologiesToJsonFiles, writeTechnologiesToWorldTextFile } from "./research/Technology";
+import { readTechnologiesFromBuffer, readTechnologyIdsFromJsonIndex, Technology, writeTechnologiesToJsonFiles, writeTechnologiesToWorldTextFile } from "./research/Technology";
 import { SavingContext } from "./SavingContext";
 import { TextFileWriter } from "../textfile/TextFileWriter";
 import { TextFileNames } from "../textfile/TextFile";
@@ -28,6 +28,7 @@ import { clearDirectory } from "../files/file-utils";
 import { asInt16 } from "../ts/base-types";
 import { PathLike } from "fs";
 import { createMappingFromJsonFileIndex } from "../json/json-serialization";
+import { Logger } from "../Logger";
 
 export class WorldDatabase {
     attributes: Attribute[] = [];
@@ -163,6 +164,7 @@ export class WorldDatabase {
         const stateEffectIds = readStateEffectIdsFromJsonIndex(directory);
         const civilizationIds = readCivilizationIdsFromJsonIndex(directory);
         const prototypeIds = readObjectPrototypeIdsFromJsonIndex(directory);
+        const technologyIds = readTechnologyIdsFromJsonIndex(directory);
 
         const loadingContext: JsonLoadingContext = {
             version: {
@@ -174,12 +176,14 @@ export class WorldDatabase {
             maxTerrainCount: 32, // TODO: Based on version...
             dataIds: {
                 terrainIds: createMappingFromJsonFileIndex(terrainIds),
+                overlayIds: createMappingFromJsonFileIndex(overlayIds),
                 borderIds: createMappingFromJsonFileIndex(borderIds),
                 habitatIds: createMappingFromJsonFileIndex(habitatIds),
                 spriteIds: createMappingFromJsonFileIndex(spriteIds),
                 soundEffectIds: createMappingFromJsonFileIndex(soundEffectIds),
                 stateEffectIds: createMappingFromJsonFileIndex(stateEffectIds),
                 prototypeIds: createMappingFromJsonFileIndex(prototypeIds),
+                technologyIds: createMappingFromJsonFileIndex(technologyIds),
             }
         }
         this.habitats = readHabitatsFromJsonFiles(directory, terrainCount, habitatIds, loadingContext);
@@ -273,6 +277,8 @@ export class WorldDatabase {
         writeObjectPrototypesToJsonFiles(outputDirectory, this.baselineObjects, this.objects, savingContext);
         writeTechnologiesToJsonFiles(outputDirectory, this.technologies, savingContext);
         writeTribeAiToJsonFiles(outputDirectory, this.tribeAi, savingContext);
+
+        Logger.info(`Finished writing JSON files`);
     }
 
     toString() {

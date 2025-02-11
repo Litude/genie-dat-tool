@@ -12,7 +12,7 @@ import { SceneryObjectPrototype } from '../object/SceneryObjectPrototype';
 import { StateEffect } from './StateEffect';
 import { getDataEntry } from '../../util';
 import { isDefined, Nullable, trimEnd } from '../../ts/ts-utils';
-import { OldJsonFieldConfig, oldWriteDataEntriesToJson } from '../../json/json-serialization';
+import { OldJsonFieldConfig, oldWriteDataEntriesToJson, readJsonFileIndex } from '../../json/json-serialization';
 
 interface TechnologyResourceCost {
     attributeId: AttributeId<Int16>;
@@ -50,19 +50,19 @@ export class Technology {
     prerequisiteTechnologies: (Technology | null)[] = [];
     resourceCosts: TechnologyResourceCost[] = [];
     minimumPrerequisites: Int16 = asInt16(0);
-    researchLocationId: PrototypeId<Int16> = asInt16(-1);
+    researchLocationId: PrototypeId<Int16> = asInt16<PrototypeId<Int16>>(-1);
     researchLocation: SceneryObjectPrototype | null = null;
-    nameStringId: StringId<Int16> = asInt16(-1);
-    researchStringId: StringId<Int16> = asInt16(-1);
+    nameStringId: StringId<Int16> = asInt16<StringId<Int16>>(-1);
+    researchStringId: StringId<Int16> = asInt16<StringId<Int16>>(-1);
     researchDuration: Int16 = asInt16(0);
     stateEffectId: StateEffectId<Int16> = asInt16(-1);
     stateEffect: StateEffect | null = null;
-    technologyType: TechnologyType = asInt16(0); // used by old AI for tracking similar technologies
+    technologyType: TechnologyType = asInt16<TechnologyType>(0); // used by old AI for tracking similar technologies
     iconNumber: Int16 = asInt16(0);
     researchButtonIndex: UInt8 = asUInt8(0);
-    helpDialogStringId: StringId<Int32> = asInt32(-1); // The game actually only supports 16-bit string indexes, higher values will overflow
-    helpPageStringId: StringId<Int32> = asInt32(-1);
-    hotkeyStringId: StringId<Int32> = asInt32(-1);
+    helpDialogStringId: StringId<Int32> = asInt32<StringId<Int32>>(-1); // The game actually only supports 16-bit string indexes, higher values will overflow
+    helpPageStringId: StringId<Int32> = asInt32<StringId<Int32>>(-1);
+    hotkeyStringId: StringId<Int32> = asInt32<StringId<Int32>>(-1);
 
     readFromBuffer(buffer: BufferReader, id: Int16, loadingContext: LoadingContext): void {
         this.id = id;
@@ -79,24 +79,24 @@ export class Technology {
             });
         }
         this.minimumPrerequisites = buffer.readInt16();
-        this.researchLocationId = buffer.readInt16();
+        this.researchLocationId = buffer.readInt16<PrototypeId<Int16>>();
         if (semver.gte(loadingContext.version.numbering, "1.5.0")) {
-            this.nameStringId = buffer.readInt16();
-            this.researchStringId = buffer.readInt16();
+            this.nameStringId = buffer.readInt16<StringId<Int16>>();
+            this.researchStringId = buffer.readInt16<StringId<Int16>>();
         }
         else {
-            this.nameStringId = asInt16(-1);
-            this.researchStringId = asInt16(-1);
+            this.nameStringId = asInt16<StringId<Int16>>(-1);
+            this.researchStringId = asInt16<StringId<Int16>>(-1);
         }
         this.researchDuration = buffer.readInt16();
         this.stateEffectId = buffer.readInt16();
-        this.technologyType = buffer.readInt16();
+        this.technologyType = buffer.readInt16<TechnologyType>();
         this.iconNumber = buffer.readInt16();
         this.researchButtonIndex = buffer.readUInt8();
         if (semver.gte(loadingContext.version.numbering, "2.7.0")) {
-            this.helpDialogStringId = buffer.readInt32();
-            this.helpPageStringId = buffer.readInt32();
-            this.hotkeyStringId = buffer.readInt32();
+            this.helpDialogStringId = buffer.readInt32<StringId<Int32>>();
+            this.helpPageStringId = buffer.readInt32<StringId<Int32>>();
+            this.hotkeyStringId = buffer.readInt32<StringId<Int32>>();
         }
         this.internalName = buffer.readPascalString16();
         this.referenceId = createReferenceIdFromString(this.internalName);
@@ -180,4 +180,8 @@ export function writeTechnologiesToWorldTextFile(outputDirectory: string, techno
 
 export function writeTechnologiesToJsonFiles(outputDirectory: string, technologies: Nullable<Technology>[], savingContext: SavingContext) {
     oldWriteDataEntriesToJson(outputDirectory, "techs", technologies, jsonFields, savingContext);
+}
+
+export function readTechnologyIdsFromJsonIndex(inputDirectory: string) {
+    return readJsonFileIndex(path.join(inputDirectory, "techs"));
 }

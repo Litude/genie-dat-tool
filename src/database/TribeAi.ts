@@ -184,9 +184,9 @@ export class TribeAi {
             this.objectGoals.push({
                 targetCounts,
                 targetPercents,
-                prototypeId: buffer.readInt16(),
+                prototypeId: buffer.readInt16<PrototypeId<Int16>>(),
                 prototype: null,
-                objectClass: buffer.readInt16(),
+                objectClass: buffer.readInt16<ObjectClass>(),
                 aiGroupId: buffer.readInt16(),
                 objectCount: buffer.readInt16(),
                 assetsTotal: buffer.readInt32(),
@@ -204,7 +204,7 @@ export class TribeAi {
             }
             this.technologyGoals.push({
                 targetPercents,
-                technologyType: buffer.readInt16(),
+                technologyType: buffer.readInt16<TechnologyType>(),
                 padding12: buffer.readUInt16(),
                 assetsTotal: buffer.readInt32(),
                 deltaPercent: buffer.readInt16(),

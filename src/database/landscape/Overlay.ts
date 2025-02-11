@@ -8,8 +8,8 @@ import { getDataEntry } from "../../util";
 import { JsonLoadingContext, LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
 import { SoundEffect } from "../SoundEffect";
-import { PaletteIndex, ResourceId } from "../Types";
-import { asBool8, asInt16, asInt32, asUInt8, Bool8, Bool8Schema, Int16, UInt8 } from "../../ts/base-types";
+import { PaletteIndex, ResourceId, SoundEffectId } from "../Types";
+import { asBool8, asInt16, asInt32, asUInt8, Bool8, Bool8Schema, Int16, Int32, UInt8 } from "../../ts/base-types";
 import { onParsingError } from '../Error';
 import path from 'path';
 import { createReferenceIdFromString } from '../../json/reference-id';
@@ -63,7 +63,7 @@ export class Overlay extends BaseTerrainTile {
         }
 
         // NOTE: Unlike terrains and borders, here the sound effect comes first and then the graphic
-        this.soundEffectId = buffer.readInt32();
+        this.soundEffectId = buffer.readInt32<SoundEffectId<Int32>>();
         this.soundEffect = getDataEntry(soundEffects, this.soundEffectId, "SoundEffect", this.referenceId, loadingContext);
         this.graphicPointer = buffer.readPointer();
 

@@ -133,7 +133,7 @@ export class MapProperties {
         if (semver.lt(loadingContext.version.numbering, "2.0.0")) {
             this.zoneMap = [];
             for (let i = 0; i < 255; ++i) {
-                this.zoneMap.push(buffer.readUInt8());
+                this.zoneMap.push(buffer.readUInt8<TerrainId<UInt8>>());
             }
         }
         else {

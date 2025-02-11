@@ -25,3 +25,12 @@ export function trimEnd<T>(arr: T[], predicate: (value: T) => boolean): T[] {
 
     return arr.slice(0, i);
 }
+
+export function forEachObjectEntry<T extends object>(
+    obj: T,
+    callback: (key: keyof T, value: T[keyof T]) => void
+) {
+    Object.entries(obj).forEach(([key, value]) => {
+        callback(key as keyof T, value as T[keyof T]);
+    });
+}

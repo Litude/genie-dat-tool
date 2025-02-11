@@ -1,12 +1,19 @@
 import BufferReader from "../../BufferReader";
-import { OldJsonFieldConfig } from "../../json/json-serialization";
+import { JsonFieldMapping, transformObjectToJson } from "../../json/json-serialization";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
-import { asFloat32, Float32, Int16 } from "../../ts/base-types";
-import { SceneryObjectPrototype } from "./SceneryObjectPrototype";
+import { asFloat32, Float32, Float32Schema, Int16 } from "../../ts/base-types";
+import { SceneryObjectPrototype, SceneryObjectPrototypeSchema } from "./SceneryObjectPrototype";
+import { z } from "zod";
 
-const jsonFields: OldJsonFieldConfig<AnimatedObjectPrototype>[] = [{
+export const AnimatedObjectPrototypeSchema = SceneryObjectPrototypeSchema.merge(z.object({
+    movementSpeed: Float32Schema
+}))
+
+type AnimatedObjectPrototypeJson = z.infer<typeof AnimatedObjectPrototypeSchema>;
+
+const AnimatedObjectPrototypeJsonMapping: JsonFieldMapping<AnimatedObjectPrototype, AnimatedObjectPrototypeJson>[] = [{
     field: "movementSpeed"
 }]
 
@@ -18,15 +25,18 @@ export class AnimatedObjectPrototype extends SceneryObjectPrototype {
         this.movementSpeed = buffer.readFloat32();
     }
 
-    getJsonConfig(): OldJsonFieldConfig<SceneryObjectPrototype>[] {
-        return super.getJsonConfig().concat(jsonFields as OldJsonFieldConfig<SceneryObjectPrototype>[]);
-    }
-
     writeToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext): void {
         super.writeToTextFile(textFileWriter, savingContext);
         textFileWriter
             .indent(4)
             .float(this.movementSpeed)
             .eol();
+    }
+    
+    toJson(savingContext: SavingContext) {
+        return {
+            ...super.toJson(savingContext),
+            ...transformObjectToJson(this, AnimatedObjectPrototypeJsonMapping, savingContext)
+        }
     }
 }

@@ -9,7 +9,7 @@ import { SavingContext } from "./SavingContext";
 import { ArchitectureStyleId, ArchitectureStyleIdSchema, ReferenceStringSchema, StateEffectId } from "./Types";
 import { asFloat32, asInt16, asUInt8, Float32, Float32Schema, Int16, UInt8, UInt8Schema } from "../ts/base-types";
 import path from "path";
-import { applyJsonFieldsToObject, createJson, JsonFieldMapping, OldJsonFieldConfig, oldWriteDataEntriesToJson, readJsonFileIndex, transformObjectToJson, writeDataEntriesToJson } from "../json/json-serialization";
+import { applyJsonFieldsToObject, createJson, JsonFieldMapping, readJsonFileIndex, transformObjectToJson, writeDataEntriesToJson } from "../json/json-serialization";
 import { StateEffect } from "./research/StateEffect";
 import { createReferenceString, createReferenceIdFromString as createReferenceIdFromString, getIdFromReferenceString } from "../json/reference-id";
 import { Nullable } from "../ts/ts-utils";

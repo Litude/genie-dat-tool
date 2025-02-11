@@ -47,7 +47,7 @@ export const HabitatJsonMapping: JsonFieldMapping<Habitat, HabitatJson>[] = [
         .filter(entry => entry.multiplier !== 0) },
     { objectField: "terrainData", fromJson: (json, obj, loadingContext) => {
         const terrainData: TerrainData[] = Array.from({ length: loadingContext.terrainCount }).map((entry, index) => ({
-            terrainId: asInt16(index),
+            terrainId: asInt16<TerrainId<Int16>>(index),
             terrain: null,
             multiplier: asFloat32(0),
         }));
@@ -73,7 +73,7 @@ export class Habitat {
         for (let i = 0; i < terrainCount; ++i) {
             if (buffer) {
                 this.terrainData.push({
-                    terrainId: asInt16(i),
+                    terrainId: asInt16<TerrainId<Int16>>(i),
                     multiplier: buffer.readFloat32(),
                     terrain: null
                 });

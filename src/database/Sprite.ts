@@ -194,7 +194,7 @@ export class Sprite {
         right: asInt16(0),
         bottom: asInt16(0),
     };
-    soundEffectId: SoundEffectId<Int16> = asInt16(-1);
+    soundEffectId: SoundEffectId<Int16> = asInt16<SoundEffectId<Int16>>(-1);
     soundEffect: SoundEffect | null = null;
     angleSoundEffectsEnabled: Bool8 = asBool8(false);
     framesPerAngle: Int16 = asInt16(0);
@@ -226,7 +226,7 @@ export class Sprite {
 
         const overlayCount = buffer.readInt16();
 
-        this.soundEffectId = buffer.readInt16();
+        this.soundEffectId = buffer.readInt16<SoundEffectId<Int16>>();
         this.soundEffect = getDataEntry(soundEffects, this.soundEffectId, "SoundEffect", this.referenceId, loadingContext);
         this.angleSoundEffectsEnabled = buffer.readBool8();
         this.framesPerAngle = buffer.readInt16();
@@ -262,7 +262,7 @@ export class Sprite {
 
                 for (let j = 0; j < 3; ++j) {
                     const frameNumber = buffer.readInt16();
-                    const soundEffectId = buffer.readInt16();
+                    const soundEffectId = buffer.readInt16<SoundEffectId<Int16>>();
                     let soundEffect: SoundEffect | null = null;
                     if (soundEffectId >= 0) {
                         if (soundEffectId < soundEffects.length) {

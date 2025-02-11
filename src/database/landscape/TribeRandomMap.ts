@@ -104,11 +104,11 @@ export class TribeRandomMap {
     referenceId: string = "";
     id: Int16 = asInt16(-1);
     internalName: string = "";
-    primaryTerrainId: TerrainId<Int32> = asInt32(-1);
+    primaryTerrainId: TerrainId<Int32> = asInt32<TerrainId<Int32>>(-1);
     primaryTerrain: Terrain | null = null;
-    secondaryTerrainId: TerrainId<Int32> = asInt32(-1);
+    secondaryTerrainId: TerrainId<Int32> = asInt32<TerrainId<Int32>>(-1);
     secondaryTerrain: Terrain | null = null;
-    startingAvoidingTerrainId: TerrainId<Int32> = asInt32(-1);
+    startingAvoidingTerrainId: TerrainId<Int32> = asInt32<TerrainId<Int32>>(-1);
     startingAvoidingTerrain: Terrain | null = null;
     radiusBetweenPlayers: Int32 = asInt32(0);
     terrainPlacements: TerrainPlacementData[] = [];
@@ -124,11 +124,11 @@ export class TribeRandomMap {
         this.id = id;
         this.internalName = `Map ${id + 1}`;
         this.referenceId = createReferenceIdFromString(this.internalName);
-        this.primaryTerrainId = buffer.readInt32();
+        this.primaryTerrainId = buffer.readInt32<TerrainId<Int32>>();
         this.primaryTerrain = getDataEntry(terrains, this.primaryTerrainId, "Terrain", this.referenceId, loadingContext);
-        this.secondaryTerrainId = buffer.readInt32();
+        this.secondaryTerrainId = buffer.readInt32<TerrainId<Int32>>();
         this.secondaryTerrain = getDataEntry(terrains, this.secondaryTerrainId, "Terrain", this.referenceId, loadingContext);
-        this.startingAvoidingTerrainId = buffer.readInt32();
+        this.startingAvoidingTerrainId = buffer.readInt32<TerrainId<Int32>>();
         this.startingAvoidingTerrain = getDataEntry(terrains, this.startingAvoidingTerrainId, "Terrain", this.referenceId, loadingContext);
         this.radiusBetweenPlayers = buffer.readInt32();
 
@@ -145,26 +145,26 @@ export class TribeRandomMap {
         this.terrainPlacements = [];
         for (let i = 0; i < 20; ++i) {
             this.terrainPlacements.push({
-                unusedTerrainId: asInt32(-1),
+                unusedTerrainId: asInt32<TerrainId<Int32>>(-1),
                 unusedTerrain: null,
-                terrainId: buffer.readInt32(),
+                terrainId: buffer.readInt32<TerrainId<Int32>>(),
                 terrain: null,
                 placementType: buffer.readInt32(),
                 density: buffer.readInt32(),
-                primaryBorderingTerrainId: buffer.readInt32(),
+                primaryBorderingTerrainId: buffer.readInt32<TerrainId<Int32>>(),
                 primaryBorderingTerrain: null,
-                secondaryBorderingTerrainId: buffer.readInt32(),
+                secondaryBorderingTerrainId: buffer.readInt32<TerrainId<Int32>>(),
                 secondaryBorderingTerrain: null,
-                secondaryBorderId: buffer.readInt32(),
+                secondaryBorderId: buffer.readInt32<TerrainId<Int32>>(),
                 secondaryBorder: null,
-                specialAltTerrainId: buffer.readInt32(),
+                specialAltTerrainId: buffer.readInt32<TerrainId<Int32>>(),
                 specialAltTerrain: null,
                 distantBorderId: buffer.readInt32(),
                 distantBorder: null,
                 defaultElevation: buffer.readInt32(),
-                avoidedTerrainId: buffer.readInt32(),
+                avoidedTerrainId: buffer.readInt32<TerrainId<Int32>>(),
                 avoidedTerrain: null,
-                windyAvoidingTerrainId: buffer.readInt32(),
+                windyAvoidingTerrainId: buffer.readInt32<TerrainId<Int32>>(),
                 windyAvoidingTerrain: null,
                 windyBorderId: buffer.readInt32(),
                 windyBorder: null,
@@ -172,20 +172,20 @@ export class TribeRandomMap {
         }
         for (let i = 0; i < 60; ++i) {
             this.objectPlacements.push({
-                prototypeId: buffer.readInt32(),
+                prototypeId: buffer.readInt32<PrototypeId<Int32>>(),
                 prototype: null,
                 placementType: buffer.readInt32(),
                 placementCount: buffer.readInt32(),
                 placementSpread: buffer.readInt32(),
                 objectsPerGroupMax: buffer.readInt32(),
                 objectGroups: buffer.readInt32(),
-                placementTerrainId1: buffer.readInt32(),
-                placementTerrainId2: buffer.readInt32(),
-                placementTerrainId3: buffer.readInt32(),
+                placementTerrainId1: buffer.readInt32<TerrainId<Int32>>(),
+                placementTerrainId2: buffer.readInt32<TerrainId<Int32>>(),
+                placementTerrainId3: buffer.readInt32<TerrainId<Int32>>(),
                 placementTerrain1: null,
                 placementTerrain2: null,
                 placementTerrain3: null,
-                borderingTerrainId: buffer.readInt32(),
+                borderingTerrainId: buffer.readInt32<TerrainId<Int32>>(),
                 borderingTerrain: null,
             });
         }

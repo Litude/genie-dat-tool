@@ -34,8 +34,8 @@ export function createMappingFromJsonFileIndex(input: (string | null)[]) {
 
 type SimpleFieldMapping<ObjectType, JsonType> = {
     [K in keyof ObjectType & keyof JsonType]: 
-        [Extract<JsonType[K], undefined>] extends [never] // Is JsonType[K] *never* undefined?
-            ? ([JsonType[K]] extends [ObjectType[K]] ? K : never) // Must be assignable
+        [Extract<JsonType[K], undefined>] extends [never]
+            ? ([JsonType[K]] extends [ObjectType[K]] ? K : never)
             : ([Exclude<JsonType[K], undefined>] extends [ObjectType[K]] ? K : never);
 }[keyof ObjectType & keyof JsonType] extends infer ValidField
     ? ValidField extends keyof ObjectType & keyof JsonType
@@ -62,7 +62,7 @@ type FromJsonMapping<ObjectType, JsonType> = {
     ) => JsonType extends { [K in keyof JsonType]: any } 
         ? (FromJsonMapping<ObjectType, JsonType> extends { objectField: infer OF }
             ? OF extends keyof ObjectType
-                ? ObjectType[OF]
+                ? ObjectType[OF] | undefined
                 : never
             : never)
         : never,
@@ -118,7 +118,7 @@ export function transformObjectToJson<ObjectType extends object, JsonType extend
 }
 
 export function transformJsonToObject<ObjectType extends object, JsonType extends object>(json: JsonType, mappings: JsonFieldMapping<ObjectType, JsonType>[], loadingContext: JsonLoadingContext): ObjectType {
-    const result: any = {};
+    const result = {} as ObjectType;
     for (const fieldMapping of mappings) {
         if (
             (!fieldMapping.versionFrom || semver.gte(loadingContext.version.numbering, fieldMapping.versionFrom)) &&
@@ -127,11 +127,14 @@ export function transformJsonToObject<ObjectType extends object, JsonType extend
         ) {
             if (fieldMapping.field) {
                 if (json[fieldMapping.field] !== undefined) {
-                    result[fieldMapping.field] = json[fieldMapping.field]
+                    result[fieldMapping.field] = (json as any)[fieldMapping.field]
                 }
             }
             else if (fieldMapping.fromJson) {
-                result[fieldMapping.objectField] = fieldMapping.fromJson(json, result, loadingContext);
+                const resultValue = fieldMapping.fromJson(json, result, loadingContext);
+                if (resultValue !== undefined) {
+                    result[fieldMapping.objectField] = resultValue;
+                }
             }
         }
     }
@@ -151,7 +154,10 @@ export function applyJsonFieldsToObject<ObjectType extends object, JsonType exte
                 }
             }
             else if (fieldMapping.fromJson) {
-                object[fieldMapping.objectField] = fieldMapping.fromJson(json, object, loadingContext);
+                const resultValue = fieldMapping.fromJson(json, object, loadingContext);
+                if (resultValue !== undefined) {
+                    object[fieldMapping.objectField] = resultValue;
+                }
             }
         }
     }
