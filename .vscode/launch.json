@@ -26,7 +26,7 @@
         "internalConsoleOptions": "neverOpen",
         "args": [
             "parse-json",
-            "output/empires_0613"
+            "output/tr_game"
         ],
 
         // Files to exclude from debugger (e.g. call stack)

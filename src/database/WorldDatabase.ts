@@ -19,7 +19,7 @@ import { TextFileNames } from "../textfile/TextFile";
 import { Attribute, readAttributesFromJsonFile } from "./Attributes";
 import { Overlay, readOverlaysFromDatFile, readAndVerifyOverlayCountFromDatFile, writeOverlaysToJsonFiles, writeOverlaysToWorldTextFile, readOverlayIdsFromJsonIndex, readOverlaysFromJsonFiles } from "./landscape/Overlay";
 import { readTribeRandomMapData, TribeRandomMap, writeTribeRandomMapsToJsonFiles, writeTribeRandomMapsToWorldTextFile } from "./landscape/TribeRandomMap";
-import { readTribeAiFromBuffer, TribeAi, writeTribeAiToJsonFiles, writeTribeAiToWorldTextFile } from "./TribeAi";
+import { readTribeAiIdsFromJsonIndex, readTribeAisFromBuffer, readTribeAisFromJsonFiles, TribeAi, writeTribeAisToJsonFiles, writeTribeAisToWorldTextFile } from "./TribeAi";
 import { onParsingError, ParsingError } from "./Error";
 import path from "path";
 import { isDefined, Nullable } from "../ts/ts-utils";
@@ -47,7 +47,7 @@ export class WorldDatabase {
     objects: Nullable<BaseObjectPrototype>[][] = [];
     baselineObjects: Nullable<BaseObjectPrototype>[] = [];
     technologies: Nullable<Technology>[] = [];
-    tribeAi:  Nullable<TribeAi>[] = [];
+    tribeAi: Nullable<TribeAi>[] = [];
 
     readFromBuffer(buffer: BufferReader, { habitatsFile, attributesFile} : { habitatsFile: string, attributesFile: string}, loadingContext: LoadingContext) {
         try {
@@ -98,7 +98,7 @@ export class WorldDatabase {
             this.baselineObjects = createBaselineObjectPrototypes(this.objects);
     
             this.technologies = readTechnologiesFromBuffer(buffer, loadingContext);
-            this.tribeAi = readTribeAiFromBuffer(buffer, loadingContext);
+            this.tribeAi = readTribeAisFromBuffer(buffer, loadingContext);
             
             ensureReferenceIdUniqueness(this.habitats);
             ensureReferenceIdUniqueness(this.colormaps);
@@ -154,17 +154,19 @@ export class WorldDatabase {
     readFromJsonFiles(directory: string) {
         // TODO: Do we need some kind of version file...?
         // Should all index files be processed first?
+        const habitatIds = readHabitatIdsFromJsonIndex(directory);
+        const colormapIds = readColormapIdsFromJsonIndex(directory);
+        const spriteIds = readSpriteIdsFromJsonIndex(directory);
+        const soundEffectIds = readSoundEffectIdsFromJsonIndex(directory);
         const terrainIds = readTerrainIdsFromJsonIndex(directory);
         const overlayIds = readOverlayIdsFromJsonIndex(directory);
         const borderIds = readBorderIdsFromJsonIndex(directory);
         const terrainCount = terrainIds.filter(isDefined).length;
-        const habitatIds = readHabitatIdsFromJsonIndex(directory);
-        const spriteIds = readSpriteIdsFromJsonIndex(directory);
-        const soundEffectIds = readSoundEffectIdsFromJsonIndex(directory);
         const stateEffectIds = readStateEffectIdsFromJsonIndex(directory);
         const civilizationIds = readCivilizationIdsFromJsonIndex(directory);
         const prototypeIds = readObjectPrototypeIdsFromJsonIndex(directory);
         const technologyIds = readTechnologyIdsFromJsonIndex(directory);
+        const tribeAiIds = readTribeAiIdsFromJsonIndex(directory);
 
         const loadingContext: JsonLoadingContext = {
             version: {
@@ -188,7 +190,6 @@ export class WorldDatabase {
         }
         this.habitats = readHabitatsFromJsonFiles(directory, terrainCount, habitatIds, loadingContext);
 
-        const colormapIds = readColormapIdsFromJsonIndex(directory);
         this.colormaps = readColormapsFromJsonFiles(directory, colormapIds, loadingContext);
         this.soundEffects = readSoundEffectsFromJsonFiles(directory, soundEffectIds, loadingContext);
         this.sprites = readSpritesFromJsonFiles(directory, spriteIds, loadingContext);
@@ -201,6 +202,7 @@ export class WorldDatabase {
         this.objects = readObjectPrototypesFromJsonFiles(directory, prototypeIds, civilizationCount, loadingContext);
         this.baselineObjects = createBaselineObjectPrototypes(this.objects);
         this.technologies = readTechnologiesFromJsonFiles(directory, technologyIds, loadingContext);
+        this.tribeAi = readTribeAisFromJsonFiles(directory, tribeAiIds, loadingContext);
 
         this.borders.forEach(border => border?.linkOtherData(this.terrains, loadingContext));
 
@@ -224,7 +226,7 @@ export class WorldDatabase {
         writeObjectPrototypesToWorldTextFile(outputDirectory, this.civilizations, this.objects, savingContext);
         writeTechnologiesToWorldTextFile(outputDirectory, this.technologies, savingContext);
         if (semver.lt(savingContext.version.numbering, "2.0.0")) {
-            writeTribeAiToWorldTextFile(outputDirectory, this.tribeAi, savingContext);
+            writeTribeAisToWorldTextFile(outputDirectory, this.tribeAi, savingContext);
         }
 
         const textFileWriter = new TextFileWriter(path.join(outputDirectory, TextFileNames.MainFile));
@@ -280,7 +282,7 @@ export class WorldDatabase {
         writeCivilizationsToJsonFiles(outputDirectory, this.civilizations, savingContext);
         writeObjectPrototypesToJsonFiles(outputDirectory, this.baselineObjects, this.objects, savingContext);
         writeTechnologiesToJsonFiles(outputDirectory, this.technologies, savingContext);
-        writeTribeAiToJsonFiles(outputDirectory, this.tribeAi, savingContext);
+        writeTribeAisToJsonFiles(outputDirectory, this.tribeAi, savingContext);
 
         Logger.info(`Finished writing JSON files`);
     }

@@ -1,18 +1,21 @@
+import JSON5 from "json5";
 import semver from "semver";
 import BufferReader from "../BufferReader";
 import { TextFileNames } from "../textfile/TextFile";
 import { TextFileWriter } from "../textfile/TextFileWriter";
-import { LoadingContext } from "./LoadingContext";
-import { ObjectClass } from "./object/ObjectClass";
+import { JsonLoadingContext, LoadingContext } from "./LoadingContext";
+import { ObjectClass, ObjectClassSchema } from "./object/ObjectClass";
 import { SavingContext } from "./SavingContext";
-import { asBool16, asBool8, asFloat32, asInt16, asUInt16, asUInt32, asUInt8, Bool16, Bool8, Float32, Int16, Int32, NullPointer, Pointer, UInt16, UInt32, UInt8 } from "../ts/base-types";
-import { AgeId, Percentage, PrototypeId, TechnologyType } from "./Types";
+import { asBool16, asBool8, asFloat32, asInt16, asInt32, asUInt16, asUInt32, asUInt8, Bool16, Bool8, Float32, Int16, Int16Schema, Int32, NullPointer, Pointer, UInt16, UInt32, UInt8, UInt8Schema } from "../ts/base-types";
+import { AgeId, Percentage, PrototypeId, ReferenceStringSchema, TechnologyType, TechnologyTypeSchema } from "./Types";
 import path from "path";
-import { OldJsonFieldConfig, oldWriteDataEntriesToJson } from "../json/json-serialization";
+import { applyJsonFieldsToObject, createJson, JsonFieldMapping, readJsonFileIndex, transformJsonToObject, transformObjectToJson, writeDataEntriesToJson } from "../json/json-serialization";
 import { Nullable } from "../ts/ts-utils";
-import { createReferenceIdFromString, createReferenceString } from "../json/reference-id";
+import { createReferenceIdFromString, createReferenceString, getIdFromReferenceString } from "../json/reference-id";
 import { BaseObjectPrototype } from "./object/ObjectPrototypes";
 import { getDataEntry } from "../util";
+import { z } from "zod";
+import { readFileSync, writeFileSync } from "fs";
 
 // Many entries have exactly 8 entries in an array... Perhaps these correspond to 1 for each age in very early stages of development when there were 8 ages
 // For exampla the object state type as 8 entries for target units and target percents, perhaps to allow specifying how many of that unit the AI should
@@ -24,6 +27,17 @@ interface AiGroup {
     deltaPercent: Percentage<Int16>;
     padding16: UInt16;
 }
+const AiGroupSchema = z.object({
+    targetPercents: z.array(Int16Schema).length(8),
+});
+type AiGroupJson = z.infer<typeof AiGroupSchema>;
+
+const AiGroupJsonMapping: JsonFieldMapping<AiGroup, AiGroupJson>[] = [
+    { field: "targetPercents" },
+    { objectField: "assetsTotal", fromJson: () => asInt32(0) },
+    { objectField: "deltaPercent", fromJson: () => asInt16(0) },
+    { objectField: "padding16", fromJson: () => asInt16(0) }
+];
 
 interface AiObjectGoal {
     targetCounts: Int16[];
@@ -38,6 +52,28 @@ interface AiObjectGoal {
     stateName: string;
     padding43: UInt8;
 }
+const AiObjectGoalSchema = z.object({
+    targetCounts: z.array(Int16Schema).length(8),
+    targetPercents: z.array(Int16Schema).length(8),
+    prototypeId: ReferenceStringSchema,
+    objectClass: ObjectClassSchema,
+    aiGroupId: Int16Schema,
+    stateName: z.string()
+});
+type AiObjectGoalJson = z.infer<typeof AiObjectGoalSchema>;
+const AiObjectGoalJsonMapping: JsonFieldMapping<AiObjectGoal, AiObjectGoalJson>[] = [
+    { field: "targetCounts" },
+    { field: "targetPercents" },
+    { jsonField: "prototypeId", toJson: (obj, savingContext) => createReferenceString("ObjectPrototype", obj.prototype?.referenceId, obj.prototypeId) },
+    { objectField: "prototypeId", fromJson: (json, obj, loadingContext) => getIdFromReferenceString<PrototypeId<Int16>>("ObjectPrototype", "TribeAi", json.prototypeId, loadingContext.dataIds.prototypeIds) },
+    { field: "objectClass" },
+    { field: "aiGroupId" },
+    { objectField: "objectCount", fromJson: () => asInt16(0) },
+    { objectField: "assetsTotal", fromJson: () => asInt32(0) },
+    { objectField: "deltaPercent", fromJson: () => asInt16(0) },
+    { field: "stateName" },
+    { objectField: "padding43", fromJson: () => asUInt8(0) },
+]
 
 interface AiTechnologyGoal {
     targetPercents: Percentage<Int16>[];
@@ -48,27 +84,42 @@ interface AiTechnologyGoal {
     stateName: string;
     padding2F: UInt8;
 }
+const AiTechnologyGoalSchema = z.object({
+    targetPercents: z.array(Int16Schema).length(8),
+    technologyType: TechnologyTypeSchema,
+    stateName: z.string(),
+});
+type AiTechnologyGoalJson = z.infer<typeof AiTechnologyGoalSchema>;
+const AiTechnologyGoalJsonMapping: JsonFieldMapping<AiTechnologyGoal, AiTechnologyGoalJson>[] = [
+    { field: "targetPercents" },
+    { field: "technologyType" },
+    { objectField: "padding12", fromJson: () => asUInt16(0) },
+    { objectField: "assetsTotal", fromJson: () => asInt32(0) },
+    { objectField: "deltaPercent", fromJson: () => asInt16(0) },
+    { field: "stateName" },
+    { objectField: "padding2F", fromJson: () => asUInt8(0) },
+]
 
-const jsonFields: OldJsonFieldConfig<TribeAi>[] = [
-    { field: "objectGoals", toJson: (obj) => obj.objectGoals.map(objectGoal => ({
-        prototypeId: createReferenceString("ObjectPrototype", objectGoal.prototype?.referenceId, objectGoal.prototypeId),
-        objectClass: objectGoal.objectClass,
-        objectName: objectGoal.stateName,
-        aiGroupId: objectGoal.aiGroupId,
-        targetValues: objectGoal.targetCounts.map((targetCount, index) => ({
-            count: objectGoal.targetCounts[index],
-            percent: objectGoal.targetPercents[index]
-        }))
-    }))},
-    { field: "technologyGoals", toJson: (obj) => obj.technologyGoals.map(technologyGoal => ({
-        technologyType: technologyGoal.technologyType,
-        targetPercents: technologyGoal.targetPercents,
-    }))},
-    { field: "aiGroups", toJson: (obj) => obj.aiGroups.map(aiGroup => ({
-        targetPercents: aiGroup.targetPercents
-    }))},
+const TribeAiSchema = z.object({
+    objectGoals: z.array(AiObjectGoalSchema),
+    technologyGoals: z.array(AiTechnologyGoalSchema),
+    aiGroups: z.array(AiGroupSchema).length(5),
+    field9C: z.array(UInt8Schema).length(7),
+    fieldA3: z.array(UInt8Schema).length(6),
+});
+type TribeAiJson = z.infer<typeof TribeAiSchema>;
+
+const TribeAiJsonMapping: JsonFieldMapping<TribeAi, TribeAiJson>[] = [
+    { jsonField: "objectGoals", toJson: (obj, savingContext) => obj.objectGoals.map(objectGoal => transformObjectToJson(objectGoal, AiObjectGoalJsonMapping, savingContext)) },
+    { objectField: "objectGoals", fromJson: (json, obj, loadingContext) => json.objectGoals.map(objectGoal => transformJsonToObject(objectGoal, AiObjectGoalJsonMapping, loadingContext)) },
+    { jsonField: "technologyGoals", toJson: (obj, savingContext) => obj.technologyGoals.map(technologyGoal => transformObjectToJson(technologyGoal, AiTechnologyGoalJsonMapping, savingContext) )},
+    { objectField: "technologyGoals", fromJson: (json, obj, loadingContext) => json.technologyGoals.map(objectGoal => transformJsonToObject(objectGoal, AiTechnologyGoalJsonMapping, loadingContext)) },
+    { jsonField: "aiGroups", toJson: (obj, savingContext) => obj.aiGroups.map(aiGroup => transformObjectToJson(aiGroup, AiGroupJsonMapping, savingContext)) },
+    { objectField: "aiGroups", fromJson: (json, obj, loadingContext) => json.aiGroups.map(aiGroup => transformJsonToObject(aiGroup, AiGroupJsonMapping, loadingContext)) },
     { field: "field9C"},
-    { field: "fieldA3"}
+    { field: "fieldA3"},
+    { objectField: "fieldCE", fromJson: () => asUInt16(10) },
+    { objectField: "fieldD0", fromJson: () => asUInt16(12) },
 ];
 
 export class TribeAi {
@@ -212,7 +263,70 @@ export class TribeAi {
                 padding2F: buffer.readUInt8()
             });
         }
+    }
+                
+    readFromJsonFile(jsonFile: TribeAiJson, id: Int16, referenceId: string, loadingContext: JsonLoadingContext) {
+        this.id = id;
+        this.referenceId = referenceId;
+        applyJsonFieldsToObject(jsonFile, this, TribeAiJsonMapping, loadingContext)
+    }
 
+    appendToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext) {
+        textFileWriter.integer(this.id).eol();
+        
+        textFileWriter
+            .indent(4)
+            .raw(this.objectGoals.length).eol()
+
+        this.objectGoals.forEach(objectGoal => {
+            textFileWriter
+                .indent(6)
+                .integer(objectGoal.prototypeId)
+                .integer(objectGoal.objectClass)
+                .integer(objectGoal.aiGroupId)
+                .string(objectGoal.stateName, 21);
+
+            for (let i = 0; i < 8; ++i) {
+                textFileWriter
+                    .integer(objectGoal.targetCounts[i])
+                    .integer(objectGoal.targetPercents[i])
+            }
+            textFileWriter.eol();
+        })
+
+        textFileWriter.indent(2);
+        for (let i = 0; i < 7; ++i) {
+            textFileWriter.integer(this.field9C[i]);
+        }
+        for (let i = 0; i < 6; ++i) {
+            textFileWriter.integer(this.fieldA3[i]);
+        }
+        textFileWriter.eol();
+        
+        textFileWriter
+            .indent(4)
+            .raw(this.technologyGoals.length).eol()
+
+        this.technologyGoals.forEach(techGoal => {
+            textFileWriter
+                .indent(6)
+                .integer(techGoal.technologyType)
+                .string(techGoal.stateName, 21);
+                
+            for (let i = 0; i < 8; ++i) {
+                textFileWriter
+                    .integer(techGoal.targetPercents[i])
+            }
+            textFileWriter.eol();
+        })
+
+        for (let i = 0; i < 5; ++i) {
+            textFileWriter.indent(2)
+            for (let j = 0; j < 8; ++j) {
+                textFileWriter.integer(this.aiGroups[i].targetPercents[j])
+            }
+            textFileWriter.eol();
+        }
     }
     
     linkOtherData(objects: Nullable<BaseObjectPrototype>[], loadingContext: LoadingContext) {
@@ -220,11 +334,19 @@ export class TribeAi {
             objectState.prototype = getDataEntry(objects, objectState.prototypeId, "ObjectPrototype", this.referenceId, loadingContext);
         });
     }
+    
+    writeToJsonFile(directory: string, savingContext: SavingContext) {
+        writeFileSync(path.join(directory, `${this.referenceId}.json`), createJson(this.toJson(savingContext)));
+    }
+
+    toJson(savingContext: SavingContext) {
+        return transformObjectToJson(this, TribeAiJsonMapping, savingContext)
+    }
 }
 
 
-export function readTribeAiFromBuffer(buffer: BufferReader, loadingContext: LoadingContext): (TribeAi | null)[] {
-    const result: (TribeAi | null)[] = [];
+export function readTribeAisFromBuffer(buffer: BufferReader, loadingContext: LoadingContext): Nullable<TribeAi>[] {
+    const result: Nullable<TribeAi>[] = [];
     if (semver.lt(loadingContext.version.numbering, "2.0.0")) {
         const aiEntryCount = buffer.readInt16();
         const validAis: boolean[] = [];
@@ -242,76 +364,46 @@ export function readTribeAiFromBuffer(buffer: BufferReader, loadingContext: Load
     return result;
 }
 
-export function writeTribeAiToWorldTextFile(outputDirectory: string, aiEntries: (TribeAi | null)[], savingContext: SavingContext) {
+export function readTribeAisFromJsonFiles(inputDirectory: string, tribeAiIds: (string | null)[], loadingContext: JsonLoadingContext) {
+    const aiDirectory = path.join(inputDirectory, 'tribeai');
+    const tribeAis: Nullable<TribeAi>[] = [];
+    tribeAiIds.forEach((tribeAiReferenceId, tribeAiNumberId) => {
+        if (tribeAiReferenceId === null) {
+            tribeAis.push(null);
+        }
+        else {
+            const tribeAiJson = TribeAiSchema.parse(JSON5.parse(readFileSync(path.join(aiDirectory, `${tribeAiReferenceId}.json`)).toString('utf8')));
+            const tribeAi = new TribeAi();
+            tribeAi.readFromJsonFile(tribeAiJson, asInt16(tribeAiNumberId), tribeAiReferenceId, loadingContext);
+            tribeAis.push(tribeAi);
+        }
+
+    })
+    return tribeAis;
+}
+
+export function writeTribeAisToWorldTextFile(outputDirectory: string, aiEntries: Nullable<TribeAi>[], savingContext: SavingContext) {
     const textFileWriter = new TextFileWriter(path.join(outputDirectory, TextFileNames.TribeAi));
     textFileWriter.raw(aiEntries.length).eol();
 
     aiEntries.forEach(aiEntry => {
-        if (aiEntry) {
-            textFileWriter.integer(aiEntry.id).eol();
-            
-            textFileWriter
-                .indent(4)
-                .raw(aiEntry.objectGoals.length).eol()
-
-            aiEntry.objectGoals.forEach(objectGoal => {
-                textFileWriter
-                    .indent(6)
-                    .integer(objectGoal.prototypeId)
-                    .integer(objectGoal.objectClass)
-                    .integer(objectGoal.aiGroupId)
-                    .string(objectGoal.stateName, 21);
-
-                for (let i = 0; i < 8; ++i) {
-                    textFileWriter
-                        .integer(objectGoal.targetCounts[i])
-                        .integer(objectGoal.targetPercents[i])
-                }
-                textFileWriter.eol();
-            })
-
-            textFileWriter.indent(2);
-            for (let i = 0; i < 7; ++i) {
-                textFileWriter.integer(aiEntry.field9C[i]);
-            }
-            for (let i = 0; i < 6; ++i) {
-                textFileWriter.integer(aiEntry.fieldA3[i]);
-            }
-            textFileWriter.eol();
-            
-            textFileWriter
-                .indent(4)
-                .raw(aiEntry.technologyGoals.length).eol()
-
-            aiEntry.technologyGoals.forEach(techGoal => {
-                textFileWriter
-                    .indent(6)
-                    .integer(techGoal.technologyType)
-                    .string(techGoal.stateName, 21);
-                    
-                for (let i = 0; i < 8; ++i) {
-                    textFileWriter
-                        .integer(techGoal.targetPercents[i])
-                }
-                textFileWriter.eol();
-            })
-
-            for (let i = 0; i < 5; ++i) {
-                textFileWriter.indent(2)
-                for (let j = 0; j < 8; ++j) {
-                    textFileWriter.integer(aiEntry.aiGroups[i].targetPercents[j])
-                }
-                textFileWriter.eol();
-            }
-
-        }
-    })
+        aiEntry?.appendToTextFile(textFileWriter, savingContext);
+    });
 
     textFileWriter.close();
 }
 
-export function writeTribeAiToJsonFiles(outputDirectory: string, aiEntries: Nullable<TribeAi>[], savingContext: SavingContext) {
+export function writeTribeAisToJsonFiles(outputDirectory: string, aiEntries: Nullable<TribeAi>[], savingContext: SavingContext) {
     if (semver.lt(savingContext.version.numbering, "2.0.0")) {
-        oldWriteDataEntriesToJson(outputDirectory, "tribeai", aiEntries, jsonFields, savingContext); 
+        writeDataEntriesToJson(outputDirectory, "tribeai", aiEntries, savingContext); 
+    }
+}
+
+export function readTribeAiIdsFromJsonIndex(inputDirectory: string) {
+    try {
+        return readJsonFileIndex(path.join(inputDirectory, "tribeai"));
+    }
+    catch (err: unknown) {
+        return [];
     }
 }
