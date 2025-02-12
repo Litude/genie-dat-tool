@@ -118,7 +118,7 @@ export function writeStateEffectsToWorldTextFile(outputDirectory: string, effect
         const effect = validEntries[i];
         textFileWriter
             .conditional(semver.gte(savingContext.version.numbering, "2.0.0"), writer => writer.integer(effect.id))
-            .string(effect.internalName.replaceAll(' ', '_'), 17)
+            .string(effect.internalName, 17)
             .integer(effect.commands.length)
             .eol();
 

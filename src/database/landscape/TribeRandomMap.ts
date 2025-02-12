@@ -243,7 +243,7 @@ export function writeTribeRandomMapsToWorldTextFile(outputDirectory: string, map
     textFileWriter.raw(maps.length).eol();
     maps.forEach(map => {
         textFileWriter
-            .string(map.internalName.replaceAll(' ', '_'), 17)
+            .string(map.internalName, 17)
             .integer(map.primaryTerrainId)
             .integer(map.secondaryTerrainId)
             .integer(map.startingAvoidingTerrainId)

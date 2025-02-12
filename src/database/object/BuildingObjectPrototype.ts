@@ -99,8 +99,8 @@ export class BuildingObjectPrototype extends AdvancedCombatantObjectPrototype {
         this.constructionSoundEffect = getDataEntry(soundEffects, this.constructionSoundEffectId, "SoundEffect", this.referenceId, loadingContext);
     }
 
-    writeToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext): void {
-        super.writeToTextFile(textFileWriter, savingContext)
+    appendToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext): void {
+        super.appendToTextFile(textFileWriter, savingContext)
         textFileWriter
             .indent(4)
             .integer(this.constructionSpriteId)

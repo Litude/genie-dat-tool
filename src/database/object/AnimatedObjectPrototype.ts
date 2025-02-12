@@ -31,8 +31,8 @@ export class AnimatedObjectPrototype extends SceneryObjectPrototype {
         applyJsonFieldsToObject(jsonFile, this, AnimatedObjectPrototypeJsonMapping, loadingContext);
     }
 
-    writeToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext): void {
-        super.writeToTextFile(textFileWriter, savingContext);
+    appendToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext): void {
+        super.appendToTextFile(textFileWriter, savingContext);
         textFileWriter
             .indent(4)
             .float(this.movementSpeed)

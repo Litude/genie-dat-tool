@@ -113,7 +113,7 @@ export function writeObjectPrototypesToWorldTextFile(outputDirectory: string, ci
             .eol();
         
         civObject.objects.forEach(object => {
-            object.writeToTextFile(textFileWriter, savingContext);
+            object.appendToTextFile(textFileWriter, savingContext);
         });
     })
 

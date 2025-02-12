@@ -100,7 +100,7 @@ export class BaseTerrainTile {
     appendToTextFile(textFile: TextFileWriter, savingContext: SavingContext) {
         textFile
             .integer(this.id)
-            .string(this.internalName.replaceAll(" ", "_"), 17)
+            .string(this.internalName, 17)
             .filename(this.resourceFilename)
             .conditional(semver.gte(savingContext.version.numbering, "2.0.0"), writer => writer.integer(this.resourceId))
             .integer(this.random ? 1 : 0)

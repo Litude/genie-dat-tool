@@ -127,8 +127,8 @@ export class ActorObjectPrototype extends MobileObjectPrototype {
         })
     }
 
-    writeToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext): void {
-        super.writeToTextFile(textFileWriter, savingContext)
+    appendToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext): void {
+        super.appendToTextFile(textFileWriter, savingContext)
         textFileWriter
             .indent(4)
             .float(this.searchRadius)

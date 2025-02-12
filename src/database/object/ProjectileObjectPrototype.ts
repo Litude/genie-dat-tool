@@ -51,8 +51,8 @@ export class ProjectileObjectPrototype extends CombatantObjectPrototype {
         applyJsonFieldsToObject(jsonFile, this, ProjectileObjectPrototypeJsonMapping, loadingContext);
     }
 
-    writeToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext): void {
-        super.writeToTextFile(textFileWriter, savingContext);
+    appendToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext): void {
+        super.appendToTextFile(textFileWriter, savingContext);
         textFileWriter
             .indent(4)
             .integer(this.projectileType)

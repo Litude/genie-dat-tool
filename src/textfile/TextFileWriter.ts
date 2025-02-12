@@ -56,7 +56,7 @@ export class TextFileWriter {
     }
 
     string(input: string, maxWidth: number) {
-        let parsedInput = input;
+        let parsedInput = input.replaceAll(' ', '_');
         if (input.length > maxWidth - 1) {
             Logger.warn(`Output string ${input} is too long and will be truncated!`);
             parsedInput = input.slice(0, maxWidth - 1);

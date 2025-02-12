@@ -12,7 +12,7 @@ import { readAndVerifyTerrainCountFromDatFile, readTerrainIdsFromJsonIndex, read
 import { createFallbackStateEffectReferenceIdsIfNeeded, readStateEffectIdsFromJsonIndex, readStateEffects, readStateEffectsFromJsonFiles, StateEffect, writeStateEffectsToJsonFiles, writeStateEffectsToWorldTextFile } from "./research/StateEffect";
 import { Civilization, readCivilizationIdsFromJsonIndex, readCivilizationsFromJsonFiles, writeCivilizationsToJsonFiles, writeCivilizationsToWorldTextFile } from "./Civilization";
 import { BaseObjectPrototype, createBaselineObjectPrototypes, readObjectPrototypeIdsFromJsonIndex, readObjectPrototypesFromBuffer, readObjectPrototypesFromJsonFiles, writeObjectPrototypesToJsonFiles, writeObjectPrototypesToWorldTextFile } from "./object/ObjectPrototypes";
-import { readTechnologiesFromBuffer, readTechnologyIdsFromJsonIndex, Technology, writeTechnologiesToJsonFiles, writeTechnologiesToWorldTextFile } from "./research/Technology";
+import { readTechnologiesFromBuffer, readTechnologiesFromJsonFiles, readTechnologyIdsFromJsonIndex, Technology, writeTechnologiesToJsonFiles, writeTechnologiesToWorldTextFile } from "./research/Technology";
 import { SavingContext } from "./SavingContext";
 import { TextFileWriter } from "../textfile/TextFileWriter";
 import { TextFileNames } from "../textfile/TextFile";
@@ -200,6 +200,7 @@ export class WorldDatabase {
         const civilizationCount = this.civilizations.length;
         this.objects = readObjectPrototypesFromJsonFiles(directory, prototypeIds, civilizationCount, loadingContext);
         this.baselineObjects = createBaselineObjectPrototypes(this.objects);
+        this.technologies = readTechnologiesFromJsonFiles(directory, technologyIds, loadingContext);
 
         this.borders.forEach(border => border?.linkOtherData(this.terrains, loadingContext));
 

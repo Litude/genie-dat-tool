@@ -85,8 +85,8 @@ export class MobileObjectPrototype extends AnimatedObjectPrototype {
         this.trailingUnitPrototype = getDataEntry(objects, this.trailingUnitPrototypeId, "ObjectPrototype", this.referenceId, loadingContext);
     }
 
-    writeToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext): void {
-        super.writeToTextFile(textFileWriter, savingContext);
+    appendToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext): void {
+        super.appendToTextFile(textFileWriter, savingContext);
         textFileWriter
             .indent(4)
             .integer(this.walkingSpriteId)

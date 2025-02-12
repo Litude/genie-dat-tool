@@ -1,18 +1,22 @@
+import JSON5 from "json5";
 import semver from 'semver';
 import BufferReader from "../../BufferReader";
 import { TextFileNames } from "../../textfile/TextFile";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
-import { LoadingContext } from "../LoadingContext";
+import { JsonLoadingContext, LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
-import { asInt16, asInt32, asUInt8, Bool8, Int16, Int32, UInt8 } from "../../ts/base-types";
-import { AttributeId, PrototypeId, StateEffectId, StringId, TechnologyId, TechnologyType } from "../Types";
+import { asInt16, asInt32, asUInt8, Bool8, Int16, Int16Schema, Int32, Int32Schema, UInt8, UInt8Schema } from "../../ts/base-types";
+import { AttributeId, PrototypeId, ReferenceStringSchema, StateEffectId, StringId, StringIdSchema, TechnologyId, TechnologyType, TechnologyTypeSchema } from "../Types";
 import path from 'path';
-import { createReferenceString, createReferenceIdFromString } from '../../json/reference-id';
+import { createReferenceString, createReferenceIdFromString, getIdFromReferenceString } from '../../json/reference-id';
 import { SceneryObjectPrototype } from '../object/SceneryObjectPrototype';
 import { StateEffect } from './StateEffect';
 import { getDataEntry } from '../../util';
 import { isDefined, Nullable, trimEnd } from '../../ts/ts-utils';
-import { OldJsonFieldConfig, oldWriteDataEntriesToJson, readJsonFileIndex } from '../../json/json-serialization';
+import { applyJsonFieldsToObject, createJson, JsonFieldMapping, readJsonFileIndex, transformObjectToJson, writeDataEntriesToJson } from '../../json/json-serialization';
+import { z } from 'zod';
+import { ResourceCostSchema } from '../object/AdvancedCombatantObjectPrototype';
+import { readFileSync, writeFileSync } from 'fs';
 
 interface TechnologyResourceCost {
     attributeId: AttributeId<Int16>;
@@ -20,20 +24,43 @@ interface TechnologyResourceCost {
     costDeducted: Bool8;
 }
 
-const jsonFields: OldJsonFieldConfig<Technology>[] = [
+const TechnologySchema = z.object({
+    internalName: z.string(),
+    prerequisiteTechnologyIds: z.array(ReferenceStringSchema).max(4),
+    resourceCosts: z.array(ResourceCostSchema).max(3),
+    minimumPrerequisites: Int16Schema,
+    researchLocationId: ReferenceStringSchema,
+    nameStringId: StringIdSchema(Int16Schema).optional(),
+    researchStringId: StringIdSchema(Int16Schema).optional(),
+    researchDuration: Int16Schema,
+    stateEffectId: ReferenceStringSchema,
+    technologyType: TechnologyTypeSchema,
+    iconNumber: Int16Schema,
+    researchButtonIndex: UInt8Schema,
+    helpDialogStringId: StringIdSchema(Int32Schema).optional(),
+    helpPageStringId: StringIdSchema(Int32Schema).optional(),
+    hotkeyStringId: StringIdSchema(Int32Schema).optional(),
+});
+type TechnologyJson = z.infer<typeof TechnologySchema>;
+
+const TechnologyJsonMapping: JsonFieldMapping<Technology, TechnologyJson>[] = [
     { field: "internalName" },
-    { field: "prerequisiteTechnologyIds",
+    { jsonField: "prerequisiteTechnologyIds",
         toJson: (obj) => {
             return obj.prerequisiteTechnologies
                 .slice(0, trimEnd(obj.prerequisiteTechnologyIds, entry => entry === -1).length)
                 .map((entry, index) => createReferenceString("Technology", entry?.referenceId, obj.prerequisiteTechnologyIds[index])) }},
-    { field: 'resourceCosts', toJson: (obj) => trimEnd(obj.resourceCosts, entry => entry.attributeId === -1) },
+    { objectField: "prerequisiteTechnologyIds", fromJson: (json, obj, loadingContext) => json.prerequisiteTechnologyIds.map(entry => getIdFromReferenceString<TechnologyId<Int16>>("Technology", obj.referenceId, entry, loadingContext.dataIds.technologyIds)) },
+    { jsonField: 'resourceCosts', toJson: (obj) => trimEnd(obj.resourceCosts, entry => entry.attributeId === -1) },
+    { objectField: "resourceCosts", fromJson: (json, obj, loadingContext) => json.resourceCosts.map(entry => ({ ...entry} ))},
     { field: 'minimumPrerequisites' },
-    { field: 'researchLocationId', toJson: (obj) => createReferenceString("ObjectPrototype", obj.researchLocation?.referenceId, obj.researchLocationId) },
+    { jsonField: 'researchLocationId', toJson: (obj) => createReferenceString("ObjectPrototype", obj.researchLocation?.referenceId, obj.researchLocationId) },
+    { objectField: "researchLocationId", fromJson: (json, obj, loadingContext) => getIdFromReferenceString<PrototypeId<Int16>>("ObjectPrototype", obj.referenceId, json.researchLocationId, loadingContext.dataIds.prototypeIds) }, 
     { field: 'nameStringId', versionFrom: "1.5.0" },
     { field: 'researchStringId', versionFrom: "1.5.0" },
     { field: 'researchDuration' },
-    { field: 'stateEffectId', toJson: (obj) => createReferenceString("StateEffect", obj.stateEffect?.referenceId, obj.stateEffectId) },
+    { jsonField: 'stateEffectId', toJson: (obj) => createReferenceString("StateEffect", obj.stateEffect?.referenceId, obj.stateEffectId) },
+    { objectField: "stateEffectId", fromJson: (json, obj, loadingContext) => getIdFromReferenceString<StateEffectId>("StateEffect", obj.referenceId, json.stateEffectId, loadingContext.dataIds.stateEffectIds) },
     { field: 'technologyType' },
     { field: 'iconNumber' },
     { field: 'researchButtonIndex' },
@@ -55,7 +82,7 @@ export class Technology {
     nameStringId: StringId<Int16> = asInt16<StringId<Int16>>(-1);
     researchStringId: StringId<Int16> = asInt16<StringId<Int16>>(-1);
     researchDuration: Int16 = asInt16(0);
-    stateEffectId: StateEffectId<Int16> = asInt16(-1);
+    stateEffectId: StateEffectId = asInt16<StateEffectId>(-1);
     stateEffect: StateEffect | null = null;
     technologyType: TechnologyType = asInt16<TechnologyType>(0); // used by old AI for tracking similar technologies
     iconNumber: Int16 = asInt16(0);
@@ -68,7 +95,7 @@ export class Technology {
         this.id = id;
         this.prerequisiteTechnologyIds = [];
         for (let i = 0; i < 4; ++i) {
-            this.prerequisiteTechnologyIds.push(buffer.readInt16());
+            this.prerequisiteTechnologyIds.push(buffer.readInt16<TechnologyId<Int16>>());
         }
         this.resourceCosts = [];
         for (let i = 0; i < 3; ++i) {
@@ -89,7 +116,7 @@ export class Technology {
             this.researchStringId = asInt16<StringId<Int16>>(-1);
         }
         this.researchDuration = buffer.readInt16();
-        this.stateEffectId = buffer.readInt16();
+        this.stateEffectId = buffer.readInt16<StateEffectId>();
         this.technologyType = buffer.readInt16<TechnologyType>();
         this.iconNumber = buffer.readInt16();
         this.researchButtonIndex = buffer.readUInt8();
@@ -101,6 +128,12 @@ export class Technology {
         this.internalName = buffer.readPascalString16();
         this.referenceId = createReferenceIdFromString(this.internalName);
     }
+            
+    readFromJsonFile(jsonFile: TechnologyJson, id: Int16, referenceId: string, loadingContext: JsonLoadingContext) {
+        this.id = id;
+        this.referenceId = referenceId;
+        applyJsonFieldsToObject(jsonFile, this, TechnologyJsonMapping, loadingContext)
+    }
 
     isValid() {
         return this.internalName !== "";
@@ -110,6 +143,63 @@ export class Technology {
         this.prerequisiteTechnologies = this.prerequisiteTechnologyIds.map(technologyId => getDataEntry(technologies, technologyId, "Technology", this.referenceId, loadingContext));
         this.researchLocation = getDataEntry(objects, this.researchLocationId, "ObjectPrototype", this.referenceId, loadingContext);
         this.stateEffect = getDataEntry(stateEffects, this.stateEffectId, "StateEffect", this.referenceId, loadingContext);
+    }
+    
+    appendToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext): void {
+        textFileWriter
+            .integer(this.id)
+            .string(this.internalName, 31)
+            .integer(this.minimumPrerequisites)
+            .integer(this.researchDuration)
+            .integer(this.stateEffectId)
+            .integer(this.technologyType)
+            .integer(this.iconNumber)
+            .integer(this.researchButtonIndex)
+            .integer(this.researchLocationId)
+
+        for (let i = 0; i < 4; ++i) {
+            textFileWriter.integer(this.prerequisiteTechnologyIds.at(i) ?? asInt16<TechnologyId<Int16>>(-1));
+        }
+        for (let i = 0; i < 3; ++i) {
+            const cost = this.resourceCosts.at(i);
+            if (cost) {
+                textFileWriter
+                    .integer(cost.attributeId)
+                    .integer(cost.amount)
+                    .integer(cost.costDeducted ? 1 : 0);
+            }
+            else {
+                textFileWriter
+                    .integer(-1)
+                    .integer(0)
+                    .integer(0)
+            }
+        }
+
+        if (semver.gte(savingContext.version.numbering, "1.5.0")) {
+            textFileWriter
+                .integer(this.nameStringId)
+                .integer(this.researchStringId);
+        }
+
+        if (semver.gte(savingContext.version.numbering, "2.7.0")) {
+            textFileWriter
+                .integer(this.helpDialogStringId)
+                .integer(this.helpPageStringId)
+                .integer(this.hotkeyStringId);
+        }
+
+        textFileWriter
+            .eol();
+    }
+        
+    
+    writeToJsonFile(directory: string, savingContext: SavingContext) {
+        writeFileSync(path.join(directory, `${this.referenceId}.json`), createJson(this.toJson(savingContext)));
+    }
+        
+    toJson(savingContext: SavingContext) {
+        return transformObjectToJson(this, TechnologyJsonMapping, savingContext)
     }
 
     toString() {
@@ -136,50 +226,32 @@ export function writeTechnologiesToWorldTextFile(outputDirectory: string, techno
     textFileWriter.raw(validEntries.length).eol(); // Entries that have data
 
     validEntries.forEach(entry => {
-        textFileWriter
-            .integer(entry.id)
-            .string(entry.internalName.replaceAll(' ', '_'), 31)
-            .integer(entry.minimumPrerequisites)
-            .integer(entry.researchDuration)
-            .integer(entry.stateEffectId)
-            .integer(entry.technologyType)
-            .integer(entry.iconNumber)
-            .integer(entry.researchButtonIndex)
-            .integer(entry.researchLocationId)
-
-        for (let i = 0; i < 4; ++i) {
-            textFileWriter.integer(entry.prerequisiteTechnologyIds[i]);
-        }
-        for (let i = 0; i < 3; ++i) {
-            const cost = entry.resourceCosts[i];
-            textFileWriter
-                .integer(cost.attributeId)
-                .integer(cost.amount)
-                .integer(cost.costDeducted ? 1 : 0);
-        }
-
-        if (semver.gte(savingContext.version.numbering, "1.5.0")) {
-            textFileWriter
-                .integer(entry.nameStringId)
-                .integer(entry.researchStringId);
-        }
-
-        if (semver.gte(savingContext.version.numbering, "2.7.0")) {
-            textFileWriter
-                .integer(entry.helpDialogStringId)
-                .integer(entry.helpPageStringId)
-                .integer(entry.hotkeyStringId);
-        }
-
-        textFileWriter
-            .eol();
+        entry.appendToTextFile(textFileWriter, savingContext);
     });
     textFileWriter.close();
 
 }
 
 export function writeTechnologiesToJsonFiles(outputDirectory: string, technologies: Nullable<Technology>[], savingContext: SavingContext) {
-    oldWriteDataEntriesToJson(outputDirectory, "techs", technologies, jsonFields, savingContext);
+    writeDataEntriesToJson(outputDirectory, "techs", technologies, savingContext);
+}
+
+export function readTechnologiesFromJsonFiles(inputDirectory: string, technologyIds: (string | null)[], loadingContext: JsonLoadingContext) {
+    const technologiesDirectory = path.join(inputDirectory, 'techs');
+    const technologies: Nullable<Technology>[] = [];
+    technologyIds.forEach((technologyReferenceId, technologyNumberId) => {
+        if (technologyReferenceId === null) {
+            technologies.push(null);
+        }
+        else {
+            const technologyJson = TechnologySchema.parse(JSON5.parse(readFileSync(path.join(technologiesDirectory, `${technologyReferenceId}.json`)).toString('utf8')));
+            const technology = new Technology();
+            technology.readFromJsonFile(technologyJson, asInt16(technologyNumberId), technologyReferenceId, loadingContext);
+            technologies.push(technology);
+        }
+
+    })
+    return technologies;
 }
 
 export function readTechnologyIdsFromJsonIndex(inputDirectory: string) {

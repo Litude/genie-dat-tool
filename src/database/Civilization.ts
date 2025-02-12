@@ -64,7 +64,7 @@ export class Civilization {
     id: Int16 = asInt16(-1);
     civilizationType: UInt8 = asUInt8(1); // should always be 1 for a valid civilization
     internalName: string = "";
-    bonusEffectId: StateEffectId<Int16> = asInt16(-1);
+    bonusEffectId: StateEffectId = asInt16<StateEffectId>(-1);
     bonusEffect: StateEffect | null = null;
     attributes: Float32[] = [];
     architectureStyle: ArchitectureStyleId = asUInt8<ArchitectureStyleId>(0);
@@ -76,7 +76,7 @@ export class Civilization {
         this.referenceId = createReferenceIdFromString(this.internalName);
         const attributeCount = buffer.readInt16();
         if (semver.gte(loadingContext.version.numbering, "1.4.0")) {
-            this.bonusEffectId = buffer.readInt16();
+            this.bonusEffectId = buffer.readInt16<StateEffectId>();
         }
 
         this.attributes = [];

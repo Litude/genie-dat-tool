@@ -119,8 +119,8 @@ export class AdvancedCombatantObjectPrototype extends CombatantObjectPrototype {
         this.creationLocationPrototype = getDataEntry(objects, this.creationLocationPrototypeId, "ObjectPrototype", this.referenceId, loadingContext);
     }
 
-    writeToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext): void {
-        super.writeToTextFile(textFileWriter, savingContext)
+    appendToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext): void {
+        super.appendToTextFile(textFileWriter, savingContext)
         textFileWriter
             .indent(4)
 

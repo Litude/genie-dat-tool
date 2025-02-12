@@ -563,7 +563,7 @@ export class SceneryObjectPrototype {
     }
 
 
-    writeToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext) {
+    appendToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext) {
         textFileWriter.eol();
 
         if (semver.lt(savingContext.version.numbering, "2.0.0") && this.objectType % 10 !== 0) {

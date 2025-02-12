@@ -186,8 +186,8 @@ export class CombatantObjectPrototype extends ActorObjectPrototype {
         this.attackSprite = getDataEntry(sprites, this.attackSpriteId, "Sprite", this.referenceId, loadingContext);
     }
 
-    writeToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext): void {
-        super.writeToTextFile(textFileWriter, savingContext);
+    appendToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext): void {
+        super.appendToTextFile(textFileWriter, savingContext);
         textFileWriter
             .indent(4)
             .integer(this.attackSpriteId)

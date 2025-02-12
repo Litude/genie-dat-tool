@@ -311,7 +311,7 @@ export class Sprite {
 
             textFileWriter
                 .integer(this.id)
-                .string(this.internalName.replaceAll(' ', '_'), 17)
+                .string(this.internalName, 17)
                 .filename(this.resourceFilename)
                 .integer(semver.gte(savingContext.version.numbering, "1.3.1") ? this.resourceId : asTribeResourceId(this.resourceId))
                 .integer(this.framesPerAngle)
