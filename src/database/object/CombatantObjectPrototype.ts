@@ -2,12 +2,12 @@ import semver from "semver";
 import BufferReader from "../../BufferReader";
 import { Point3D, Point3DSchema } from "../../geometry/Point";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
-import { LoadingContext } from "../LoadingContext";
+import { JsonLoadingContext, LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
 import { HabitatId, Percentage, PrototypeId, ReferenceStringSchema, SpriteId } from "../Types";
 import { asFloat32, asInt16, asUInt8, Float32, Float32Schema, Int16, Int16Schema, UInt8, UInt8Schema } from "../../ts/base-types";
 import { ActorObjectPrototype, ActorObjectPrototypeSchema } from "./ActorObjectPrototype";
-import { JsonFieldMapping, transformObjectToJson } from "../../json/json-serialization";
+import { applyJsonFieldsToObject, JsonFieldMapping, transformObjectToJson } from "../../json/json-serialization";
 import { Habitat } from "../landscape/Habitat";
 import { SceneryObjectPrototype } from "./SceneryObjectPrototype";
 import { Sprite } from "../Sprite";
@@ -153,6 +153,25 @@ export class CombatantObjectPrototype extends ActorObjectPrototype {
             this.originalArmorValue = asInt16(Math.max(this.baseArmor, ...this.armorTypes.map(x => x.amount)));
             this.originalAttackValue = asInt16(Math.max(0, ...this.attackTypes.map(x => x.amount)));
             this.originalRangeValue = this.maxRange;
+            this.originalAttackSpeed = this.attackSpeed;
+        }
+    }
+    
+    readFromJsonFile(jsonFile: CombatantObjectPrototypeJson, id: PrototypeId<Int16>, referenceId: string, loadingContext: JsonLoadingContext) {
+        super.readFromJsonFile(jsonFile, id, referenceId, loadingContext);
+        applyJsonFieldsToObject(jsonFile, this, CombatantObjectPrototypeJsonMapping, loadingContext);
+
+        // 3.2.0+
+        if (jsonFile.originalArmorValue === undefined) {
+            this.originalArmorValue = asInt16(Math.max(this.baseArmor, ...this.armorTypes.map(x => x.amount)));
+        }
+        if (jsonFile.originalAttackValue === undefined) {
+            this.originalAttackValue = asInt16(Math.max(0, ...this.attackTypes.map(x => x.amount)));
+        }
+        if (jsonFile.originalRangeValue === undefined) {
+            this.originalRangeValue = this.maxRange;
+        }
+        if (jsonFile.originalAttackSpeed === undefined) {
             this.originalAttackSpeed = this.attackSpeed;
         }
     }

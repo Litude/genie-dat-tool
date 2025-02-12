@@ -3,7 +3,7 @@ import BufferReader from "../../BufferReader";
 import { Point, Point3D, Point3DSchema, PointSchema } from "../../geometry/Point";
 import { Logger } from "../../Logger";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
-import { LoadingContext } from "../LoadingContext";
+import { JsonLoadingContext, LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
 import { AttributeId, HabitatId, PaletteIndex, PaletteIndexSchema, PrototypeId, ReferenceStringSchema, SoundEffectId, SpriteId, StringId, StringIdSchema, TerrainId } from "../Types";
 import { asBool8, asFloat32, asInt16, asInt32, asUInt8, Bool8, Bool8Schema, Float32, Float32Schema, Int16, Int16Schema, Int32, Int32Schema, UInt8, UInt8Schema } from "../../ts/base-types";
@@ -16,7 +16,7 @@ import { Habitat } from '../landscape/Habitat';
 import { Sprite } from '../Sprite';
 import { Nullable, trimEnd } from '../../ts/ts-utils';
 import { getDataEntry } from '../../util';
-import { JsonFieldMapping, transformObjectToJson } from '../../json/json-serialization';
+import { applyJsonFieldsToObject, JsonFieldMapping, transformObjectToJson } from '../../json/json-serialization';
 import { Technology } from '../research/Technology';
 import { Overlay } from '../landscape/Overlay';
 import { z } from 'zod';
@@ -482,7 +482,60 @@ export class SceneryObjectPrototype {
             this.resourceGroup = asUInt8(this.trackAsResource ? getResourceGatherGroup(this) : 0);
             this.doppelgangerMode = getResourceDoppelgangerMode(this);
         }
+    }
 
+    readFromJsonFile(jsonFile: SceneryObjectPrototypeJson, id: PrototypeId<Int16>, referenceId: string, loadingContext: JsonLoadingContext) {
+        this.id = id;
+        this.referenceId = referenceId;
+        applyJsonFieldsToObject(jsonFile, this, SceneryObjectPrototypeJsonMapping, loadingContext);
+        if (jsonFile.upgradeUnitPrototypeId === undefined) {
+            this.upgradeUnitPrototypeId === this.id;
+        }
+
+        // 1.5.0+
+        if (jsonFile.creationStringId === undefined) {
+            this.creationStringId = asInt16<StringId<Int16>>(-1);
+        }
+
+        // 2.7.0+
+        if (jsonFile.helpDialogStringId === undefined) {
+            this.helpDialogStringId = asInt32<StringId<Int32>>(this.nameStringId >= 5000 && this.nameStringId < 6000 ? this.nameStringId + 100000 : 0);
+        }
+        if (jsonFile.helpPageStringId === undefined) {
+            this.helpPageStringId = asInt32<StringId<Int32>>(this.nameStringId >= 5000 && this.nameStringId < 6000 ? this.nameStringId + 150000 : 0);
+        }
+        if (jsonFile.hotkeyStringId === undefined) {
+            this.hotkeyStringId = asInt32<StringId<Int32>>(this.nameStringId >= 5000 && this.nameStringId < 6000 && this.creationStringId > 0 ? this.nameStringId + 11001 : 0);
+        }
+        if (jsonFile.reusable === undefined) {
+            this.reusable = asBool8(this.objectClass === ObjectClasses.Miscellaneous || this.objectType == ObjectTypes.Doppelganger);
+        }
+
+        // 3.1.0+
+        if (jsonFile.trackAsResource === undefined) {
+            this.trackAsResource = isTrackedAsResource(this);
+        }
+        if (jsonFile.resourceGroup === undefined) {
+            this.resourceGroup = asUInt8(this.trackAsResource ? getResourceGatherGroup(this) : 0);
+        }
+        if (jsonFile.doppelgangerMode === undefined) {
+            this.doppelgangerMode = getResourceDoppelgangerMode(this);
+        }
+
+        // 3.3.0+
+        if (jsonFile.selectionOutlineFlags === undefined) {
+            this.selectionOutlineFlags = asUInt8(0);
+        }
+        if (jsonFile.editorSelectionOutlineColor === undefined) {
+            this.editorSelectionOutlineColor = asUInt8<PaletteIndex>(0);
+        }
+        if (jsonFile.selectionOutlineRadius === undefined) {
+            this.selectionOutlineRadius = {
+                x: this.collisionRadius.x,
+                y: this.collisionRadius.y,
+                z: this.collisionRadius.z,
+            }
+        }
     }
 
     linkOtherData(

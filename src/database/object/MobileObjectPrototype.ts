@@ -1,13 +1,13 @@
 import BufferReader from "../../BufferReader";
 import { createReferenceString, getIdFromReferenceString } from "../../json/reference-id";
-import { JsonFieldMapping, transformObjectToJson } from "../../json/json-serialization";
+import { applyJsonFieldsToObject, JsonFieldMapping, transformObjectToJson } from "../../json/json-serialization";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { Nullable } from "../../ts/ts-utils";
 import { getDataEntry } from "../../util";
 import { Habitat } from "../landscape/Habitat";
 import { Overlay } from "../landscape/Overlay";
 import { Terrain } from "../landscape/Terrain";
-import { LoadingContext } from "../LoadingContext";
+import { JsonLoadingContext, LoadingContext } from "../LoadingContext";
 import { Technology } from "../research/Technology";
 import { SavingContext } from "../SavingContext";
 import { SoundEffect } from "../SoundEffect";
@@ -68,6 +68,11 @@ export class MobileObjectPrototype extends AnimatedObjectPrototype {
         this.trailingUnitMode = buffer.readUInt8();
         this.trailingUnitDensity = buffer.readFloat32();
         this.moveAlgorithm = buffer.readUInt8();
+    }
+        
+    readFromJsonFile(jsonFile: MobileObjectPrototypeJson, id: PrototypeId<Int16>, referenceId: string, loadingContext: JsonLoadingContext) {
+        super.readFromJsonFile(jsonFile, id, referenceId, loadingContext);
+        applyJsonFieldsToObject(jsonFile, this, MobileObjectPrototypeJsonMapping, loadingContext);
     }
         
     linkOtherData(

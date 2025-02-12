@@ -1,13 +1,14 @@
 import BufferReader from "../../BufferReader";
-import { JsonFieldMapping, transformObjectToJson } from "../../json/json-serialization";
+import { applyJsonFieldsToObject, JsonFieldMapping, transformObjectToJson } from "../../json/json-serialization";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
-import { LoadingContext } from "../LoadingContext";
+import { JsonLoadingContext, LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
 import { asFloat32, asUInt8, Float32, Float32Schema, Int16, UInt8, UInt8Schema } from "../../ts/base-types";
 import { CombatantObjectPrototype, CombatantObjectPrototypeSchema } from "./CombatantObjectPrototype";
 import { z } from "zod";
+import { PrototypeId } from "../Types";
 
-const ProjectileObjectPrototypeSchema = CombatantObjectPrototypeSchema.merge(z.object({
+export const ProjectileObjectPrototypeSchema = CombatantObjectPrototypeSchema.merge(z.object({
     projectileType: UInt8Schema,
     targettingMode: UInt8Schema,
     hitMode: UInt8Schema,
@@ -43,6 +44,11 @@ export class ProjectileObjectPrototype extends CombatantObjectPrototype {
         this.vanishMode = buffer.readUInt8();
         this.areaEffect = buffer.readUInt8();
         this.projectileArc = buffer.readFloat32();
+    }
+
+    readFromJsonFile(jsonFile: ProjectileObjectPrototypeJson, id: PrototypeId<Int16>, referenceId: string, loadingContext: JsonLoadingContext) {
+        super.readFromJsonFile(jsonFile, id, referenceId, loadingContext);
+        applyJsonFieldsToObject(jsonFile, this, ProjectileObjectPrototypeJsonMapping, loadingContext);
     }
 
     writeToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext): void {

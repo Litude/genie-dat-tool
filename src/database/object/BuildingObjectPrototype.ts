@@ -1,13 +1,13 @@
 import BufferReader from "../../BufferReader";
 import { createReferenceString, getIdFromReferenceString } from "../../json/reference-id";
-import { JsonFieldMapping, transformObjectToJson } from "../../json/json-serialization";
+import { applyJsonFieldsToObject, JsonFieldMapping, transformObjectToJson } from "../../json/json-serialization";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { Nullable } from "../../ts/ts-utils";
 import { getDataEntry } from "../../util";
 import { Habitat } from "../landscape/Habitat";
 import { Overlay } from "../landscape/Overlay";
 import { Terrain } from "../landscape/Terrain";
-import { LoadingContext } from "../LoadingContext";
+import { JsonLoadingContext, LoadingContext } from "../LoadingContext";
 import { Technology } from "../research/Technology";
 import { SavingContext } from "../SavingContext";
 import { SoundEffect } from "../SoundEffect";
@@ -78,6 +78,12 @@ export class BuildingObjectPrototype extends AdvancedCombatantObjectPrototype {
         this.placedOverlayIdWhenBuilt = buffer.readInt16();
         this.researchedTechnologyIdWhenBuilt = buffer.readInt16();
         this.constructionSoundEffectId = buffer.readInt16<SoundEffectId<Int16>>();
+    }
+
+    
+    readFromJsonFile(jsonFile: BuildingObjectPrototypeJson, id: PrototypeId<Int16>, referenceId: string, loadingContext: JsonLoadingContext) {
+        super.readFromJsonFile(jsonFile, id, referenceId, loadingContext);
+        applyJsonFieldsToObject(jsonFile, this, BuildingObjectPrototypeJsonMapping, loadingContext);
     }
         
     linkOtherData(

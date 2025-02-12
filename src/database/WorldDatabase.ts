@@ -11,7 +11,7 @@ import { readSpriteIdsFromJsonIndex, readSpritesFromDatFile, readSpritesFromJson
 import { readAndVerifyTerrainCountFromDatFile, readTerrainIdsFromJsonIndex, readTerrainsFromDatFile, readTerrainsFromJsonFiles, Terrain, writeTerrainsToJsonFiles, writeTerrainsToWorldTextFile } from "./landscape/Terrain";
 import { createFallbackStateEffectReferenceIdsIfNeeded, readStateEffectIdsFromJsonIndex, readStateEffects, readStateEffectsFromJsonFiles, StateEffect, writeStateEffectsToJsonFiles, writeStateEffectsToWorldTextFile } from "./research/StateEffect";
 import { Civilization, readCivilizationIdsFromJsonIndex, readCivilizationsFromJsonFiles, writeCivilizationsToJsonFiles, writeCivilizationsToWorldTextFile } from "./Civilization";
-import { BaseObjectPrototype, createBaselineObjectPrototypes, readObjectPrototypeIdsFromJsonIndex, readObjectPrototypesFromBuffer, writeObjectPrototypesToJsonFiles, writeObjectPrototypesToWorldTextFile } from "./object/ObjectPrototypes";
+import { BaseObjectPrototype, createBaselineObjectPrototypes, readObjectPrototypeIdsFromJsonIndex, readObjectPrototypesFromBuffer, readObjectPrototypesFromJsonFiles, writeObjectPrototypesToJsonFiles, writeObjectPrototypesToWorldTextFile } from "./object/ObjectPrototypes";
 import { readTechnologiesFromBuffer, readTechnologyIdsFromJsonIndex, Technology, writeTechnologiesToJsonFiles, writeTechnologiesToWorldTextFile } from "./research/Technology";
 import { SavingContext } from "./SavingContext";
 import { TextFileWriter } from "../textfile/TextFileWriter";
@@ -197,6 +197,9 @@ export class WorldDatabase {
         this.borders = readBordersFromJsonFiles(directory, borderIds, this.soundEffects, loadingContext);
         this.stateEffects = readStateEffectsFromJsonFiles(directory, stateEffectIds, loadingContext);
         this.civilizations = readCivilizationsFromJsonFiles(directory, civilizationIds, loadingContext);
+        const civilizationCount = this.civilizations.length;
+        this.objects = readObjectPrototypesFromJsonFiles(directory, prototypeIds, civilizationCount, loadingContext);
+        this.baselineObjects = createBaselineObjectPrototypes(this.objects);
 
         this.borders.forEach(border => border?.linkOtherData(this.terrains, loadingContext));
 

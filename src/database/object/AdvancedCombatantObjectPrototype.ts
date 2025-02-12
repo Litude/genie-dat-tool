@@ -1,13 +1,13 @@
 import semver from 'semver';
 import BufferReader from "../../BufferReader";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
-import { LoadingContext } from "../LoadingContext";
+import { JsonLoadingContext, LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
 import { AttributeId, PrototypeId, ReferenceStringSchema } from "../Types";
 import { asInt16, asUInt8, Bool8, Bool8Schema, Int16, Int16Schema, UInt8, UInt8Schema } from "../../ts/base-types";
 import { CombatantObjectPrototype, CombatantObjectPrototypeSchema } from "./CombatantObjectPrototype";
 import { SceneryObjectPrototype } from './SceneryObjectPrototype';
-import { JsonFieldMapping, transformJsonToObject, transformObjectToJson } from '../../json/json-serialization';
+import { applyJsonFieldsToObject, JsonFieldMapping, transformJsonToObject, transformObjectToJson } from '../../json/json-serialization';
 import { Nullable, trimEnd } from '../../ts/ts-utils';
 import { Sprite } from '../Sprite';
 import { SoundEffect } from '../SoundEffect';
@@ -94,6 +94,19 @@ export class AdvancedCombatantObjectPrototype extends CombatantObjectPrototype {
         }
         else {
             this.originalPierceArmorValue = asInt16(Math.max(0, ...this.armorTypes.filter(x => x.type === 3).map(x => x.amount)));
+            this.originalArmorValue = asInt16(Math.max(this.baseArmor, ...this.armorTypes.filter(x => x.type !== 3).map(x => x.amount)));
+        }
+    }
+
+    readFromJsonFile(jsonFile: AdvancedCombatantObjectPrototypeJson, id: PrototypeId<Int16>, referenceId: string, loadingContext: JsonLoadingContext) {
+        super.readFromJsonFile(jsonFile, id, referenceId, loadingContext);
+        applyJsonFieldsToObject(jsonFile, this, AdvancedCombatantObjectPrototypeJsonMapping, loadingContext);
+
+        // 3.2.0+
+        if (jsonFile.originalPierceArmorValue === undefined) {
+            this.originalPierceArmorValue = asInt16(Math.max(0, ...this.armorTypes.filter(x => x.type === 3).map(x => x.amount)));
+        }
+        if (jsonFile.originalArmorValue === undefined) {
             this.originalArmorValue = asInt16(Math.max(this.baseArmor, ...this.armorTypes.filter(x => x.type !== 3).map(x => x.amount)));
         }
     }

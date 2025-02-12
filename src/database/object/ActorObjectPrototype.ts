@@ -1,13 +1,13 @@
 import semver from 'semver';
 import BufferReader from "../../BufferReader";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
-import { LoadingContext } from "../LoadingContext";
+import { JsonLoadingContext, LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
 import { AbilityId, PrototypeId, ReferenceStringSchema, SoundEffectId } from "../Types";
 import { asFloat32, asInt16, asUInt8, Float32, Float32Schema, Int16, Int16Schema, UInt8, UInt8Schema } from "../../ts/base-types";
 import { Ability, AbilityJsonMapping, AbilitySchema } from "./Ability";
 import { MobileObjectPrototype, MobileObjectPrototypeSchema } from "./MobileObjectPrototype";
-import { JsonFieldMapping, transformJsonToObject, transformObjectToJson } from '../../json/json-serialization';
+import { applyJsonFieldsToObject, JsonFieldMapping, transformJsonToObject, transformObjectToJson } from '../../json/json-serialization';
 import { SceneryObjectPrototype } from './SceneryObjectPrototype';
 import { Nullable, trimEnd } from '../../ts/ts-utils';
 import { createReferenceString, getIdFromReferenceString } from '../../json/reference-id';
@@ -51,7 +51,11 @@ const ActorObjectPrototypeJsonMapping: JsonFieldMapping<ActorObjectPrototype, Ac
     { objectField: 'moveSoundId', fromJson: (json, obj, loadingContext) => json.moveSoundId !== undefined ? getIdFromReferenceString<SoundEffectId<Int16>>("SoundEffect", obj.referenceId, json.moveSoundId, loadingContext.dataIds.soundEffectIds) : undefined },
     { field: 'runPattern', flags: { unusedField: true } },
     { jsonField: 'abilityList', toJson: (obj, savingContext) => obj.abilityList.map(ability => transformObjectToJson(ability, AbilityJsonMapping, savingContext)) },
-    { objectField: "abilityList", fromJson: (json, obj, loadingContext) => json.abilityList.map(ability => transformJsonToObject(ability, AbilityJsonMapping, loadingContext)) },
+    { objectField: "abilityList", fromJson: (json, obj, loadingContext) => json.abilityList.map(abilityJson => {
+        const ability = new Ability();
+        applyJsonFieldsToObject(abilityJson, ability, AbilityJsonMapping, loadingContext);
+        return ability;
+    })},
 ]
 
 export class ActorObjectPrototype extends MobileObjectPrototype {
@@ -99,6 +103,14 @@ export class ActorObjectPrototype extends MobileObjectPrototype {
             const ability = new Ability();
             ability.readFromBuffer(buffer, loadingContext);
             this.abilityList.push(ability);
+        }
+    }
+
+    readFromJsonFile(jsonFile: ActorObjectPrototypeJson, id: PrototypeId<Int16>, referenceId: string, loadingContext: JsonLoadingContext) {
+        super.readFromJsonFile(jsonFile, id, referenceId, loadingContext);
+        applyJsonFieldsToObject(jsonFile, this, ActorObjectPrototypeJsonMapping, loadingContext);
+        if (jsonFile.moveSoundId === undefined) {
+            this.moveSoundId === this.attackSoundId;
         }
     }
     
