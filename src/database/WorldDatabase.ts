@@ -5,11 +5,11 @@ import { Colormap, readColormapIdsFromJsonIndex, readColormapsFromDatFile, readC
 import { Habitat, readHabitatIdsFromJsonIndex, readHabitatNamesFromJsonFile, readHabitatsFromDatFile, readHabitatsFromJsonFiles, writeHabitatsToJsonFiles, writeHabitatsToWorldTextFile } from "./landscape/Habitat";
 import { JsonLoadingContext, LoadingContext } from "./LoadingContext";
 import { MapProperties, writeMapPropertiesToJsonFile } from "./landscape/MapProperties";
-import { RandomMap, readRandomMapData, writeRandomMapsToJsonFiles, writeRandomMapsToWorldTextFile } from "./landscape/RandomMap";
+import { RandomMap, readRandomMapsFromBuffer, writeRandomMapsToJsonFiles, writeRandomMapsToWorldTextFile } from "./landscape/RandomMap";
 import { readSoundEffectIdsFromJsonIndex, readSoundEffectsFromDatFile, readSoundEffectsFromJsonFiles, SoundEffect, writeSoundEffectsToJsonFiles, writeSoundEffectsToWorldTextFile } from "./SoundEffect";
 import { readSpriteIdsFromJsonIndex, readSpritesFromDatFile, readSpritesFromJsonFiles, Sprite, writeSpritesToJsonFiles, writeSpritesToWorldTextFile } from "./Sprite";
 import { readAndVerifyTerrainCountFromDatFile, readTerrainIdsFromJsonIndex, readTerrainsFromDatFile, readTerrainsFromJsonFiles, Terrain, writeTerrainsToJsonFiles, writeTerrainsToWorldTextFile } from "./landscape/Terrain";
-import { createFallbackStateEffectReferenceIdsIfNeeded, readStateEffectIdsFromJsonIndex, readStateEffects, readStateEffectsFromJsonFiles, StateEffect, writeStateEffectsToJsonFiles, writeStateEffectsToWorldTextFile } from "./research/StateEffect";
+import { createFallbackStateEffectReferenceIdsIfNeeded, readStateEffectIdsFromJsonIndex, readStateEffectsFromBuffer, readStateEffectsFromJsonFiles, StateEffect, writeStateEffectsToJsonFiles, writeStateEffectsToWorldTextFile } from "./research/StateEffect";
 import { Civilization, readCivilizationIdsFromJsonIndex, readCivilizationsFromJsonFiles, writeCivilizationsToJsonFiles, writeCivilizationsToWorldTextFile } from "./Civilization";
 import { BaseObjectPrototype, createBaselineObjectPrototypes, readObjectPrototypeIdsFromJsonIndex, readObjectPrototypesFromBuffer, readObjectPrototypesFromJsonFiles, writeObjectPrototypesToJsonFiles, writeObjectPrototypesToWorldTextFile } from "./object/ObjectPrototypes";
 import { readTechnologiesFromBuffer, readTechnologiesFromJsonFiles, readTechnologyIdsFromJsonIndex, Technology, writeTechnologiesToJsonFiles, writeTechnologiesToWorldTextFile } from "./research/Technology";
@@ -18,7 +18,7 @@ import { TextFileWriter } from "../textfile/TextFileWriter";
 import { TextFileNames } from "../textfile/TextFile";
 import { Attribute, readAttributesFromJsonFile } from "./Attributes";
 import { Overlay, readOverlaysFromDatFile, readAndVerifyOverlayCountFromDatFile, writeOverlaysToJsonFiles, writeOverlaysToWorldTextFile, readOverlayIdsFromJsonIndex, readOverlaysFromJsonFiles } from "./landscape/Overlay";
-import { readTribeRandomMapData, TribeRandomMap, writeTribeRandomMapsToJsonFiles, writeTribeRandomMapsToWorldTextFile } from "./landscape/TribeRandomMap";
+import { readTribeRandomMapIdsFromJsonIndex, readTribeRandomMapsFromBuffer, readTribeRandomMapsFromJsonFiles, TribeRandomMap, writeTribeRandomMapsToJsonFiles, writeTribeRandomMapsToWorldTextFile } from "./landscape/TribeRandomMap";
 import { readTribeAiIdsFromJsonIndex, readTribeAisFromBuffer, readTribeAisFromJsonFiles, TribeAi, writeTribeAisToJsonFiles, writeTribeAisToWorldTextFile } from "./TribeAi";
 import { onParsingError, ParsingError } from "./Error";
 import path from "path";
@@ -81,10 +81,10 @@ export class WorldDatabase {
     
             const randomMapCount = buffer.readInt32();
             this.mapProperties.readQuaterniaryDataFromBuffer(buffer, loadingContext);
-            this.tribeRandomMaps = readTribeRandomMapData(randomMapCount, buffer, this.terrains, this.borders, loadingContext);
-            this.randomMaps = readRandomMapData(randomMapCount, buffer, this.terrains, loadingContext);
+            this.tribeRandomMaps = readTribeRandomMapsFromBuffer(randomMapCount, buffer, this.terrains, loadingContext);
+            this.randomMaps = readRandomMapsFromBuffer(randomMapCount, buffer, this.terrains, loadingContext);
     
-            this.stateEffects = readStateEffects(buffer, loadingContext);
+            this.stateEffects = readStateEffectsFromBuffer(buffer, loadingContext);
     
             const civilizationCount = buffer.readInt16();
             this.civilizations = [];
@@ -162,6 +162,7 @@ export class WorldDatabase {
         const overlayIds = readOverlayIdsFromJsonIndex(directory);
         const borderIds = readBorderIdsFromJsonIndex(directory);
         const terrainCount = terrainIds.filter(isDefined).length;
+        const tribeRandomMapIds = readTribeRandomMapIdsFromJsonIndex(directory);
         const stateEffectIds = readStateEffectIdsFromJsonIndex(directory);
         const civilizationIds = readCivilizationIdsFromJsonIndex(directory);
         const prototypeIds = readObjectPrototypeIdsFromJsonIndex(directory);
@@ -196,6 +197,9 @@ export class WorldDatabase {
         this.terrains = readTerrainsFromJsonFiles(directory, terrainIds, this.soundEffects, loadingContext);
         this.overlays = readOverlaysFromJsonFiles(directory, overlayIds, this.soundEffects, loadingContext);
         this.borders = readBordersFromJsonFiles(directory, borderIds, this.soundEffects, loadingContext);
+
+        this.tribeRandomMaps = readTribeRandomMapsFromJsonFiles(directory, tribeRandomMapIds, loadingContext);
+
         this.stateEffects = readStateEffectsFromJsonFiles(directory, stateEffectIds, loadingContext);
         this.civilizations = readCivilizationsFromJsonFiles(directory, civilizationIds, loadingContext);
         const civilizationCount = this.civilizations.length;

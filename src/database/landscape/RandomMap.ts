@@ -304,7 +304,7 @@ export class RandomMap {
     }
 }
 
-export function readRandomMapData(randomMapCount: number, buffer: BufferReader, terrains: (Terrain | null)[], loadingContext: LoadingContext): RandomMap[] {
+export function readRandomMapsFromBuffer(randomMapCount: number, buffer: BufferReader, terrains: (Terrain | null)[], loadingContext: LoadingContext): RandomMap[] {
     const result: RandomMap[] = [];
     if (semver.gte(loadingContext.version.numbering, "2.0.0")) {
         const preMapData: PreMapData[] = [];

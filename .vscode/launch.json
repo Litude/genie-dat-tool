@@ -28,6 +28,14 @@
             "parse-json",
             "output/tr_game"
         ],
+        // "args": [
+        //     "parse-dat",
+        //     "tr_game.dat",
+        //     "--output-format",
+        //     "json",
+        //     "--habitats-file",
+        //     ".\\data\\habitats_970102.json5"
+        // ],
 
         // Files to exclude from debugger (e.g. call stack)
         "skipFiles": [

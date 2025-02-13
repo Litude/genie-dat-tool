@@ -90,7 +90,7 @@ export class StateEffect {
     }
 }
 
-export function readStateEffects(buffer: BufferReader, loadingContext: LoadingContext): (StateEffect | null)[] {
+export function readStateEffectsFromBuffer(buffer: BufferReader, loadingContext: LoadingContext): (StateEffect | null)[] {
     const result: (StateEffect | null)[] = [];
     const effectCount = buffer.readInt32();
     for (let i = 0; i < effectCount; ++i) {
