@@ -61,7 +61,7 @@ export class BuildingObjectPrototype extends AdvancedCombatantObjectPrototype {
     changedTerrainWhenBuilt: Terrain | null = null;
     placedOverlayIdWhenBuilt: OverlayId<Int16> = asInt16(-1); // presumably the Build-Road object would remove itself when finished and place an overlay tile of road
     placedOverlayWhenBuilt: Overlay | null = null;
-    researchedTechnologyIdWhenBuilt: TechnologyId<Int16> = asInt16(-1); // most buildings unlock some kind of "shadow" technology when built such as enabling its units to be created
+    researchedTechnologyIdWhenBuilt: TechnologyId<Int16> = asInt16<TechnologyId<Int16>>(-1); // most buildings unlock some kind of "shadow" technology when built such as enabling its units to be created
     researchedTechnologyWhenBuilt: Technology | null = null;
     constructionSoundEffectId: SoundEffectId<Int16> = asInt16<SoundEffectId<Int16>>(-1);
     constructionSoundEffect: SoundEffect | null = null;
@@ -76,7 +76,7 @@ export class BuildingObjectPrototype extends AdvancedCombatantObjectPrototype {
         this.createdObjectIdWhenBuilt = buffer.readInt16<PrototypeId<Int16>>();
         this.changedTerrainIdWhenBuilt = buffer.readInt16<TerrainId<Int16>>();
         this.placedOverlayIdWhenBuilt = buffer.readInt16();
-        this.researchedTechnologyIdWhenBuilt = buffer.readInt16();
+        this.researchedTechnologyIdWhenBuilt = buffer.readInt16<TechnologyId<Int16>>();
         this.constructionSoundEffectId = buffer.readInt16<SoundEffectId<Int16>>();
     }
 

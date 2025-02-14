@@ -118,10 +118,6 @@ export class Overlay extends BaseTerrainTile {
             ...transformObjectToJson(this, OverlayJsonMapping, savingContext)
         }
     }
-
-    toString() {
-        return JSON.stringify(this);
-    }
 }
 
 export function readOverlaysFromDatFile(buffer: BufferReader, soundEffects: SoundEffect[], loadingContext: LoadingContext): Nullable<Overlay>[] {

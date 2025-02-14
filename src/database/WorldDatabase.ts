@@ -5,7 +5,7 @@ import { Colormap, readColormapIdsFromJsonIndex, readColormapsFromDatFile, readC
 import { Habitat, readHabitatIdsFromJsonIndex, readHabitatNamesFromJsonFile, readHabitatsFromDatFile, readHabitatsFromJsonFiles, writeHabitatsToJsonFiles, writeHabitatsToWorldTextFile } from "./landscape/Habitat";
 import { JsonLoadingContext, LoadingContext } from "./LoadingContext";
 import { MapProperties, writeMapPropertiesToJsonFile } from "./landscape/MapProperties";
-import { RandomMap, readRandomMapsFromBuffer, writeRandomMapsToJsonFiles, writeRandomMapsToWorldTextFile } from "./landscape/RandomMap";
+import { RandomMap, readRandomMapIdsFromJsonIndex, readRandomMapsFromBuffer, readRandomMapsFromJsonFiles, writeRandomMapsToJsonFiles, writeRandomMapsToWorldTextFile } from "./landscape/RandomMap";
 import { readSoundEffectIdsFromJsonIndex, readSoundEffectsFromDatFile, readSoundEffectsFromJsonFiles, SoundEffect, writeSoundEffectsToJsonFiles, writeSoundEffectsToWorldTextFile } from "./SoundEffect";
 import { readSpriteIdsFromJsonIndex, readSpritesFromDatFile, readSpritesFromJsonFiles, Sprite, writeSpritesToJsonFiles, writeSpritesToWorldTextFile } from "./Sprite";
 import { readAndVerifyTerrainCountFromDatFile, readTerrainIdsFromJsonIndex, readTerrainsFromDatFile, readTerrainsFromJsonFiles, Terrain, writeTerrainsToJsonFiles, writeTerrainsToWorldTextFile } from "./landscape/Terrain";
@@ -26,7 +26,6 @@ import { isDefined, Nullable } from "../ts/ts-utils";
 import { ensureReferenceIdUniqueness } from "../json/reference-id";
 import { clearDirectory } from "../files/file-utils";
 import { asInt16 } from "../ts/base-types";
-import { PathLike } from "fs";
 import { createMappingFromJsonFileIndex } from "../json/json-serialization";
 import { Logger } from "../Logger";
 
@@ -163,6 +162,7 @@ export class WorldDatabase {
         const borderIds = readBorderIdsFromJsonIndex(directory);
         const terrainCount = terrainIds.filter(isDefined).length;
         const tribeRandomMapIds = readTribeRandomMapIdsFromJsonIndex(directory);
+        const randomMapIds = readRandomMapIdsFromJsonIndex(directory);
         const stateEffectIds = readStateEffectIdsFromJsonIndex(directory);
         const civilizationIds = readCivilizationIdsFromJsonIndex(directory);
         const prototypeIds = readObjectPrototypeIdsFromJsonIndex(directory);
@@ -171,7 +171,7 @@ export class WorldDatabase {
 
         const loadingContext: JsonLoadingContext = {
             version: {
-                numbering: "2.7.0",
+                numbering: "9.9.9", // is there any reason why we would want to discard anything written into JSON files based on versions
             },
             abortOnError: true,
             cleanedData: false,
@@ -198,7 +198,9 @@ export class WorldDatabase {
         this.overlays = readOverlaysFromJsonFiles(directory, overlayIds, this.soundEffects, loadingContext);
         this.borders = readBordersFromJsonFiles(directory, borderIds, this.soundEffects, loadingContext);
 
+        // TODO: Read map properties
         this.tribeRandomMaps = readTribeRandomMapsFromJsonFiles(directory, tribeRandomMapIds, loadingContext);
+        this.randomMaps = readRandomMapsFromJsonFiles(directory, randomMapIds, loadingContext);
 
         this.stateEffects = readStateEffectsFromJsonFiles(directory, stateEffectIds, loadingContext);
         this.civilizations = readCivilizationsFromJsonFiles(directory, civilizationIds, loadingContext);
@@ -289,21 +291,5 @@ export class WorldDatabase {
         writeTribeAisToJsonFiles(outputDirectory, this.tribeAi, savingContext);
 
         Logger.info(`Finished writing JSON files`);
-    }
-
-    toString() {
-        let result = ''
-        // result += `Habitats (${this.habitats.length}):\n${this.habitats.join('\n')}\n`;
-        // result += `Colormaps (${this.colormaps.length}):\n${this.colormaps.join('\n')}\n`;
-        // result += `Sound Effects (${this.soundEffects.length}):\n${this.soundEffects.join('\n')}\n`;
-        // result += `Sprites (${this.sprites.length}):\n${this.sprites.join('\n')}\n`;
-        result += `Map Properties:\n${this.mapProperties}\n`;
-        //result += `Terrains (${this.terrains.length}):\n${this.terrains.join('\n')}\n`;
-        //result += `Terrains (${this.terrains.length}):\n\n`;
-        //result += `Borders (${this.borders.length}):\n${this.borders.join('\n')}\n`;
-        result += `Random Maps (${this.randomMaps.length}):\n${this.randomMaps.join('\n')}\n`;
-        result += `State Effects (${this.stateEffects.length}):\n${this.stateEffects.join('\n')}\n`;
-        result += `Technologies (${this.technologies.length}):\n${this.technologies.join('\n')}\n`;
-        return result;
     }
 }

@@ -146,10 +146,6 @@ export class Border extends BaseTerrainTile {
             ...transformObjectToJson(this, BorderJsonMapping, savingContext)
         }
     }
-
-    toString() {
-        return JSON.stringify(this);
-    }
 }
 
 export function readBordersFromDatFile(buffer: BufferReader, soundEffects: SoundEffect[], terrains: Nullable<Terrain>[], loadingContext: LoadingContext): Nullable<Border>[] {

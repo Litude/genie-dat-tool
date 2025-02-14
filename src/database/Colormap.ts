@@ -78,10 +78,6 @@ export class Colormap {
     writeToJsonFile(directory: string, savingContext: SavingContext) {
         writeDataEntryToJsonFile(directory, this, ColormapJsonMapping, savingContext);
     }
-
-    toString() {
-        return JSON.stringify(this);
-    }
 }
 
 export function readColormapsFromDatFile(buffer: BufferReader, loadingContext: LoadingContext) {

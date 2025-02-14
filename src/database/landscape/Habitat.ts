@@ -122,10 +122,6 @@ export class Habitat {
         writeDataEntryToJsonFile(directory, this, HabitatJsonMapping, savingContext);
     }
 
-    toString() {
-        return this.terrainData.map(terrainData => terrainData.multiplier.toFixed(6)).join(', ');
-    }
-
 }
 
 

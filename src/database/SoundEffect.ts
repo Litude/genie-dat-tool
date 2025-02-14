@@ -132,10 +132,6 @@ export class SoundEffect {
     writeToJsonFile(directory: string, savingContext: SavingContext) {
         writeDataEntryToJsonFile(directory, this, SoundEffectJsonMapping, savingContext);
     }
-
-    toString() {
-        return JSON.stringify(this);
-    }
 }
 
 export function readSoundEffectsFromDatFile(buffer: BufferReader, loadingContext: LoadingContext) {

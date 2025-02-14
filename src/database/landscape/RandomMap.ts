@@ -1,11 +1,12 @@
+import JSON5 from "json5";
 import semver from "semver";
 import BufferReader from "../../BufferReader";
-import { Point } from "../../geometry/Point";
-import { Rectangle } from "../../geometry/Rectangle";
-import { LoadingContext } from "../LoadingContext";
+import { Point, PointSchema } from "../../geometry/Point";
+import { Rectangle, RectangleSchema } from "../../geometry/Rectangle";
+import { JsonLoadingContext, LoadingContext } from "../LoadingContext";
 import { Nullable, Optional } from "../../ts/ts-utils";
-import { Percentage, PlayerId, PrototypeId, TerrainId } from "../Types";
-import { asInt16, asInt32, Bool8, Int16, Int32, NullPointer, Pointer,  UInt16, UInt8 } from "../../ts/base-types";
+import { Percentage, PlayerId, PrototypeId, ReferenceStringSchema, TerrainId } from "../Types";
+import { asInt16, asInt32, asUInt16, asUInt8, Bool8, Bool8Schema, Int16, Int32, Int32Schema, NullPointer, PercentageSchema, Pointer,  UInt16, UInt8, UInt8Schema } from "../../ts/base-types";
 import { SavingContext } from "../SavingContext";
 import { Terrain } from "./Terrain";
 import { getDataEntry } from "../../util";
@@ -13,8 +14,10 @@ import { SceneryObjectPrototype } from "../object/SceneryObjectPrototype";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { TextFileNames } from "../../textfile/TextFile";
 import path from "path";
-import { OldJsonFieldConfig, oldWriteDataEntriesToJson } from "../../json/json-serialization";
-import { createReferenceString } from "../../json/reference-id";
+import { applyJsonFieldsToObject, createJson, JsonFieldMapping, readJsonFileIndex, transformJsonToObject, transformObjectToJson, writeDataEntriesToJson } from "../../json/json-serialization";
+import { createReferenceIdFromString, createReferenceString, getIdFromReferenceString } from "../../json/reference-id";
+import { z } from "zod";
+import { readFileSync, writeFileSync } from "fs";
 
 interface PreMapData {
     mapTypeId: Int32;
@@ -53,6 +56,41 @@ interface BaseLandData {
     edgeFade: Int32;
     clumpinessFactor: Int32;
 }
+const BaseLandDataSchema = z.object({
+    baseLandId: Int32Schema,
+    terrainId: ReferenceStringSchema,
+    landSpacing: Int32Schema,
+    baseSize: Int32Schema,
+    zone: UInt8Schema,
+    placementType: UInt8Schema,
+    origin: PointSchema(Int32Schema),
+    landProportion: PercentageSchema(UInt8Schema),
+    playerPlacement: UInt8Schema,
+    playerBaseRadius: Int32Schema,
+    edgeFade: Int32Schema,
+    clumpinessFactor: Int32Schema.optional(),
+});
+type BaseLandDataJson = z.infer<typeof BaseLandDataSchema>;
+const BaseLandDataJsonMapping: JsonFieldMapping<BaseLandData, BaseLandDataJson>[] = [
+    { field: "baseLandId" },
+    { jsonField: "terrainId", toJson: (obj) => createReferenceString("Terrain", obj.terrain?.referenceId, obj.terrainId) },
+    { objectField: "terrainId", fromJson: (json, obj, loadingContext) => getIdFromReferenceString<TerrainId<Int32>>("Terrain", "RandomMap_BaseLand", json.terrainId, loadingContext.dataIds.terrainIds) },
+    { objectField: "terrain", fromJson: () => null },
+    { objectField: "padding05", fromJson: () => asUInt8(0) },
+    { objectField: "padding06", fromJson: () => asUInt16(0) },
+    { field: "landSpacing" },
+    { field: "baseSize" },
+    { field: "zone" },
+    { field: "placementType" },
+    { objectField: "padding12", fromJson: () => asUInt16(0) },
+    { field: "origin" },
+    { field: "landProportion" },
+    { field: "playerPlacement" },
+    { objectField: "padding1E", fromJson: () => asUInt16(0) },
+    { field: "playerBaseRadius" },
+    { field: "edgeFade" },
+    { field: "clumpinessFactor" },
+];
 
 interface TerrainPlacementData {
     coverageProportion: Percentage<Int32>;
@@ -64,6 +102,27 @@ interface TerrainPlacementData {
     replacedTerrain: Terrain | null;
     clumpinessFactor: Int32;
 }
+const TerrainPlacementDataSchema = z.object({
+    coverageProportion: PercentageSchema(Int32Schema),
+    terrainId: ReferenceStringSchema,
+    clumpCount: Int32Schema,
+    terrainSpacing: Int32Schema,
+    replacedTerrainId: ReferenceStringSchema,
+    clumpinessFactor: Int32Schema.optional(),
+});
+type TerrainPlacementDataJson = z.infer<typeof TerrainPlacementDataSchema>;
+const TerrainPlacementDataJsonMapping: JsonFieldMapping<TerrainPlacementData, TerrainPlacementDataJson>[] = [
+    { field: "coverageProportion" },
+    { jsonField: "terrainId", toJson: (obj) => createReferenceString("Terrain", obj.terrain?.referenceId, obj.terrainId) },
+    { objectField: "terrainId", fromJson: (json, obj, loadingContext) => getIdFromReferenceString<TerrainId<Int32>>("Terrain", "RandomMap_TerrainPlacement", json.terrainId, loadingContext.dataIds.terrainIds) },
+    { objectField: "terrain", fromJson: () => null },
+    { field: "clumpCount" },
+    { field: "terrainSpacing" },
+    { jsonField: "replacedTerrainId", toJson: (obj) => createReferenceString("Terrain", obj.replacedTerrain?.referenceId, obj.replacedTerrainId) },
+    { objectField: "replacedTerrainId", fromJson: (json, obj, loadingContext) => getIdFromReferenceString<TerrainId<Int32>>("Terrain", "RandomMap_TerrainPlacement", json.replacedTerrainId, loadingContext.dataIds.terrainIds) },
+    { objectField: "replacedTerrain", fromJson: () => null },
+    { field: "clumpinessFactor" },
+];
 
 interface ObjectPlacementData {
     prototypeId: PrototypeId<Int32>;
@@ -82,6 +141,40 @@ interface ObjectPlacementData {
     minDistanceToPlayers: Int32;
     maxDistanceToPlayers: Int32;
 }
+const ObjectPlacementDataSchema = z.object({
+    prototypeId: ReferenceStringSchema,
+    placementTerrainId: ReferenceStringSchema,
+    groupMode: UInt8Schema,
+    scaleByMapSize: Bool8Schema,
+    objectsPerGroup: Int32Schema,
+    objectsPerGroupVariance: Int32Schema,
+    objectGroupsPerPlayer: Int32Schema,
+    objectGroupRadius: Int32Schema,
+    placementPlayerId: Int32Schema,
+    placementBaseLandId: Int32Schema,
+    minDistanceToPlayers: Int32Schema,
+    maxDistanceToPlayers: Int32Schema,
+});
+type ObjectPlacementDataJson = z.infer<typeof ObjectPlacementDataSchema>;
+const ObjectPlacementDataJsonMapping: JsonFieldMapping<ObjectPlacementData, ObjectPlacementDataJson>[] = [
+    { jsonField: "prototypeId", toJson: (obj) => createReferenceString("ObjectPrototype", obj.prototype?.referenceId, obj.prototypeId) },
+    { objectField: "prototypeId", fromJson: (json, obj, loadingContext) => getIdFromReferenceString<TerrainId<Int32>>("ObjectPrototype", "RandomMap_ObjectPlacement", json.prototypeId, loadingContext.dataIds.prototypeIds) },
+    { objectField: "prototype", fromJson: () => null },
+    { jsonField: "placementTerrainId", toJson: (obj) => createReferenceString("Terrain", obj.placementTerrain?.referenceId, obj.placementTerrainId) },
+    { objectField: "placementTerrainId", fromJson: (json, obj, loadingContext) => getIdFromReferenceString<TerrainId<Int32>>("Terrain", "RandomMap_ObjectPlacement", json.placementTerrainId, loadingContext.dataIds.terrainIds) },
+    { objectField: "placementTerrain", fromJson: () => null },
+    { field: "groupMode" },
+    { field: "scaleByMapSize" },
+    { objectField: "padding0A", fromJson: () => asUInt16(0) },
+    { field: "objectsPerGroup" },
+    { field: "objectsPerGroupVariance" },
+    { field: "objectGroupsPerPlayer" },
+    { field: "objectGroupRadius" },
+    { field: "placementPlayerId" },
+    { field: "placementBaseLandId" },
+    { field: "minDistanceToPlayers" },
+    { field: "maxDistanceToPlayers" },
+];
 
 interface ElevationPlacementData {
     coverageProportion: Percentage<Int32>;
@@ -92,72 +185,66 @@ interface ElevationPlacementData {
     placementTerrain: Terrain | null;
     placementElevation: Int32;
 }
-
-const internalFields: (keyof RandomMap)[] = [
-    "preMapData",
-    "baseLandDataPointer",
-    "terrainDataPointer",
-    "objectDataPointer",
-    "elevationDataPointer"
+const ElevationPlacementDataSchema = z.object({
+    coverageProportion: PercentageSchema(Int32Schema),
+    elevationHeight: Int32Schema,
+    clumpinessFactor: Int32Schema.optional(),
+    elevationSpacing: Int32Schema,
+    placementTerrainId: ReferenceStringSchema,
+    placementElevation: Int32Schema
+});
+type ElevationPlacementDataJson = z.infer<typeof ElevationPlacementDataSchema>;
+const ElevationPlacementDataJsonMapping: JsonFieldMapping<ElevationPlacementData, ElevationPlacementDataJson>[] = [
+    { field: "coverageProportion" },
+    { field: "elevationHeight" },
+    { field: "clumpinessFactor" },
+    { field: "elevationSpacing" },
+    { jsonField: "placementTerrainId", toJson: (obj) => createReferenceString("Terrain", obj.placementTerrain?.referenceId, obj.placementTerrainId) },
+    { objectField: "placementTerrainId", fromJson: (json, obj, loadingContext) => getIdFromReferenceString<TerrainId<Int32>>("Terrain", "RandomMap_ElevationPlacement", json.placementTerrainId, loadingContext.dataIds.terrainIds) },
+    { objectField: "placementTerrain", fromJson: () => null },
+    { field: "placementElevation" },
 ];
 
-const jsonFields: OldJsonFieldConfig<RandomMap>[] = [
+const RandomMapSchema = z.object({
+    internalName: z.string(),
+    mapTypeId: Int32Schema,
+    border: RectangleSchema(Int32Schema),
+    borderEdgeFade: Int32Schema,
+    waterShapeLandPlacementEdge: Int32Schema,
+    baseTerrainId: ReferenceStringSchema,
+    landCover: Int32Schema,
+    landId: Int32Schema,
+    baseLandData: z.array(BaseLandDataSchema),
+    terrainData: z.array(TerrainPlacementDataSchema),
+    objectData: z.array(ObjectPlacementDataSchema),
+    elevationData: z.array(ElevationPlacementDataSchema),
+});
+type RandomMapJson = z.infer<typeof RandomMapSchema>;
+
+const RandomMapJsonMapping: JsonFieldMapping<RandomMap, RandomMapJson>[] = [
+    { field: "internalName" },
     { field: "mapTypeId"},
     { field: "border" },
     { field: "borderEdgeFade" },
     { field: "waterShapeLandPlacementEdge" },
-    { field: "baseTerrainId", toJson: (obj) => createReferenceString("Terrain", obj.baseTerrain?.referenceId, obj.baseTerrainId) },
+    { jsonField: "baseTerrainId", toJson: (obj) => createReferenceString("Terrain", obj.baseTerrain?.referenceId, obj.baseTerrainId) },
+    { objectField: "baseTerrainId", fromJson: (json, obj, loadingContext) => getIdFromReferenceString<TerrainId<Int32>>("Terrain", obj.referenceId, json.baseTerrainId, loadingContext.dataIds.terrainIds) },
     { field: "landCover" },
     { field: "landId", flags: { unusedField: true } },
-    { field: "baseLandData", toJson: (obj, savingContext) => obj.baseLandData.map(baseLandEntry => ({
-        baseLandId: baseLandEntry.baseLandId,
-        terrainId: createReferenceString("Terrain", baseLandEntry.terrain?.referenceId, baseLandEntry.terrainId),
-        landSpacing: baseLandEntry.landSpacing,
-        baseSize: baseLandEntry.baseSize,
-        zone: baseLandEntry.zone,
-        placementType: baseLandEntry.placementType,
-        origin: baseLandEntry.origin,
-        landProportion: baseLandEntry.landProportion,
-        playerPlacement: baseLandEntry.playerPlacement,
-        playerBaseRadius: baseLandEntry.playerBaseRadius,
-        edgeFade: baseLandEntry.edgeFade,
-        clumpinessFactor: savingContext.internalFields ? baseLandEntry.clumpinessFactor : undefined,
-    }))},
-    { field: "terrainData", toJson: (obj, savingContext) => obj.terrainData.map(terrainEntry => ({
-        terrainId: createReferenceString("Terrain", terrainEntry.terrain?.referenceId, terrainEntry.terrainId),
-        coverageProportion: terrainEntry.coverageProportion,
-        clumpCount: terrainEntry.clumpCount,
-        terrainSpacing: terrainEntry.terrainSpacing,
-        replacedTerrainId: createReferenceString("Terrain", terrainEntry.replacedTerrain?.referenceId, terrainEntry.replacedTerrainId),
-        clumpinessFactor: savingContext.internalFields ? terrainEntry.clumpinessFactor : undefined,
-    }))},
-    { field: "objectData", toJson: (obj) => obj.objectData.map(objectEntry => ({
-        prototypeId: createReferenceString("ObjectPrototype", objectEntry.prototype?.referenceId, objectEntry.prototypeId),
-        placementTerrainId: createReferenceString("Terrain", objectEntry.placementTerrain?.referenceId, objectEntry.placementTerrainId),
-        groupMode: objectEntry.groupMode,
-        scaleByMapSize: objectEntry.scaleByMapSize,
-        objectsPerGroup: objectEntry.objectsPerGroup,
-        objectsPerGroupVariance: objectEntry.objectsPerGroupVariance,
-        objectGroupsPerPlayer: objectEntry.objectGroupsPerPlayer,
-        objectGroupRadius: objectEntry.objectGroupRadius,
-        placementPlayerId: objectEntry.placementPlayerId,
-        placementBaseLandId: objectEntry.placementBaseLandId,
-        minDistanceToPlayers: objectEntry.minDistanceToPlayers,
-        maxDistanceToPlayers: objectEntry.maxDistanceToPlayers,
-    }))},
-    { field: "elevationData", flags: { unusedField: true }, toJson: (obj, savingContext) => obj.elevationData.map(elevationEntry => ({
-        elevationHeight: elevationEntry.elevationHeight,
-        coverageProportion: elevationEntry.coverageProportion,
-        elevationSpacing: elevationEntry.elevationSpacing,
-        placementTerrain: createReferenceString("Terrain", elevationEntry.placementTerrain?.referenceId, elevationEntry.placementTerrainId),
-        placementElevation: elevationEntry.placementElevation,
-        clumpinessFactor: savingContext.internalFields ? elevationEntry.clumpinessFactor : undefined,
-    }))}
+    { jsonField: "baseLandData", toJson: (obj, savingContext) => obj.baseLandData.map(baseLandEntry => transformObjectToJson(baseLandEntry, BaseLandDataJsonMapping, savingContext)) },
+    { objectField: "baseLandData", fromJson: (json, obj, loadingContext) => json.baseLandData.map(baseLandData => transformJsonToObject(baseLandData, BaseLandDataJsonMapping, loadingContext)) },
+    { jsonField: "terrainData", toJson: (obj, savingContext) => obj.terrainData.map(terrainEntry => transformObjectToJson(terrainEntry, TerrainPlacementDataJsonMapping, savingContext)) },
+    { objectField: "terrainData", fromJson: (json, obj, loadingContext) => json.terrainData.map(terrainData => transformJsonToObject(terrainData, TerrainPlacementDataJsonMapping, loadingContext)) },
+    { jsonField: "objectData", toJson: (obj, savingContext) => obj.objectData.map(objectEntry => transformObjectToJson(objectEntry, ObjectPlacementDataJsonMapping, savingContext)) },
+    { objectField: "objectData", fromJson: (json, obj, loadingContext) => json.objectData.map(objectData => transformJsonToObject(objectData, ObjectPlacementDataJsonMapping, loadingContext)) },
+    { jsonField: "elevationData", toJson: (obj, savingContext) => obj.elevationData.map(elevationEntry => transformObjectToJson(elevationEntry, ElevationPlacementDataJsonMapping, savingContext)) },
+    { objectField: "elevationData", fromJson: (json, obj, loadingContext) => json.elevationData.map(elevationData => transformJsonToObject(elevationData, ElevationPlacementDataJsonMapping, loadingContext)) },
 ];
 
 export class RandomMap {
     id: Int16 = asInt16(-1);
     referenceId: string = "";
+    internalName: string = "";
     mapTypeId: Int32 = asInt32(-1);
     preMapData: Omit<PreMapData, 'mapTypeId'> | null = null;
     border: Rectangle<Int32> = {
@@ -184,7 +271,8 @@ export class RandomMap {
 
     readFromBuffer(buffer: BufferReader, id: Int16, terrains: Nullable<Terrain>[], loadingContext: LoadingContext, preMapData: PreMapData): void {
         this.id = id;
-        this.referenceId = `RandomMap_${this.id}`;
+        this.internalName = `RandomMap ${this.id + 1}`;
+        this.referenceId = createReferenceIdFromString(this.internalName);
         this.mapTypeId = preMapData.mapTypeId;
         const copiedMapData: Optional<PreMapData, 'mapTypeId'> = { ...preMapData };
         delete copiedMapData.mapTypeId;
@@ -290,7 +378,12 @@ export class RandomMap {
             elevationData.placementTerrain = getDataEntry(terrains, elevationData.placementTerrainId, "Terrain", this.referenceId, loadingContext);
             this.elevationData.push(elevationData);
         }
-
+    }
+                    
+    readFromJsonFile(jsonFile: RandomMapJson, id: Int16, referenceId: string, loadingContext: JsonLoadingContext) {
+        this.id = id;
+        this.referenceId = referenceId;
+        applyJsonFieldsToObject(jsonFile, this, RandomMapJsonMapping, loadingContext)
     }
     
     linkOtherData(objects: (SceneryObjectPrototype | null)[], loadingContext: LoadingContext) {
@@ -298,9 +391,13 @@ export class RandomMap {
             object.prototype = getDataEntry(objects, object.prototypeId, "ObjectPrototype", this.referenceId, loadingContext);
         })
     }
-
-    toString() {
-        return JSON.stringify(this);
+            
+    writeToJsonFile(directory: string, savingContext: SavingContext) {
+        writeFileSync(path.join(directory, `${this.referenceId}.json`), createJson(this.toJson(savingContext)));
+    }
+                
+    toJson(savingContext: SavingContext) {
+        return transformObjectToJson(this, RandomMapJsonMapping, savingContext)
     }
 }
 
@@ -461,6 +558,32 @@ export function writeRandomMapsToWorldTextFile(outputDirectory: string, randomMa
 
 export function writeRandomMapsToJsonFiles(outputDirectory: string, randomMaps: RandomMap[], savingContext: SavingContext) {
     if (semver.gte(savingContext.version.numbering, "2.0.0")) {
-        oldWriteDataEntriesToJson(outputDirectory, "randommaps", randomMaps, jsonFields, savingContext);
+        writeDataEntriesToJson(outputDirectory, "randommaps", randomMaps, savingContext);
+    }
+}
+
+export function readRandomMapsFromJsonFiles(inputDirectory: string, randomMapIds: (string | null)[], loadingContext: JsonLoadingContext) {
+    const randomMapsDirectory = path.join(inputDirectory, 'randommaps');
+    const randomMaps: RandomMap[] = [];
+    randomMapIds.forEach((randomMapReferenceId, randomMapNumberId) => {
+        if (randomMapReferenceId === null) {
+            throw new Error(`Null RandomMap entries are not supported!`);
+        }
+        else {
+            const randomMapJson = RandomMapSchema.parse(JSON5.parse(readFileSync(path.join(randomMapsDirectory, `${randomMapReferenceId}.json`)).toString('utf8')));
+            const randomMap = new RandomMap();
+            randomMap.readFromJsonFile(randomMapJson, asInt16(randomMapNumberId), randomMapReferenceId, loadingContext);
+            randomMaps.push(randomMap);
+        }
+    });
+    return randomMaps;
+}
+
+export function readRandomMapIdsFromJsonIndex(inputDirectory: string) {
+    try {
+        return readJsonFileIndex(path.join(inputDirectory, "randommaps"));
+    }
+    catch (err: unknown) {
+        return [];
     }
 }

@@ -91,6 +91,39 @@ export class Civilization {
         this.referenceId = referenceId;
         applyJsonFieldsToObject(jsonFile, this, CivilizationJsonMapping, loadingContext)
     }
+        
+    appendToTextFile(textFileWriter: TextFileWriter, attributes: Attribute[], savingContext: SavingContext) {
+        textFileWriter
+            .integer(this.id)
+            .integer(this.civilizationType)
+            .string(this.internalName, 17)
+            .conditional(semver.gte(savingContext.version.numbering, "1.4.0"), writer => writer.integer(this.bonusEffectId))
+            .integer(this.attributes.length)
+            .integer(this.attributes.filter(x => x).length)
+            .eol();
+
+        const civAttributes = this.attributes.map((attributeAmount, id) => {
+            const attribute = attributes[id] ? attributes[id] : createDefaultAttribute(id);
+            return {
+                ...attribute,
+                amount: attributeAmount
+            }
+        }).sort((a, b) => textFileStringCompare(a.internalName, b.internalName))
+        .filter(entry => entry.amount)
+
+        civAttributes.forEach(attribute => {
+            textFileWriter
+                .indent(2)
+                .integer(attribute.id)
+                .float(attribute.amount)
+                .eol();
+        })
+
+        textFileWriter
+            .indent(2)
+            .integer(this.architectureStyle)
+            .eol();
+    }
     
     writeToJsonFile(directory: string, savingContext: SavingContext) {
         writeFileSync(path.join(directory, `${this.referenceId}.json`), createJson(this.toJson(savingContext)));
@@ -113,37 +146,7 @@ export function writeCivilizationsToWorldTextFile(outputDirectory: string, civil
 
     const sortedCivilizations = [...civilizations].sort((a, b) => textFileStringCompare(a.internalName, b.internalName));
     sortedCivilizations.forEach(civilization => {
-
-        textFileWriter
-            .integer(civilization.id)
-            .integer(civilization.civilizationType)
-            .string(civilization.internalName, 17)
-            .conditional(semver.gte(savingContext.version.numbering, "1.4.0"), writer => writer.integer(civilization.bonusEffectId))
-            .integer(civilization.attributes.length)
-            .integer(civilization.attributes.filter(x => x).length)
-            .eol();
-
-        const civAttributes = civilization.attributes.map((attributeAmount, id) => {
-            const attribute = attributes[id] ? attributes[id] : createDefaultAttribute(id);
-            return {
-                ...attribute,
-                amount: attributeAmount
-            }
-        }).sort((a, b) => textFileStringCompare(a.internalName, b.internalName))
-        .filter(entry => entry.amount)
-
-        civAttributes.forEach(attribute => {
-            textFileWriter
-                .indent(2)
-                .integer(attribute.id)
-                .float(attribute.amount)
-                .eol();
-        })
-
-        textFileWriter
-            .indent(2)
-            .integer(civilization.architectureStyle)
-            .eol();
+        civilization.appendToTextFile(textFileWriter, attributes, savingContext);
     })
     textFileWriter.close();
 

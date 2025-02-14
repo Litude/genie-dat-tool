@@ -413,5 +413,10 @@ export function readTribeRandomMapsFromJsonFiles(inputDirectory: string, tribeRa
 }
 
 export function readTribeRandomMapIdsFromJsonIndex(inputDirectory: string) {
-    return readJsonFileIndex(path.join(inputDirectory, "tribemaps"));
+    try {
+        return readJsonFileIndex(path.join(inputDirectory, "tribemaps"));
+    }
+    catch (err: unknown) {
+        return [];
+    }
 }

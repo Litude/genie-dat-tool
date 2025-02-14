@@ -299,89 +299,84 @@ export class Sprite {
         });
     }
             
-        appendToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext) {
-            // This is a hackish way to keep tower sound effects as they are. It would seem they were originally imported with a non-existing angle number of 1
-            // so they were set to -1 during import and such entries are not included by default
-            let subsituteEntry = false;
-            let angleSoundEffectCount = this.angleSoundEffectsEnabled ? this.angleSoundEffects.reduce((acc, cur) => acc + (cur.soundEffectId >= 0 ? 1 : 0), 0) : 0;
-            if (angleSoundEffectCount === 0 && this.angleSoundEffectsEnabled) {
-                angleSoundEffectCount = this.angleCount;
-                subsituteEntry = true;
-            }
+    appendToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext) {
+        // This is a hackish way to keep tower sound effects as they are. It would seem they were originally imported with a non-existing angle number of 1
+        // so they were set to -1 during import and such entries are not included by default
+        let subsituteEntry = false;
+        let angleSoundEffectCount = this.angleSoundEffectsEnabled ? this.angleSoundEffects.reduce((acc, cur) => acc + (cur.soundEffectId >= 0 ? 1 : 0), 0) : 0;
+        if (angleSoundEffectCount === 0 && this.angleSoundEffectsEnabled) {
+            angleSoundEffectCount = this.angleCount;
+            subsituteEntry = true;
+        }
 
+        textFileWriter
+            .integer(this.id)
+            .string(this.internalName, 17)
+            .filename(this.resourceFilename)
+            .integer(semver.gte(savingContext.version.numbering, "1.3.1") ? this.resourceId : asTribeResourceId(this.resourceId))
+            .integer(this.framesPerAngle)
+            .integer(this.angleCount)
+            .integer(this.mirroringMode === 0 ? 0 : 1)
+            .integer(this.colorTransformType)
+            .integer(this.layer)
+            .integer(this.forcedColorTransform)
+            .integer(this.spriteType & 0x04 ? 1 : 0) // Randomize on start flag
+            .integer(this.selectionType)
+            .integer(this.spriteType & 0x01 ? 1 : 0) // Animated flag
+            .integer(this.spriteType & 0x02 ? 1 : 0) // Directional flag
+            .integer(this.spriteType & 0x08 ? 1 : 0) // Loop once flag
+            .integer(this.boundingBox.left)
+            .integer(this.boundingBox.top)
+            .integer(this.boundingBox.right)
+            .integer(this.boundingBox.bottom)
+            .float(this.objectSpeedMultiplier)
+            .float(this.animationDuration)
+            .float(this.animationReplayDelay)
+            .integer(this.overlays.length)
+            .integer(this.soundEffectId)
+            .integer(angleSoundEffectCount)
+            .eol();
+            
+        for (let j = 0; j < this.overlays.length; ++j) {
+            const overlay = this.overlays[j];
             textFileWriter
-                .integer(this.id)
-                .string(this.internalName, 17)
-                .filename(this.resourceFilename)
-                .integer(semver.gte(savingContext.version.numbering, "1.3.1") ? this.resourceId : asTribeResourceId(this.resourceId))
-                .integer(this.framesPerAngle)
-                .integer(this.angleCount)
-                .integer(this.mirroringMode === 0 ? 0 : 1)
-                .integer(this.colorTransformType)
-                .integer(this.layer)
-                .integer(this.forcedColorTransform)
-                .integer(this.spriteType & 0x04 ? 1 : 0) // Randomize on start flag
-                .integer(this.selectionType)
-                .integer(this.spriteType & 0x01 ? 1 : 0) // Animated flag
-                .integer(this.spriteType & 0x02 ? 1 : 0) // Directional flag
-                .integer(this.spriteType & 0x08 ? 1 : 0) // Loop once flag
-                .integer(this.boundingBox.left)
-                .integer(this.boundingBox.top)
-                .integer(this.boundingBox.right)
-                .integer(this.boundingBox.bottom)
-                .float(this.objectSpeedMultiplier)
-                .float(this.animationDuration)
-                .float(this.animationReplayDelay)
-                .integer(this.overlays.length)
-                .integer(this.soundEffectId)
-                .integer(angleSoundEffectCount)
+                .indent(2)
+                .integer(overlay.spriteId)
+                .integer(overlay.offset.x)
+                .integer(overlay.offset.y)
+                .integer(overlay.angle)
                 .eol();
-                
-            for (let j = 0; j < this.overlays.length; ++j) {
-                const overlay = this.overlays[j];
-                textFileWriter
-                    .indent(2)
-                    .integer(overlay.spriteId)
-                    .integer(overlay.offset.x)
-                    .integer(overlay.offset.y)
-                    .integer(overlay.angle)
+        }
+        if (this.angleSoundEffectsEnabled) {
+            if (subsituteEntry) {
+                for (let j = 0; j < this.angleCount; ++j) {
+                    textFileWriter
+                    .indent(4)
+                    .integer(-1)
+                    .integer(-1)
+                    .integer(-1)
                     .eol();
+                }
             }
-            if (this.angleSoundEffectsEnabled) {
-                if (subsituteEntry) {
-                    for (let j = 0; j < this.angleCount; ++j) {
+            else {
+                for (let j = 0; j < this.angleSoundEffects.length; ++j) {
+                    const soundEffect = this.angleSoundEffects[j];
+                    if (soundEffect.soundEffectId >= 0) {
                         textFileWriter
                         .indent(4)
-                        .integer(-1)
-                        .integer(-1)
-                        .integer(-1)
+                        .integer(soundEffect.angle)
+                        .integer(soundEffect.frameNumber)
+                        .integer(soundEffect.soundEffectId)
                         .eol();
-                    }
-                }
-                else {
-                    for (let j = 0; j < this.angleSoundEffects.length; ++j) {
-                        const soundEffect = this.angleSoundEffects[j];
-                        if (soundEffect.soundEffectId >= 0) {
-                            textFileWriter
-                            .indent(4)
-                            .integer(soundEffect.angle)
-                            .integer(soundEffect.frameNumber)
-                            .integer(soundEffect.soundEffectId)
-                            .eol();
-                        }
                     }
                 }
             }
         }
+    }
 
     writeToJsonFile(directory: string, savingContext: SavingContext) {
         writeDataEntryToJsonFile(directory, this, SpriteJsonMapping, savingContext);
     }
-
-    toString() {
-        return JSON.stringify(this);
-    }
-
 }
 
 export function readSpritesFromDatFile(buffer: BufferReader, soundEffects: SoundEffect[], loadingContext: LoadingContext): Nullable<Sprite>[] {

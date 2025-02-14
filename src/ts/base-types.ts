@@ -1,4 +1,5 @@
-import { z } from "zod";
+import { z, ZodNumber } from "zod";
+import { Percentage } from "../database/Types";
 
 // Size restricted numeric types
 export type Int8 = number & { __brand: "Int8" };
@@ -129,3 +130,8 @@ function createBrandedInteger<T extends string>(
     .max(2147483647, { message: "Number must be at most 2147483647 (int32)" }) as any;
   
   export const Float32Schema: z.Schema<Float32> = z.number().transform((value) => Math.fround(value)) as any;
+
+export const PercentageSchema = <T extends number>(schemaType: z.Schema<T>): z.Schema<Percentage<T>> => z.number()
+    .int()
+    .min(0, { message: "Number must be at least 0 (percentage)"})
+    .max(100, { message: "Number must be at most 100 (percentage)" }) as any;

@@ -72,6 +72,26 @@ export class StateEffect {
         this.referenceId = referenceId;
         applyJsonFieldsToObject(jsonFile, this, StateEffectJsonMapping, loadingContext)
     }
+
+    appendToTextFile(textFileWriter: TextFileWriter, savingContext: SavingContext): void {
+        textFileWriter
+            .conditional(semver.gte(savingContext.version.numbering, "2.0.0"), writer => writer.integer(this.id))
+            .string(this.internalName, 17)
+            .integer(this.commands.length)
+            .eol();
+
+        for (let j = 0; j < this.commands.length; ++j) {
+            const command = this.commands[j];
+            textFileWriter
+                .indent(9)
+                .integer(command.commandType)
+                .integer(command.value1)
+                .integer(command.value2)
+                .integer(command.value3)
+                .float(command.value4)
+                .eol();
+        }
+    }
     
     writeToJsonFile(directory: string, savingContext: SavingContext) {
         writeFileSync(path.join(directory, `${this.referenceId}.json`), createJson(this.toJson(savingContext)));
@@ -83,10 +103,6 @@ export class StateEffect {
         
     toJson(savingContext: SavingContext) {
         return transformObjectToJson(this, StateEffectJsonMapping, savingContext);
-    }
-
-    toString() {
-        return JSON.stringify(this);
     }
 }
 
@@ -114,26 +130,9 @@ export function writeStateEffectsToWorldTextFile(outputDirectory: string, effect
         throw new Error("Saving dummy effect entries not implemented for version < 2.0");
     }
 
-    for (let i = 0; i < validEntries.length; ++i) {
-        const effect = validEntries[i];
-        textFileWriter
-            .conditional(semver.gte(savingContext.version.numbering, "2.0.0"), writer => writer.integer(effect.id))
-            .string(effect.internalName, 17)
-            .integer(effect.commands.length)
-            .eol();
-
-        for (let j = 0; j < effect.commands.length; ++j) {
-            const command = effect.commands[j];
-            textFileWriter
-                .indent(9)
-                .integer(command.commandType)
-                .integer(command.value1)
-                .integer(command.value2)
-                .integer(command.value3)
-                .float(command.value4)
-                .eol();
-        }
-    }
+    validEntries.forEach(entry => {
+        entry.appendToTextFile(textFileWriter, savingContext);
+    })
     textFileWriter.close();
 }
 

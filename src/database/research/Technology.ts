@@ -201,10 +201,6 @@ export class Technology {
     toJson(savingContext: SavingContext) {
         return transformObjectToJson(this, TechnologyJsonMapping, savingContext)
     }
-
-    toString() {
-        return this.internalName;
-    }
 }
 
 export function readTechnologiesFromBuffer(buffer: BufferReader, loadingContext: LoadingContext): Nullable<Technology>[] {

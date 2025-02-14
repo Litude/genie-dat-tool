@@ -26,7 +26,7 @@
         "internalConsoleOptions": "neverOpen",
         "args": [
             "parse-json",
-            "output/tr_game"
+            "output/empires_ror"
         ],
         // "args": [
         //     "parse-dat",

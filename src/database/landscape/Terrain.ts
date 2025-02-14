@@ -279,10 +279,6 @@ export class Terrain extends BaseTerrainTile {
             ...transformObjectToJson(this, TerrainJsonMapping, savingContext)
         }
     }
-
-    toString() {
-        return JSON.stringify(this);
-    }
 }
 
 export function readTerrainsFromDatFile(buffer: BufferReader, soundEffects: SoundEffect[], loadingContext: LoadingContext): Nullable<Terrain>[] {

@@ -166,10 +166,6 @@ export class MapProperties {
             this.randomMapEntriesPointer = buffer.readPointer();
         }
     }
-
-    toString() {
-        return JSON.stringify(this);
-    }
 }
 
 export function writeMapPropertiesToJsonFile(directory: string, mapProperties: MapProperties, savingContext: SavingContext) {
