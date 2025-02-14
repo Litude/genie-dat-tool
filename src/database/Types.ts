@@ -3,8 +3,16 @@
 // export type Float = number;
 
 import { z } from "zod";
-import { asInt16, asInt32, Int16, Int16Schema, Int32, Int32Schema, UInt8, UInt8Schema } from "../ts/base-types";
-
+import {
+  asInt16,
+  asInt32,
+  Int16,
+  Int16Schema,
+  Int32,
+  Int32Schema,
+  UInt8,
+  UInt8Schema,
+} from "../ts/base-types";
 
 export type Percentage<T> = T;
 
@@ -30,7 +38,7 @@ export type ActionId<T> = T;
 export type OverlayId<T> = T;
 export type StateEffectId = Int16 & { __type: "StateEffectId" };
 export type TechnologyId<T> = T & { __type: "TechnologyId" };
-export type ArchitectureStyleId = UInt8 & { __type: "ArchitectureStyleId"};
+export type ArchitectureStyleId = UInt8 & { __type: "ArchitectureStyleId" };
 export type AgeId<T> = T;
 export type TechnologyType = Int16 & { __type: "TechnologyType" };
 
@@ -39,24 +47,27 @@ export type ColorMapTypeValue = UInt8 & { __type: "ColorMapTypeValue" };
 // Legacy 16-bit resource ids seem to have used 0 to indicate no resource, while final 32-bit resource ids use -1
 // These updates the values to match final ids
 export function asResourceId(legacyResourceId: TribeResourceId): ResourceId {
-    return asInt32<ResourceId>(legacyResourceId === 0 ? -1 : legacyResourceId);
+  return asInt32<ResourceId>(legacyResourceId === 0 ? -1 : legacyResourceId);
 }
 export function asTribeResourceId(resourceId: ResourceId): TribeResourceId {
-    return asInt16<TribeResourceId>(resourceId === -1 ? 0 : resourceId);
+  return asInt16<TribeResourceId>(resourceId === -1 ? 0 : resourceId);
 }
 
 export const PaletteIndexSchema: z.Schema<PaletteIndex> = UInt8Schema as any;
 export const ResourceIdSchema: z.Schema<ResourceId> = Int32Schema as any;
-export const ArchitectureStyleIdSchema: z.Schema<ArchitectureStyleId> = UInt8Schema as any;
-export const TechnologyTypeSchema: z.Schema<TechnologyType> = Int16Schema as any;
+export const ArchitectureStyleIdSchema: z.Schema<ArchitectureStyleId> =
+  UInt8Schema as any;
+export const TechnologyTypeSchema: z.Schema<TechnologyType> =
+  Int16Schema as any;
 
-export const ReferenceStringSchema = z.union([z.string(), z.number(), z.null()]);
+export const ReferenceStringSchema = z.union([
+  z.string(),
+  z.number(),
+  z.null(),
+]);
 
-
-export const StringIdSchema = <T extends number>(schemaType: z.Schema<T>): z.Schema<StringId<T>> => {
-    return schemaType as any;
-}
-// export const SoundEffectIdSchema = <T extends number>(schemaType: z.Schema<T>): z.Schema<SoundEffectId<T>> => {
-//     return schemaType as any;
-// }
-// export const SpriteIdSchema: z.Schema<SpriteId> = Int16Schema as any;
+export const StringIdSchema = <T extends number>(
+  schemaType: z.Schema<T>,
+): z.Schema<StringId<T>> => {
+  return schemaType as any;
+};
