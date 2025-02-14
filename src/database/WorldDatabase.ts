@@ -151,8 +151,7 @@ export class WorldDatabase {
     }
 
     readFromJsonFiles(directory: string) {
-        // TODO: Do we need some kind of version file...?
-        // Should all index files be processed first?
+        // TODO: Should the JSON have some sort of versioning...?
         const habitatIds = readHabitatIdsFromJsonIndex(directory);
         const colormapIds = readColormapIdsFromJsonIndex(directory);
         const spriteIds = readSpriteIdsFromJsonIndex(directory);
@@ -198,7 +197,7 @@ export class WorldDatabase {
         this.overlays = readOverlaysFromJsonFiles(directory, overlayIds, this.soundEffects, loadingContext);
         this.borders = readBordersFromJsonFiles(directory, borderIds, this.soundEffects, loadingContext);
 
-        // TODO: Read map properties
+        this.mapProperties = MapProperties.readFromJsonFile(directory, loadingContext);
         this.tribeRandomMaps = readTribeRandomMapsFromJsonFiles(directory, tribeRandomMapIds, loadingContext);
         this.randomMaps = readRandomMapsFromJsonFiles(directory, randomMapIds, loadingContext);
 
@@ -212,7 +211,7 @@ export class WorldDatabase {
 
         this.borders.forEach(border => border?.linkOtherData(this.terrains, loadingContext));
 
-        console.log('JSON parsing finished');
+        Logger.info('JSON parsing finished');
     }
 
     writeToWorldTextFile(outputDirectory: string, savingContext: SavingContext) {

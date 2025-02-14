@@ -1,13 +1,15 @@
+import JSON5 from "json5";
 import semver from 'semver';
 import BufferReader from "../../BufferReader";
 import { Point } from "../../geometry/Point";
-import { LoadingContext } from "../LoadingContext";
+import { JsonLoadingContext, LoadingContext } from "../LoadingContext";
 import { TerrainId } from "../Types";
-import { asBool8, asInt16, asInt32, asUInt16, asUInt8, Bool8, Int16, Int32, NullPointer, Pointer, UInt16, UInt8 } from "../../ts/base-types";
-import { writeFileSync } from 'fs';
+import { asBool8, asInt16, asInt32, asUInt16, asUInt8, Bool8, Int16, Int16Schema, Int32, NullPointer, Pointer, UInt16, UInt8 } from "../../ts/base-types";
+import { readFileSync, writeFileSync } from 'fs';
 import path from 'path';
 import { SavingContext } from '../SavingContext';
 import { createJson } from '../../json/json-serialization';
+import { z } from 'zod';
 
 interface TileProperty {
     width: Int16;
@@ -15,27 +17,34 @@ interface TileProperty {
     yDelta: Int16;
 }
 
-const DefaultYDelta: Int16[] = [
-    asInt16(0),
-    asInt16(-100),
-    asInt16(100),
-    asInt16(-100),
-    asInt16(-100),
-    asInt16(-100),
-    asInt16(100),
-    asInt16(-100),
-    asInt16(100),
-    asInt16(-100),
-    asInt16(100),
-    asInt16(-100),
-    asInt16(-100),
-    asInt16(-100),
-    asInt16(100),
-    asInt16(100),
-    asInt16(100),
-    asInt16(0),
-    asInt16(0),
+const deltaYMultiplier = [
+    0,
+    -1,
+    1,
+    -1,
+    -1,
+    -1,
+    1,
+    -1,
+    1,
+    -1,
+    1,
+    -1,
+    -1,
+    -1,
+    1,
+    1,
+    1,
+    0,
+    0
 ];
+
+const MapPropertiesSchema = z.object({
+    tileWidth: Int16Schema,
+    tileHeight: Int16Schema,
+    elevationHeight: Int16Schema,
+});
+type MapPropertiesJson = z.infer<typeof MapPropertiesSchema>;
 
 // TODO: Split or rename this since it has all kinds of different mostly unused stuff
 export class MapProperties {
@@ -103,7 +112,7 @@ export class MapProperties {
             this.tileProperties.push({
                 width: buffer.readInt16(),
                 height: buffer.readInt16(),
-                yDelta: semver.gte(loadingContext.version.numbering, "3.7.0") ? buffer.readInt16() : DefaultYDelta[i],
+                yDelta: semver.gte(loadingContext.version.numbering, "3.7.0") ? buffer.readInt16() : asInt16(0), // fallback is filled in later
             });
         }
         if (semver.gte(loadingContext.version.numbering, "3.7.0")) {
@@ -159,12 +168,59 @@ export class MapProperties {
             this.mapVisibilityManagerPointer = buffer.readPointer();
             this.unitVisibilityManagerPointer = buffer.readPointer();
         }
+
+        if (semver.lt(loadingContext.version.numbering, "3.7.0", )) {
+            const baseDeltaValue = Math.floor(this.elevationHeightPx / 2);
+            for (let i = 0; i < 19; ++i) {
+                this.tileProperties[i].yDelta = asInt16(deltaYMultiplier[i] * baseDeltaValue);
+            }
+        }
     }
 
     readQuaterniaryDataFromBuffer(buffer: BufferReader, loadingContext: LoadingContext): void {
         if (semver.gte(loadingContext.version.numbering, "2.0.0")) {
             this.randomMapEntriesPointer = buffer.readPointer();
         }
+    }
+
+    readFromJsonFile(jsonFile: MapPropertiesJson, loadingContext: JsonLoadingContext) {
+        this.tileWidthPx = jsonFile.tileWidth;
+        this.tileHeightPx = jsonFile.tileHeight;
+        this.elevationHeightPx = jsonFile.elevationHeight;
+        this.tileHalfHeightPx = asInt16(Math.floor(this.tileHeightPx / 2));
+        this.tileHalfWidthPx = asInt16(Math.floor(this.tileWidthPx / 2));
+        this.tileProperties = [
+            { width: this.tileWidthPx, height: this.tileHeightPx, yDelta: asInt16(0) },
+            { width: this.tileWidthPx, height: this.elevationHeightPx, yDelta: asInt16(0) },
+            { width: this.tileWidthPx, height: asInt16(this.tileHeightPx + this.elevationHeightPx), yDelta: asInt16(0) },
+            { width: this.tileWidthPx, height: this.tileHeightPx, yDelta: asInt16(0) },
+            { width: this.tileWidthPx, height: this.tileHeightPx, yDelta: asInt16(0) },
+            { width: this.tileWidthPx, height: this.elevationHeightPx, yDelta: asInt16(0) },
+            { width: this.tileWidthPx, height: asInt16(this.tileHeightPx + this.elevationHeightPx), yDelta: asInt16(0) },
+            { width: this.tileWidthPx, height: this.elevationHeightPx, yDelta: asInt16(0) },
+            { width: this.tileWidthPx, height: asInt16(this.tileHeightPx + this.elevationHeightPx), yDelta: asInt16(0) },
+            { width: this.tileWidthPx, height: this.elevationHeightPx, yDelta: asInt16(0) },
+            { width: this.tileWidthPx, height: asInt16(this.tileHeightPx + this.elevationHeightPx), yDelta: asInt16(0) },
+            { width: this.tileWidthPx, height: this.tileHeightPx, yDelta: asInt16(0) },
+            { width: this.tileWidthPx, height: this.tileHeightPx, yDelta: asInt16(0) },
+            { width: this.tileWidthPx, height: this.elevationHeightPx, yDelta: asInt16(0) },
+            { width: this.tileWidthPx, height: asInt16(this.tileHeightPx + this.elevationHeightPx), yDelta: asInt16(0) },
+            { width: this.tileWidthPx, height: this.tileHeightPx, yDelta: asInt16(0) },
+            { width: this.tileWidthPx, height: this.tileHeightPx, yDelta: asInt16(0) },
+            { width: this.tileHalfWidthPx, height: this.tileHeightPx, yDelta: asInt16(0) },
+            { width: this.tileHalfWidthPx, height: this.tileHeightPx, yDelta: asInt16(0) },
+        ];
+        const baseDeltaValue = Math.floor(this.elevationHeightPx / 2);
+        for (let i = 0; i < 19; ++i) {
+            this.tileProperties[i].yDelta = asInt16(deltaYMultiplier[i] * baseDeltaValue);
+        }
+    }
+
+    static readFromJsonFile(inputDirectory: string, loadingContext: JsonLoadingContext) {
+        const mapProperties = new MapProperties();
+        const mapPropertiesJson = MapPropertiesSchema.parse(JSON5.parse(readFileSync(path.join(inputDirectory, 'tileProperties.json')).toString('utf8')));
+        mapProperties.readFromJsonFile(mapPropertiesJson, loadingContext);
+        return mapProperties;
     }
 }
 

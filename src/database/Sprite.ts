@@ -5,7 +5,7 @@ import { Point, PointSchema } from "../geometry/Point";
 import { Rectangle, RectangleSchema } from "../geometry/Rectangle";
 import { JsonLoadingContext, LoadingContext } from "./LoadingContext";
 import { SavingContext } from "./SavingContext";
-import { asBool8, asFloat32, asInt16, asInt32, asUInt16, asUInt8, Bool8, Bool8Schema, Float32, Float32Schema, Int16, Int16Schema, NullPointer, Pointer, UInt8, UInt8Schema } from "../ts/base-types";
+import { asBool8, asFloat32, asInt16, asInt32, asUInt8, Bool8, Bool8Schema, Float32, Float32Schema, Int16, Int16Schema, NullPointer, Pointer, UInt8, UInt8Schema } from "../ts/base-types";
 import { asResourceId, asTribeResourceId, ReferenceStringSchema, ResourceId, ResourceIdSchema, SoundEffectId, TribeResourceId } from "./Types";
 import { TextFileWriter } from "../textfile/TextFileWriter";
 import { TextFileNames } from "../textfile/TextFile";
@@ -14,13 +14,11 @@ import { Logger } from "../Logger";
 import { getDataEntry } from "../util";
 import { onParsingError } from "./Error";
 import path from "path";
-import { readFileSync, writeFileSync } from "fs";
+import { readFileSync } from "fs";
 import { createReferenceString, createReferenceIdFromString, getIdFromReferenceString } from "../json/reference-id";
-import { Nullable, pick } from "../ts/ts-utils";
-import { clearDirectory } from "../files/file-utils";
-import { applyJsonFieldsToObject, createJson, JsonFieldMapping, readJsonFileIndex, transformJsonToObject, transformObjectToJson, writeDataEntriesToJson, writeDataEntryToJsonFile } from "../json/json-serialization";
+import { Nullable } from "../ts/ts-utils";
+import { applyJsonFieldsToObject, JsonFieldMapping, readJsonFileIndex, transformJsonToObject, transformObjectToJson, writeDataEntriesToJson, writeDataEntryToJsonFile } from "../json/json-serialization";
 import { z } from "zod";
-import { number } from "yargs";
 
 interface SpriteOverlay {
     spriteId: Int16;
@@ -82,7 +80,7 @@ const SpriteSchema = z.object({
     spriteType: UInt8Schema, // todo: split each flag into separate boolean?
     mirroringMode: z.union([UInt8Schema, z.boolean()]),
     overlays: z.array(SpriteOverlaySchema),
-    angleSoundEffects: z.array(SpriteAngleSoundEffectSchema)
+    soundEffects: z.array(SpriteAngleSoundEffectSchema)
 });
 type SpriteJson = z.infer<typeof SpriteSchema>;
 export const SpriteJsonMapping: JsonFieldMapping<Sprite, SpriteJson>[] = [
@@ -125,7 +123,7 @@ export const SpriteJsonMapping: JsonFieldMapping<Sprite, SpriteJson>[] = [
      }},
      { jsonField: "overlays", toJson: (obj, savingContext) => obj.overlays.map(overlay => transformObjectToJson(overlay, SpriteOverlayJsonMapping, savingContext)) },
      { objectField: "overlays", fromJson: (json, obj, loadingContext) => json.overlays.map(overlay => ({ ...transformJsonToObject(overlay, SpriteOverlayJsonMapping, loadingContext), sprite: null, padding02: asInt16(0), spritePointer: NullPointer, padding0e: asInt16(0) })) },
-     { jsonField: "angleSoundEffects", toJson: (obj, savingContext) => {
+     { jsonField: "soundEffects", toJson: (obj, savingContext) => {
         // If all angles have the same sound effect, write only one entry without an angle specified
         const transformedEntries = obj.angleSoundEffects
         .map(soundEffect => transformObjectToJson(soundEffect, SpriteAngleSoundEffectJsonMapping, savingContext))
@@ -161,7 +159,7 @@ export const SpriteJsonMapping: JsonFieldMapping<Sprite, SpriteJson>[] = [
      }},
      { objectField: "angleSoundEffects", fromJson: (json, obj, loadingContext) => {
         const result: SpriteAngleSoundEffect[] = [];
-        json.angleSoundEffects.forEach(angleSoundEffect => {
+        json.soundEffects.forEach(angleSoundEffect => {
             if (angleSoundEffect.angle !== undefined) {
                 result.push(transformJsonToObject(angleSoundEffect, SpriteAngleSoundEffectJsonMapping, loadingContext))
             }
