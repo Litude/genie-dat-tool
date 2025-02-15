@@ -14,7 +14,11 @@ import { getDataEntry } from "../../util";
 import { Habitat } from "../landscape/Habitat";
 import { Overlay } from "../landscape/Overlay";
 import { Terrain } from "../landscape/Terrain";
-import { JsonLoadingContext, LoadingContext } from "../LoadingContext";
+import {
+  DatLoadingContext,
+  JsonLoadingContext,
+  LoadingContext,
+} from "../LoadingContext";
 import { Technology } from "../research/Technology";
 import { SavingContext } from "../SavingContext";
 import { SoundEffect } from "../SoundEffect";
@@ -210,7 +214,7 @@ export class BuildingObjectPrototype extends AdvancedCombatantObjectPrototype {
   readFromBuffer(
     buffer: BufferReader,
     id: Int16,
-    loadingContext: LoadingContext,
+    loadingContext: DatLoadingContext,
   ): void {
     super.readFromBuffer(buffer, id, loadingContext);
 

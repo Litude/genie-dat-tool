@@ -30,7 +30,6 @@ import {
   applyJsonFieldsToObject,
   createJson,
   JsonFieldMapping,
-  transformJsonToObject,
   transformObjectToJson,
 } from "../../json/json-serialization";
 import { JsonLoadingContext, LoadingContext } from "../LoadingContext";
@@ -71,6 +70,14 @@ export class BaseTerrainAnimation {
     return this;
   }
 
+  appendToTextFile(textFile: TextFileWriter, _savingContext: SavingContext) {
+    textFile
+      .integer(this.animated ? 1 : 0)
+      .integer(this.frameCount)
+      .float(this.frameDelay)
+      .float(this.replayDelay);
+  }
+
   static readFromBuffer(
     buffer: BufferReader,
     loadingContext: LoadingContext,
@@ -78,14 +85,6 @@ export class BaseTerrainAnimation {
     const instance = new BaseTerrainAnimation();
     instance.readFromBuffer(buffer, loadingContext);
     return instance;
-  }
-
-  appendToTextFile(textFile: TextFileWriter, _savingContext: SavingContext) {
-    textFile
-      .integer(this.animated ? 1 : 0)
-      .integer(this.frameCount)
-      .float(this.frameDelay)
-      .float(this.replayDelay);
   }
 }
 
@@ -151,10 +150,11 @@ export class BaseTerrainTile {
       .integer(this.id)
       .string(this.internalName, 17)
       .filename(this.resourceFilename)
-      .conditional(
-        semver.gte(savingContext.version.numbering, "2.0.0"),
-        (writer) => writer.integer(this.resourceId),
-      )
+      .dynamic((writer) => {
+        if (semver.gte(savingContext.version.numbering, "2.0.0")) {
+          writer.integer(this.resourceId);
+        }
+      })
       .integer(this.random ? 1 : 0)
       .integer(this.minimapColor2)
       .integer(this.minimapColor1)
@@ -243,12 +243,16 @@ export const BaseTerrainTileJsonMapping: JsonFieldMapping<
   },
   {
     objectField: "animation",
-    fromJson: (json, _obj, loadingContext) =>
-      transformJsonToObject(
+    fromJson: (json, _obj, loadingContext) => {
+      const animation = new BaseTerrainAnimation();
+      applyJsonFieldsToObject(
         json.animation,
+        animation,
         BaseTerrainAnimationJsonMapping,
         loadingContext,
-      ),
+      );
+      return animation;
+    },
   },
 ];
 

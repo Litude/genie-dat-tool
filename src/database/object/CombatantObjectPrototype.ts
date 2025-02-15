@@ -2,7 +2,11 @@ import semver from "semver";
 import BufferReader from "../../BufferReader";
 import { Point3D, Point3DSchema } from "../../geometry/Point";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
-import { JsonLoadingContext, LoadingContext } from "../LoadingContext";
+import {
+  DatLoadingContext,
+  JsonLoadingContext,
+  LoadingContext,
+} from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
 import {
   HabitatId,
@@ -194,7 +198,7 @@ export class CombatantObjectPrototype extends ActorObjectPrototype {
   readFromBuffer(
     buffer: BufferReader,
     id: Int16,
-    loadingContext: LoadingContext,
+    loadingContext: DatLoadingContext,
   ): void {
     super.readFromBuffer(buffer, id, loadingContext);
     this.baseArmor = buffer.readUInt8();

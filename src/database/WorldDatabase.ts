@@ -136,7 +136,10 @@ import { isDefined, Nullable } from "../ts/ts-utils";
 import { ensureReferenceIdUniqueness } from "../json/reference-id";
 import { clearDirectory } from "../files/file-utils";
 import { asInt16 } from "../ts/base-types";
-import { createJson, createMappingFromJsonFileIndex } from "../json/json-serialization";
+import {
+  createJson,
+  createMappingFromJsonFileIndex,
+} from "../json/json-serialization";
 import { Logger } from "../Logger";
 import { writeFileSync } from "fs";
 
@@ -259,7 +262,6 @@ export class WorldDatabase {
   }
 
   readFromJsonFiles(directory: string) {
-    // TODO: Should the JSON have some sort of versioning...?
     const habitatIds = readHabitatIdsFromJsonIndex(directory);
     const colormapIds = readColormapIdsFromJsonIndex(directory);
     const spriteIds = readSpriteIdsFromJsonIndex(directory);
@@ -377,8 +379,6 @@ export class WorldDatabase {
     );
 
     this.linkOtherData(loadingContext);
-
-    Logger.info("JSON parsing finished");
   }
 
   linkOtherData(loadingContext: LoadingContext) {

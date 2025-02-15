@@ -1,7 +1,11 @@
 import semver from "semver";
 import BufferReader from "../../BufferReader";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
-import { JsonLoadingContext, LoadingContext } from "../LoadingContext";
+import {
+  DatLoadingContext,
+  JsonLoadingContext,
+  LoadingContext,
+} from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
 import { AttributeId, PrototypeId, ReferenceStringSchema } from "../Types";
 import {
@@ -86,13 +90,11 @@ const AdvancedCombatantObjectPrototypeJsonMapping: JsonFieldMapping<
   {
     jsonField: "resourceCosts",
     toJson: (obj) =>
-      trimEnd(obj.resourceCosts, (cost) => cost.attributeId === -1).map(
-        (cost) => ({
-          attributeId: cost.attributeId,
-          amount: cost.amount,
-          costDeducted: cost.costDeducted,
-        }),
-      ),
+      obj.resourceCosts.map((cost) => ({
+        attributeId: cost.attributeId,
+        amount: cost.amount,
+        costDeducted: cost.costDeducted,
+      })),
   },
   {
     objectField: "resourceCosts",
@@ -141,7 +143,7 @@ export class AdvancedCombatantObjectPrototype extends CombatantObjectPrototype {
   readFromBuffer(
     buffer: BufferReader,
     id: Int16,
-    loadingContext: LoadingContext,
+    loadingContext: DatLoadingContext,
   ): void {
     super.readFromBuffer(buffer, id, loadingContext);
 
@@ -153,6 +155,12 @@ export class AdvancedCombatantObjectPrototype extends CombatantObjectPrototype {
         costDeducted: buffer.readBool8(),
         padding05: buffer.readUInt8(),
       });
+    }
+    if (loadingContext.cleanedData) {
+      this.resourceCosts = trimEnd(
+        this.resourceCosts,
+        (entry) => entry.attributeId === -1,
+      );
     }
     this.creationDuration = buffer.readInt16();
     this.creationLocationPrototypeId = buffer.readInt16<PrototypeId<Int16>>();
@@ -245,11 +253,15 @@ export class AdvancedCombatantObjectPrototype extends CombatantObjectPrototype {
     textFileWriter.indent(4);
 
     for (let i = 0; i < 3; ++i) {
-      const resourceCost = this.resourceCosts[i];
-      textFileWriter
-        .integer(resourceCost.attributeId)
-        .integer(resourceCost.amount)
-        .integer(resourceCost.costDeducted ? 1 : 0);
+      const resourceCost = this.resourceCosts.at(i);
+      if (resourceCost) {
+        textFileWriter
+          .integer(resourceCost.attributeId)
+          .integer(resourceCost.amount)
+          .integer(resourceCost.costDeducted ? 1 : 0);
+      } else {
+        textFileWriter.integer(-1).integer(0).integer(0);
+      }
     }
 
     textFileWriter

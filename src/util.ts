@@ -9,14 +9,13 @@ export function getDataEntry<T>(
   referencingResource: string,
   loadingContext: { abortOnError: boolean },
 ) {
-  if (index >= 0) {
+  // Most resources have -1 as none, but borders and overlays use 0 instead
+  const firstValidIndex =
+    resourceType === "Border" || resourceType === "Overlay" ? 1 : 0;
+  if (index >= firstValidIndex) {
     if (index < entries.length) {
       const result = entries[index];
-      if (
-        !result &&
-        ((resourceType !== "Border" && resourceType !== "Overlay") ||
-          index !== 0)
-      ) {
+      if (!result) {
         // These are not parsing errors because many official files contain at least a few invalid references...
         Logger.info(
           `${referencingResource} references ${resourceType} with id ${index} but no such entry exists!`,

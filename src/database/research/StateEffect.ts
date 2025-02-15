@@ -107,10 +107,11 @@ export class StateEffect {
     savingContext: SavingContext,
   ): void {
     textFileWriter
-      .conditional(
-        semver.gte(savingContext.version.numbering, "2.0.0"),
-        (writer) => writer.integer(this.id),
-      )
+      .dynamic((writer) => {
+        if (semver.gte(savingContext.version.numbering, "2.0.0")) {
+          writer.integer(this.id);
+        }
+      })
       .string(this.internalName, 17)
       .integer(this.commands.length)
       .eol();

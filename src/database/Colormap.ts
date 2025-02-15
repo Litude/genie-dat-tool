@@ -1,6 +1,6 @@
 import JSON5 from "json5";
 import BufferReader from "../BufferReader";
-import { DatLoadingContext, JsonLoadingContext, LoadingContext } from "./LoadingContext";
+import { DatLoadingContext, JsonLoadingContext } from "./LoadingContext";
 import { SavingContext } from "./SavingContext";
 import {
   asResourceId,

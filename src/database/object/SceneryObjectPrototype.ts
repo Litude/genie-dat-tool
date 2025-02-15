@@ -8,7 +8,11 @@ import {
 } from "../../geometry/Point";
 import { Logger } from "../../Logger";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
-import { JsonLoadingContext, LoadingContext } from "../LoadingContext";
+import {
+  DatLoadingContext,
+  JsonLoadingContext,
+  LoadingContext,
+} from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
 import {
   AttributeId,
@@ -331,23 +335,14 @@ const SceneryObjectPrototypeJsonMapping: JsonFieldMapping<
   { field: "unlocked" },
   {
     jsonField: "placementNeighbouringTerrainIds",
-    toJson: (obj) => {
-      return obj.placementNeighbouringTerrains
-        .slice(
-          0,
-          trimEnd(
-            obj.placementNeighbouringTerrainIds,
-            (terrainId) => terrainId === -1,
-          ).length,
-        )
-        .map((terrain, index) =>
-          createReferenceString(
-            "Terrain",
-            terrain?.referenceId,
-            obj.placementNeighbouringTerrainIds[index],
-          ),
-        );
-    },
+    toJson: (obj) =>
+      obj.placementNeighbouringTerrains.map((terrain, index) =>
+        createReferenceString(
+          "Terrain",
+          terrain?.referenceId,
+          obj.placementNeighbouringTerrainIds[index],
+        ),
+      ),
   },
   {
     objectField: "placementNeighbouringTerrainIds",
@@ -363,23 +358,14 @@ const SceneryObjectPrototypeJsonMapping: JsonFieldMapping<
   },
   {
     jsonField: "placementUnderlyingTerrainIds",
-    toJson: (obj) => {
-      return obj.placementUnderlyingTerrains
-        .slice(
-          0,
-          trimEnd(
-            obj.placementUnderlyingTerrainIds,
-            (terrainId) => terrainId === -1,
-          ).length,
-        )
-        .map((terrain, index) =>
-          createReferenceString(
-            "Terrain",
-            terrain?.referenceId,
-            obj.placementUnderlyingTerrainIds[index],
-          ),
-        );
-    },
+    toJson: (obj) =>
+      obj.placementUnderlyingTerrains.map((terrain, index) =>
+        createReferenceString(
+          "Terrain",
+          terrain?.referenceId,
+          obj.placementUnderlyingTerrainIds[index],
+        ),
+      ),
   },
   {
     objectField: "placementUnderlyingTerrainIds",
@@ -433,15 +419,7 @@ const SceneryObjectPrototypeJsonMapping: JsonFieldMapping<
   { field: "selectionOutlineFlags", versionFrom: "3.3.0" },
   { field: "editorSelectionOutlineColor", versionFrom: "3.3.0" },
   { field: "selectionOutlineRadius", versionFrom: "3.3.0" },
-  {
-    jsonField: "attributesStored",
-    toJson: (obj) =>
-      trimEnd(obj.attributesStored, (entry) => entry.attributeId === -1),
-  },
-  {
-    objectField: "attributesStored",
-    fromJson: (json) => json.attributesStored,
-  },
+  { field: "attributesStored" },
   {
     jsonField: "damageSprites",
     toJson: (obj) =>
@@ -623,7 +601,7 @@ export class SceneryObjectPrototype {
   readFromBuffer(
     buffer: BufferReader,
     id: Int16,
-    loadingContext: LoadingContext,
+    loadingContext: DatLoadingContext,
   ): void {
     const nameLength = buffer.readInt16();
     this.id = buffer.readInt16<PrototypeId<Int16>>();
@@ -666,21 +644,24 @@ export class SceneryObjectPrototype {
     for (let i = 0; i < 2; ++i) {
       requiredNeighbouringTerrains.push(buffer.readInt16<TerrainId<Int16>>());
     }
-    this.placementNeighbouringTerrainIds = requiredNeighbouringTerrains;
+    this.placementNeighbouringTerrainIds = loadingContext.cleanedData
+      ? trimEnd(requiredNeighbouringTerrains, (terrainId) => terrainId === -1)
+      : requiredNeighbouringTerrains;
 
+    const requiredUnderlyingTerrains: TerrainId<Int16>[] = [];
+    this.placementUnderlyingTerrainIds = [];
     if (semver.gte(loadingContext.version.numbering, "1.4.0")) {
-      const requiredUnderlyingTerrains: TerrainId<Int16>[] = [];
-      this.placementUnderlyingTerrainIds = [];
       for (let i = 0; i < 2; ++i) {
         requiredUnderlyingTerrains.push(buffer.readInt16<TerrainId<Int16>>());
       }
-      this.placementUnderlyingTerrainIds = requiredUnderlyingTerrains;
     } else {
-      this.placementUnderlyingTerrainIds = [
-        asInt16<TerrainId<Int16>>(-1),
-        asInt16<TerrainId<Int16>>(-1),
-      ];
+      for (let i = 0; i < 2; ++i) {
+        this.placementUnderlyingTerrainIds.push(asInt16<TerrainId<Int16>>(-1));
+      }
     }
+    this.placementUnderlyingTerrainIds = loadingContext.cleanedData
+      ? trimEnd(requiredUnderlyingTerrains, (terrainId) => terrainId === -1)
+      : requiredUnderlyingTerrains;
 
     this.clearanceSize = {
       x: buffer.readFloat32(),
@@ -775,6 +756,12 @@ export class SceneryObjectPrototype {
         storageType: attributeStorageType[i],
       });
     }
+    this.attributesStored = loadingContext.cleanedData
+      ? trimEnd(
+          this.attributesStored,
+          (attribute) => attribute.attributeId === -1,
+        )
+      : this.attributesStored;
 
     const damageSpriteCount = buffer.readUInt8();
     this.damageSprites = [];
@@ -1036,10 +1023,11 @@ export class SceneryObjectPrototype {
       .indent(4)
       .string(this.internalName, 26)
       .integer(this.nameStringId)
-      .conditional(
-        semver.gte(savingContext.version.numbering, "1.5.0"),
-        (writer) => writer.integer(this.creationStringId),
-      )
+      .dynamic((writer) => {
+        if (semver.gte(savingContext.version.numbering, "1.5.0")) {
+          writer.integer(this.creationStringId);
+        }
+      })
       .integer(this.objectClass)
       .integer(this.idleSpriteId)
       .integer(this.deathSpriteId)
@@ -1067,15 +1055,15 @@ export class SceneryObjectPrototype {
 
     textFileWriter
       .indent(4)
-      .integer(this.placementNeighbouringTerrainIds[0])
-      .integer(this.placementNeighbouringTerrainIds[1])
-      .conditional(
-        semver.gte(savingContext.version.numbering, "1.4.0"),
-        (writer) =>
+      .integer(this.placementNeighbouringTerrainIds.at(0) ?? -1)
+      .integer(this.placementNeighbouringTerrainIds.at(1) ?? -1)
+      .dynamic((writer) => {
+        if (semver.gte(savingContext.version.numbering, "1.4.0")) {
           writer
-            .integer(this.placementUnderlyingTerrainIds[0])
-            .integer(this.placementUnderlyingTerrainIds[1]),
-      )
+            .integer(this.placementUnderlyingTerrainIds.at(0) ?? -1)
+            .integer(this.placementUnderlyingTerrainIds.at(1) ?? -1);
+        }
+      })
       .float(this.clearanceSize.x)
       .float(this.clearanceSize.y)
       .integer(this.elevationMode)
@@ -1133,10 +1121,15 @@ export class SceneryObjectPrototype {
     }
 
     for (let i = 0; i < 3; ++i) {
-      textFileWriter
-        .integer(this.attributesStored[i].attributeId)
-        .float(this.attributesStored[i].amount)
-        .integer(this.attributesStored[i].storageType);
+      const attributeEntry = this.attributesStored.at(i);
+      if (attributeEntry) {
+        textFileWriter
+          .integer(attributeEntry.attributeId)
+          .float(attributeEntry.amount)
+          .integer(attributeEntry.storageType);
+      } else {
+        textFileWriter.integer(-1).float(asFloat32(0)).integer(0);
+      }
     }
     textFileWriter.eol();
 

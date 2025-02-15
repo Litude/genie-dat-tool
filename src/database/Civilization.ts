@@ -179,10 +179,11 @@ export class Civilization {
       .integer(this.id)
       .integer(this.civilizationType)
       .string(this.internalName, 17)
-      .conditional(
-        semver.gte(savingContext.version.numbering, "1.4.0"),
-        (writer) => writer.integer(this.bonusEffectId),
-      )
+      .dynamic((writer) => {
+        if (semver.gte(savingContext.version.numbering, "1.4.0")) {
+          writer.integer(this.bonusEffectId);
+        }
+      })
       .integer(this.attributes.length)
       .integer(this.attributes.filter((x) => x).length)
       .eol();

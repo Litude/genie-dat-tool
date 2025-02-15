@@ -1,7 +1,11 @@
 import semver from "semver";
 import BufferReader from "../../BufferReader";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
-import { JsonLoadingContext, LoadingContext } from "../LoadingContext";
+import {
+  DatLoadingContext,
+  JsonLoadingContext,
+  LoadingContext,
+} from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
 import {
   AbilityId,
@@ -70,20 +74,14 @@ const ActorObjectPrototypeJsonMapping: JsonFieldMapping<
   { field: "workRate" },
   {
     jsonField: "dropSitePrototypeIds",
-    toJson: (obj) => {
-      return obj.dropSitePrototypes
-        .slice(
-          0,
-          trimEnd(obj.dropSitePrototypeIds, (entry) => entry === -1).length,
-        )
-        .map((dropSite, index) =>
-          createReferenceString(
-            "ObjectPrototype",
-            dropSite?.referenceId,
-            obj.dropSitePrototypeIds[index],
-          ),
-        );
-    },
+    toJson: (obj) =>
+      obj.dropSitePrototypes.map((dropSite, index) =>
+        createReferenceString(
+          "ObjectPrototype",
+          dropSite?.referenceId,
+          obj.dropSitePrototypeIds[index],
+        ),
+      ),
   },
   {
     objectField: "dropSitePrototypeIds",
@@ -179,7 +177,7 @@ export class ActorObjectPrototype extends MobileObjectPrototype {
   readFromBuffer(
     buffer: BufferReader,
     id: Int16,
-    loadingContext: LoadingContext,
+    loadingContext: DatLoadingContext,
   ): void {
     super.readFromBuffer(buffer, id, loadingContext);
     this.defaultAbility = buffer.readInt16();
@@ -195,6 +193,12 @@ export class ActorObjectPrototype extends MobileObjectPrototype {
     }
     for (let i = this.dropSitePrototypeIds.length; i < 2; ++i) {
       this.dropSitePrototypeIds.push(asInt16<PrototypeId<Int16>>(-1));
+    }
+    if (loadingContext.cleanedData) {
+      this.dropSitePrototypeIds = trimEnd(
+        this.dropSitePrototypeIds,
+        (entry) => entry === -1,
+      );
     }
 
     this.abilitySwapGroup = buffer.readUInt8();
@@ -297,17 +301,19 @@ export class ActorObjectPrototype extends MobileObjectPrototype {
       .indent(4)
       .float(this.searchRadius)
       .float(this.workRate)
-      .integer(this.dropSitePrototypeIds[0])
-      .conditional(
-        semver.gte(savingContext.version.numbering, "1.3.1"),
-        (writer) => writer.integer(this.dropSitePrototypeIds[1]),
-      )
+      .dynamic((writer) => {
+        writer.integer(this.dropSitePrototypeIds.at(0) ?? -1);
+        if (semver.gte(savingContext.version.numbering, "1.3.1")) {
+          writer.integer(this.dropSitePrototypeIds.at(1) ?? -1);
+        }
+      })
       .integer(this.abilitySwapGroup)
       .integer(this.attackSoundId)
-      .conditional(
-        semver.gte(savingContext.version.numbering, "3.1.1"),
-        (writer) => writer.integer(this.moveSoundId),
-      )
+      .dynamic((writer) => {
+        if (semver.gte(savingContext.version.numbering, "3.1.1")) {
+          writer.integer(this.moveSoundId);
+        }
+      })
       .integer(this.runPattern)
       .eol();
 

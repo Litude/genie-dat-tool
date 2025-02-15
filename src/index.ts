@@ -1,3 +1,4 @@
+import JSON5 from "json5";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import { decompressFile } from "./deflate";
@@ -7,8 +8,9 @@ import { Logger } from "./Logger";
 import { Version } from "./database/Version";
 import { isDefined } from "./ts/ts-utils";
 import path from "path";
-import { existsSync, mkdirSync, statSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, statSync } from "fs";
 import { clearDirectory } from "./files/file-utils";
+import { z } from "zod";
 
 interface ParseDatArgs {
   filename: string;
@@ -22,6 +24,9 @@ interface ParseDatArgs {
 
 interface ParseJsonArgs {
   directory: string;
+  outputVersion: string;
+  outputFormat?: "textfile" | "json" | "dat" | "resource-list";
+  outputDir: string;
 }
 
 const yargsInstance = yargs(hideBin(process.argv))
@@ -73,11 +78,27 @@ const yargsInstance = yargs(hideBin(process.argv))
     "parse-json <directory>",
     "Process a directory of JSON files",
     (yargs) => {
-      return yargs.positional("directory", {
-        type: "string",
-        describe: "Root folder of JSON files that will be parsed",
-        demandOption: true,
-      });
+      return yargs
+        .positional("directory", {
+          type: "string",
+          describe: "Root folder of JSON files that will be parsed",
+          demandOption: true,
+        })
+        .option("output-version", {
+          type: "string",
+          describe: "Output file as specified version",
+          default: "input-version",
+        })
+        .option("output-format", {
+          type: "string",
+          describe: "Format that output file will be written in",
+          choices: ["textfile", "json", "dat", "resource-list"],
+        })
+        .option("output-dir", {
+          type: "string",
+          describe: "Directory where output files will be written",
+          default: "output",
+        });
     },
   )
   // .command(
@@ -221,44 +242,25 @@ function parseDatFile() {
             },
           )
         ) {
-          Logger.info("File parsed successfully");
+          Logger.info("DAT file parsed successfully");
           break;
         } else {
           Logger.error(`Parsing file as version ${parsingVersion} failed!`);
           inputVersion = null;
           worldDatabase = null;
+          return;
         }
       }
 
       if (worldDatabase && inputVersion && outputFormat) {
-        const [numbering, flavor] = outputVersionParameter.split("-");
-        const textFileVersion: Version = {
-          numbering,
-          flavor,
-        };
-        if (outputVersionParameter === "input-version") {
-          textFileVersion.numbering = inputVersion?.numbering;
-          textFileVersion.flavor = inputVersion.flavor;
-        }
-        const versionFormatted = `${[textFileVersion.numbering, textFileVersion.flavor].filter(isDefined).join("-")}`;
-
-        mkdirSync(outputDir, { recursive: true });
-        const fileOutputDir = path.parse(filename).name;
-        const jsonOutputDir = path.join(outputDir, fileOutputDir);
-        clearDirectory(jsonOutputDir);
-        if (outputFormat === "textfile") {
-          Logger.info(`Writing ${versionFormatted} text files`);
-          worldDatabase.writeToWorldTextFile(jsonOutputDir, {
-            version: textFileVersion,
-          });
-        } else if (outputFormat === "json") {
-          Logger.info(`Writing ${versionFormatted} json files`);
-          worldDatabase.writeToJsonFile(jsonOutputDir, {
-            version: textFileVersion,
-          });
-        } else {
-          Logger.error(`Output format ${outputFormat} not yet implemented!`);
-        }
+        writeWorldDatabaseOutput(
+          worldDatabase,
+          filename,
+          outputDir,
+          inputVersion,
+          outputFormat,
+          outputVersionParameter,
+        );
       }
     }
   } else {
@@ -266,13 +268,92 @@ function parseDatFile() {
   }
 }
 
+function writeWorldDatabaseOutput(
+  worldDatabase: WorldDatabase,
+  filename: string,
+  outputDirectory: string,
+  inputVersion: Version,
+  outputFormat: string,
+  outputVersionParameter: string,
+) {
+  if (worldDatabase && inputVersion && outputFormat) {
+    const [numbering, flavor] = outputVersionParameter.split("-");
+    const outputVersion: Version = {
+      numbering,
+      flavor,
+    };
+    if (outputVersionParameter === "input-version") {
+      outputVersion.numbering = inputVersion?.numbering;
+      outputVersion.flavor = inputVersion.flavor;
+    }
+    const versionFormatted = `${[outputVersion.numbering, outputVersion.flavor].filter(isDefined).join("-")}`;
+
+    mkdirSync(outputDirectory, { recursive: true });
+    const fileOutputDir = path.parse(filename).name;
+    if (outputFormat === "textfile") {
+      const textOutputDir = path.join(outputDirectory, "txt", fileOutputDir);
+      clearDirectory(textOutputDir);
+      Logger.info(`Writing ${versionFormatted} text files`);
+      worldDatabase.writeToWorldTextFile(textOutputDir, {
+        version: outputVersion,
+      });
+    } else if (outputFormat === "json") {
+      const jsonOutputDir = path.join(outputDirectory, "json", fileOutputDir);
+      clearDirectory(jsonOutputDir);
+      Logger.info(`Writing ${versionFormatted} json files`);
+      worldDatabase.writeToJsonFile(jsonOutputDir, {
+        version: outputVersion,
+      });
+    } else {
+      Logger.error(`Output format ${outputFormat} not yet implemented!`);
+    }
+  }
+}
+
+const JsonVersionSchema = z.object({
+  version: z.object({
+    numbering: z.string().regex(/\d\.\d\.\d/),
+    flavor: z.string().optional(),
+  }),
+  jsonVersion: z.string(),
+});
+
 function parseJsonFiles() {
-  const { directory } = argv as unknown as ParseJsonArgs;
+  const { directory, outputDir, outputVersion, outputFormat } =
+    argv as unknown as ParseJsonArgs;
   if (existsSync(directory) && statSync(directory).isDirectory()) {
+    let versionData: z.infer<typeof JsonVersionSchema>;
+    try {
+      versionData = JsonVersionSchema.parse(
+        JSON5.parse(
+          readFileSync(path.join(directory, "version.json")).toString("utf8"),
+        ),
+      );
+    } catch (err: unknown) {
+      Logger.error(
+        `Failed reading version.json: ${err && typeof err === "object" && "message" in err ? err.message : ""}`,
+      );
+      return;
+    }
+    Logger.info(
+      `JSON data identifies itself as version ${[versionData.version.numbering, versionData.version.flavor].filter(isDefined).join("-")}`,
+    );
     const worldDatabase = new WorldDatabase();
     worldDatabase.readFromJsonFiles(directory);
+
+    Logger.info("JSON parsing finished");
+    if (outputFormat) {
+      writeWorldDatabaseOutput(
+        worldDatabase,
+        directory,
+        outputDir,
+        versionData.version,
+        outputFormat,
+        outputVersion,
+      );
+    }
   } else {
-    console.log("Invalid directory argument");
+    Logger.error("Invalid directory argument");
   }
 }
 

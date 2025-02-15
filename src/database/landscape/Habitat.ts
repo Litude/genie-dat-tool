@@ -1,6 +1,10 @@
 import JSON5 from "json5";
 import BufferReader from "../../BufferReader";
-import { DatLoadingContext, JsonLoadingContext, LoadingContext } from "../LoadingContext";
+import {
+  DatLoadingContext,
+  JsonLoadingContext,
+  LoadingContext,
+} from "../LoadingContext";
 import { ReferenceStringSchema, TerrainId } from "../Types";
 import { Terrain } from "./Terrain";
 import { SavingContext } from "../SavingContext";
@@ -204,7 +208,7 @@ export function readHabitatNamesFromJsonFile(path: PathLike): string[] {
   try {
     const rawTextData = readFileSync(path);
     if (rawTextData) {
-      const habitatNamesText = rawTextData.toString("latin1");
+      const habitatNamesText = rawTextData.toString("utf-8");
       const parsedHabitatNames = JSON5.parse(habitatNamesText);
       const verifiedHabitatNames = z
         .array(z.string())

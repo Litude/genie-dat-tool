@@ -32,7 +32,7 @@ export function writeJsonFileIndex(
 export function readJsonFileIndex(inputDirectory: string) {
   const rawContents = readFileSync(
     path.join(inputDirectory, "index.json"),
-  ).toString("latin1");
+  ).toString("utf-8");
   return z
     .array(z.union([z.string(), z.null()]))
     .parse(JSON5.parse(rawContents));

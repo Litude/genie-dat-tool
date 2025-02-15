@@ -6,7 +6,7 @@ import { TextFileNames, textFileStringCompare } from "../../textfile/TextFile";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
 import { forEachObjectEntry, isDefined, Nullable } from "../../ts/ts-utils";
 import { Civilization } from "../Civilization";
-import { JsonLoadingContext, LoadingContext } from "../LoadingContext";
+import { DatLoadingContext, JsonLoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
 import { asInt16, asInt32, asUInt8, Bool32, Int16 } from "../../ts/base-types";
 import {
@@ -62,7 +62,7 @@ export type BaseObjectPrototypeJson = SceneryObjectPrototypeJson;
 
 export function readObjectPrototypesFromBuffer(
   buffer: BufferReader,
-  loadingContext: LoadingContext,
+  loadingContext: DatLoadingContext,
 ) {
   const result: (SceneryObjectPrototype | null)[] = [];
   const objectCount = buffer.readInt16();

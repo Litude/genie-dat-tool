@@ -20,7 +20,7 @@ export function readAttributesFromJsonFile(path: PathLike): Attribute[] {
     const result: Attribute[] = [];
     const rawAttributeData = readFileSync(path);
     if (rawAttributeData) {
-      const attributeText = rawAttributeData.toString("latin1");
+      const attributeText = rawAttributeData.toString("utf-8");
       const attributes = JSON5.parse(attributeText);
       if (Array.isArray(attributes)) {
         attributes.forEach((attributeName, index) => {

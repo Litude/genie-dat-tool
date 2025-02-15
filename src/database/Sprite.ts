@@ -246,17 +246,13 @@ export const SpriteJsonMapping: JsonFieldMapping<Sprite, SpriteJson>[] = [
     jsonField: "soundEffects",
     toJson: (obj, savingContext) => {
       // If all angles have the same sound effect, write only one entry without an angle specified
-      const transformedEntries = obj.angleSoundEffects
-        .map((soundEffect) =>
-          transformObjectToJson(
-            soundEffect,
-            SpriteAngleSoundEffectJsonMapping,
-            savingContext,
-          ),
-        )
-        .filter(
-          (soundEffect) => soundEffect.soundEffectId !== null,
-        ) as (SpriteAngleSoundEffectJson & { angle: Int16 })[];
+      const transformedEntries = obj.angleSoundEffects.map((soundEffect) =>
+        transformObjectToJson(
+          soundEffect,
+          SpriteAngleSoundEffectJsonMapping,
+          savingContext,
+        ),
+      ) as (SpriteAngleSoundEffectJson & { angle: Int16 })[];
 
       const groupedByFrameAndSound: Record<string, Set<Int16>> = {};
       for (const entry of transformedEntries) {
@@ -506,10 +502,7 @@ export class Sprite {
     savingContext: SavingContext,
   ) {
     const angleSoundEffectCount = this.angleSoundEffectsEnabled
-      ? this.angleSoundEffects.reduce(
-          (acc, cur) => acc + (cur.soundEffectId >= 0 ? 1 : 0),
-          0,
-        )
+      ? this.angleSoundEffects.length
       : 0;
 
     textFileWriter
@@ -557,14 +550,12 @@ export class Sprite {
     if (this.angleSoundEffectsEnabled) {
       for (let j = 0; j < this.angleSoundEffects.length; ++j) {
         const soundEffect = this.angleSoundEffects[j];
-        if (soundEffect.soundEffectId >= 0) {
-          textFileWriter
-            .indent(4)
-            .integer(soundEffect.angle)
-            .integer(soundEffect.frameNumber)
-            .integer(soundEffect.soundEffectId)
-            .eol();
-        }
+        textFileWriter
+          .indent(4)
+          .integer(soundEffect.angle)
+          .integer(soundEffect.frameNumber)
+          .integer(soundEffect.soundEffectId)
+          .eol();
       }
     }
   }

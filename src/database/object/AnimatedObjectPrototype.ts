@@ -5,7 +5,7 @@ import {
   transformObjectToJson,
 } from "../../json/json-serialization";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
-import { JsonLoadingContext, LoadingContext } from "../LoadingContext";
+import { DatLoadingContext, JsonLoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
 import { asFloat32, Float32, Float32Schema, Int16 } from "../../ts/base-types";
 import {
@@ -40,7 +40,7 @@ export class AnimatedObjectPrototype extends SceneryObjectPrototype {
   readFromBuffer(
     buffer: BufferReader,
     id: Int16,
-    loadingContext: LoadingContext,
+    loadingContext: DatLoadingContext,
   ): void {
     super.readFromBuffer(buffer, id, loadingContext);
     this.movementSpeed = buffer.readFloat32();

@@ -239,10 +239,11 @@ export class Border extends BaseTerrainTile {
     textFileWriter
       .integer(this.drawTerrain ? 1 : 0)
       .integer(this.passabilityTerrainId)
-      .conditional(
-        semver.gte(savingContext.version.numbering, "2.0.0"),
-        (writer) => writer.integer(this.overlayBorder ? 1 : 0),
-      );
+      .dynamic((writer) => {
+        if (semver.gte(savingContext.version.numbering, "2.0.0")) {
+          writer.integer(this.overlayBorder ? 1 : 0);
+        }
+      });
 
     const shapesPerTile =
       semver.eq(savingContext.version.numbering, "1.4.0") &&

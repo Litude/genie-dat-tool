@@ -5,7 +5,7 @@ import {
   transformObjectToJson,
 } from "../../json/json-serialization";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
-import { JsonLoadingContext, LoadingContext } from "../LoadingContext";
+import { DatLoadingContext, JsonLoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
 import {
   asFloat32,
@@ -62,7 +62,7 @@ export class ProjectileObjectPrototype extends CombatantObjectPrototype {
   readFromBuffer(
     buffer: BufferReader,
     id: Int16,
-    loadingContext: LoadingContext,
+    loadingContext: DatLoadingContext,
   ): void {
     super.readFromBuffer(buffer, id, loadingContext);
     this.projectileType = buffer.readUInt8();
