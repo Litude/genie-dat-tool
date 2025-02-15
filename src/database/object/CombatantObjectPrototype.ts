@@ -110,7 +110,7 @@ const CombatantObjectPrototypeJsonMapping: JsonFieldMapping<
       getIdFromReferenceString<HabitatId>(
         "Habitat",
         obj.referenceId,
-        json.habitatId,
+        json.bonusHabitatId,
         loadingContext.dataIds.habitatIds,
       ),
   },

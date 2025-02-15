@@ -77,7 +77,7 @@ export function getIdFromReferenceString<T extends number>(
   referenceMap: Record<string, number>,
 ): T {
   if (input === null) {
-    return (type === "Border" || type === "Overlay" ? 0 : -1) as T;
+    return (type === "Border" ? 0 : -1) as T;
   } else if (typeof input === "number") {
     return input as T;
   } else {

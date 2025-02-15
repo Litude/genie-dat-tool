@@ -147,7 +147,7 @@ const ActorObjectPrototypeJsonMapping: JsonFieldMapping<
   {
     objectField: "abilityList",
     fromJson: (json, _obj, loadingContext) =>
-      json.abilityList.map((abilityJson) => {
+      json.abilityList.map((abilityJson, index) => {
         const ability = new Ability();
         applyJsonFieldsToObject(
           abilityJson,
@@ -155,6 +155,7 @@ const ActorObjectPrototypeJsonMapping: JsonFieldMapping<
           AbilityJsonMapping,
           loadingContext,
         );
+        ability.index = asInt16(index);
         return ability;
       }),
   },

@@ -245,56 +245,69 @@ export const SpriteJsonMapping: JsonFieldMapping<Sprite, SpriteJson>[] = [
   {
     jsonField: "soundEffects",
     toJson: (obj, savingContext) => {
-      // If all angles have the same sound effect, write only one entry without an angle specified
-      const transformedEntries = obj.angleSoundEffects.map((soundEffect) =>
-        transformObjectToJson(
-          soundEffect,
-          SpriteAngleSoundEffectJsonMapping,
-          savingContext,
-        ),
-      ) as (SpriteAngleSoundEffectJson & { angle: Int16 })[];
+      // We have special handling for the case where a sprite just has a single invalid sound effect
+      if (
+        obj.angleSoundEffects.length === 1 &&
+        obj.angleSoundEffects[0].angle === -1
+      ) {
+        return obj.angleSoundEffects;
+      } else {
+        // If all angles have the same sound effect, write only one entry without an angle specified
+        const transformedEntries = obj.angleSoundEffects
+          .filter(
+            (soundEffect) =>
+              soundEffect.angle >= 0 && soundEffect.angle < obj.angleCount,
+          )
+          .map((soundEffect) =>
+            transformObjectToJson(
+              soundEffect,
+              SpriteAngleSoundEffectJsonMapping,
+              savingContext,
+            ),
+          ) as (SpriteAngleSoundEffectJson & { angle: Int16 })[];
 
-      const groupedByFrameAndSound: Record<string, Set<Int16>> = {};
-      for (const entry of transformedEntries) {
-        const soundEffectIdentifier =
-          typeof entry.soundEffectId === "number"
-            ? `num${entry.soundEffectId}`
-            : entry.soundEffectId;
-        const key = `${entry.frameNumber}$$${soundEffectIdentifier}`;
-        if (!groupedByFrameAndSound[key]) {
-          groupedByFrameAndSound[key] = new Set();
+        const groupedByFrameAndSound: Record<string, Set<Int16>> = {};
+        for (const entry of transformedEntries) {
+          const soundEffectIdentifier =
+            typeof entry.soundEffectId === "number"
+              ? `num${entry.soundEffectId}`
+              : entry.soundEffectId;
+          const key = `${entry.frameNumber}$$${soundEffectIdentifier}`;
+          if (!groupedByFrameAndSound[key]) {
+            groupedByFrameAndSound[key] = new Set();
+          }
+          groupedByFrameAndSound[key].add(entry.angle);
         }
-        groupedByFrameAndSound[key].add(entry.angle);
-      }
-      const mergedEntries: SpriteAngleSoundEffectJson[] = [];
+        const mergedEntries: SpriteAngleSoundEffectJson[] = [];
 
-      for (const [key, angles] of Object.entries(groupedByFrameAndSound)) {
-        const [frameNumber, rawSoundEffectId] = key.split("$$");
+        for (const [key, angles] of Object.entries(groupedByFrameAndSound)) {
+          const [frameNumber, rawSoundEffectId] = key.split("$$");
 
-        const numericFrameNumber = asInt16(+frameNumber);
-        const soundEffectId = rawSoundEffectId.startsWith("num")
-          ? +rawSoundEffectId.slice(3)
-          : rawSoundEffectId === "null"
-            ? null
-            : rawSoundEffectId;
+          const numericFrameNumber = asInt16(+frameNumber);
+          const soundEffectId = rawSoundEffectId.startsWith("num")
+            ? +rawSoundEffectId.slice(3)
+            : rawSoundEffectId === "null"
+              ? null
+              : rawSoundEffectId;
 
-        if (angles.size === obj.angleCount) {
-          mergedEntries.push({
-            frameNumber: numericFrameNumber,
-            soundEffectId,
-          });
-        } else {
-          for (const angle of angles) {
+          if (angles.size === obj.angleCount) {
             mergedEntries.push({
               frameNumber: numericFrameNumber,
               soundEffectId,
-              angle,
             });
+          } else {
+            for (const angle of angles) {
+              mergedEntries.push({
+                frameNumber: numericFrameNumber,
+                soundEffectId,
+                angle,
+              });
+            }
           }
         }
-      }
 
-      return mergedEntries;
+        return mergedEntries;
+      }
     },
   },
   {
@@ -437,15 +450,14 @@ export class Sprite {
 
       // This is a hackish way to keep tower sound effects as they are. It would seem they were originally imported with a non-existing angle number of 1
       // so they were set to -1 during import and such entries are not included by default
+      // For entries with soundEffectId -1, angle must be invalid or the game will crash!
       if (!this.angleSoundEffects.length && loadingContext.cleanedData) {
-        for (let i = 0; i < this.angleCount; ++i) {
-          this.angleSoundEffects.push({
-            angle: asInt16(i),
-            frameNumber: asInt16(-1),
-            soundEffectId: asInt16<SoundEffectId<Int16>>(-1),
-            soundEffect: null,
-          });
-        }
+        this.angleSoundEffects.push({
+          angle: asInt16(-1),
+          frameNumber: asInt16(-1),
+          soundEffectId: asInt16<SoundEffectId<Int16>>(-1),
+          soundEffect: null,
+        });
       }
     }
   }
