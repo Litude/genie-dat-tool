@@ -181,7 +181,7 @@ export function writeColormapsToWorldTextFile(
   textFileWriter.raw(colormaps.length).eol(); // Entries that have data here (these should always match anyway...)
 
   const sortedEntries = [...colormaps].sort((a, b) =>
-    textFileStringCompare(a.resourceFilename, b.resourceFilename),
+    textFileStringCompare(a.internalName, b.internalName),
   );
   sortedEntries.forEach((currentEntry) => {
     currentEntry.appendToTextFile(textFileWriter, savingContext);
