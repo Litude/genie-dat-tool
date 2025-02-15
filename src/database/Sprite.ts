@@ -325,7 +325,7 @@ export const SpriteJsonMapping: JsonFieldMapping<Sprite, SpriteJson>[] = [
           }
         }
       });
-      return result;
+      return result.sort((a, b) => a.angle - b.angle);
     },
   },
 ];

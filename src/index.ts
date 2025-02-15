@@ -291,7 +291,11 @@ function writeWorldDatabaseOutput(
     mkdirSync(outputDirectory, { recursive: true });
     const fileOutputDir = path.parse(filename).name;
     if (outputFormat === "textfile") {
-      const textOutputDir = path.join(outputDirectory, "txt", fileOutputDir);
+      const textOutputDir = path.join(
+        outputDirectory,
+        "textfile",
+        fileOutputDir,
+      );
       clearDirectory(textOutputDir);
       Logger.info(`Writing ${versionFormatted} text files`);
       worldDatabase.writeToWorldTextFile(textOutputDir, {

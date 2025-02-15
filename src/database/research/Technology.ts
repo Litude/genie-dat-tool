@@ -3,7 +3,11 @@ import semver from "semver";
 import BufferReader from "../../BufferReader";
 import { TextFileNames } from "../../textfile/TextFile";
 import { TextFileWriter } from "../../textfile/TextFileWriter";
-import { JsonLoadingContext, LoadingContext } from "../LoadingContext";
+import {
+  DatLoadingContext,
+  JsonLoadingContext,
+  LoadingContext,
+} from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
 import {
   asInt16,
@@ -79,21 +83,14 @@ const TechnologyJsonMapping: JsonFieldMapping<Technology, TechnologyJson>[] = [
   { field: "internalName" },
   {
     jsonField: "prerequisiteTechnologyIds",
-    toJson: (obj) => {
-      return obj.prerequisiteTechnologies
-        .slice(
-          0,
-          trimEnd(obj.prerequisiteTechnologyIds, (entry) => entry === -1)
-            .length,
-        )
-        .map((entry, index) =>
-          createReferenceString(
-            "Technology",
-            entry?.referenceId,
-            obj.prerequisiteTechnologyIds[index],
-          ),
-        );
-    },
+    toJson: (obj) =>
+      obj.prerequisiteTechnologies.map((entry, index) =>
+        createReferenceString(
+          "Technology",
+          entry?.referenceId,
+          obj.prerequisiteTechnologyIds[index],
+        ),
+      ),
   },
   {
     objectField: "prerequisiteTechnologyIds",
@@ -107,15 +104,7 @@ const TechnologyJsonMapping: JsonFieldMapping<Technology, TechnologyJson>[] = [
         ),
       ),
   },
-  {
-    jsonField: "resourceCosts",
-    toJson: (obj) =>
-      trimEnd(obj.resourceCosts, (entry) => entry.attributeId === -1),
-  },
-  {
-    objectField: "resourceCosts",
-    fromJson: (json) => json.resourceCosts.map((entry) => ({ ...entry })),
-  },
+  { field: "resourceCosts" },
   { field: "minimumPrerequisites" },
   {
     jsonField: "researchLocationId",
@@ -191,13 +180,19 @@ export class Technology {
   readFromBuffer(
     buffer: BufferReader,
     id: Int16,
-    loadingContext: LoadingContext,
+    loadingContext: DatLoadingContext,
   ): void {
     this.id = id;
     this.prerequisiteTechnologyIds = [];
     for (let i = 0; i < 4; ++i) {
       this.prerequisiteTechnologyIds.push(
         buffer.readInt16<TechnologyId<Int16>>(),
+      );
+    }
+    if (loadingContext.cleanedData) {
+      this.prerequisiteTechnologyIds = trimEnd(
+        this.prerequisiteTechnologyIds,
+        (entry) => entry === -1,
       );
     }
     this.resourceCosts = [];
@@ -207,6 +202,12 @@ export class Technology {
         amount: buffer.readInt16(),
         costDeducted: buffer.readBool8(),
       });
+    }
+    if (loadingContext.cleanedData) {
+      this.resourceCosts = trimEnd(
+        this.resourceCosts,
+        (entry) => entry.attributeId === -1,
+      );
     }
     this.minimumPrerequisites = buffer.readInt16();
     this.researchLocationId = buffer.readInt16<PrototypeId<Int16>>();
@@ -344,7 +345,7 @@ export class Technology {
 
 export function readTechnologiesFromBuffer(
   buffer: BufferReader,
-  loadingContext: LoadingContext,
+  loadingContext: DatLoadingContext,
 ): Nullable<Technology>[] {
   const result: Nullable<Technology>[] = [];
   const technologyCount = buffer.readInt16();
