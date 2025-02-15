@@ -41,7 +41,6 @@ import {
   createReferenceString,
   getIdFromReferenceString,
 } from "../../json/reference-id";
-import { getDataEntry } from "../../util";
 import { writeFileSync } from "fs";
 import path from "path";
 
@@ -134,7 +133,6 @@ export class BaseTerrainTile {
     jsonFile: BaseTerrainTileJson,
     id: Int16,
     referenceId: string,
-    soundEffects: SoundEffect[],
     loadingContext: JsonLoadingContext,
   ) {
     this.id = id;
@@ -145,13 +143,7 @@ export class BaseTerrainTile {
       BaseTerrainTileJsonMapping,
       loadingContext,
     );
-    this.soundEffect = getDataEntry(
-      soundEffects,
-      this.soundEffectId,
-      "SoundEffect",
-      this.referenceId,
-      loadingContext,
-    );
+    this.soundEffect = null;
   }
 
   appendToTextFile(textFile: TextFileWriter, savingContext: SavingContext) {

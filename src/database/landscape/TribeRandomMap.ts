@@ -37,6 +37,7 @@ import { Nullable, trimEnd } from "../../ts/ts-utils";
 import { getDataEntry } from "../../util";
 import { z } from "zod";
 import { readFileSync, writeFileSync } from "fs";
+import { BaseObjectPrototype } from "../object/ObjectPrototypes";
 
 // There are two different surrounding terrain placement modes, depending on whether simplePrimarySurroundingTerrainId is set or not
 // referred to as here as simple mode and replacement mode
@@ -519,36 +520,18 @@ export class TribeRandomMap {
   readFromBuffer(
     buffer: BufferReader,
     id: Int16,
-    terrains: Nullable<Terrain>[],
-    loadingContext: LoadingContext,
+    _loadingContext: LoadingContext,
   ): void {
     this.id = id;
     this.internalName = `Map ${id + 1}`;
     this.referenceId = createReferenceIdFromString(this.internalName);
     this.baseTerrainId = buffer.readInt32<TerrainId<Int32>>();
-    this.baseTerrain = getDataEntry(
-      terrains,
-      this.baseTerrainId,
-      "Terrain",
-      this.referenceId,
-      loadingContext,
-    );
+    this.baseTerrain = null;
     this.baseLandTerrainId = buffer.readInt32<TerrainId<Int32>>();
-    this.baseLandTerrain = getDataEntry(
-      terrains,
-      this.baseLandTerrainId,
-      "Terrain",
-      this.referenceId,
-      loadingContext,
-    );
+    this.baseLandTerrain = null;
     this.baseLandAvoidingTerrainId = buffer.readInt32<TerrainId<Int32>>();
-    this.baseLandAvoidingTerrain = getDataEntry(
-      terrains,
-      this.baseLandAvoidingTerrainId,
-      "Terrain",
-      this.referenceId,
-      loadingContext,
-    );
+    this.baseLandAvoidingTerrain = null;
+
     this.radiusBetweenPlayers = buffer.readInt32();
 
     const terrainPlacementEntries = buffer.readInt32();
@@ -616,29 +599,9 @@ export class TribeRandomMap {
         objectsPerGroupMax,
         objectGroups,
         placementTerrainIds,
-        placementTerrains:
-          i < objectPlacementEntries
-            ? placementTerrainIds.map((terrainId) =>
-                getDataEntry(
-                  terrains,
-                  terrainId,
-                  "Terrain",
-                  this.referenceId,
-                  loadingContext,
-                ),
-              )
-            : [],
+        placementTerrains: [],
         borderingTerrainId,
-        borderingTerrain:
-          i < objectPlacementEntries
-            ? getDataEntry(
-                terrains,
-                borderingTerrainId,
-                "Terrain",
-                this.referenceId,
-                loadingContext,
-              )
-            : null,
+        borderingTerrain: null,
       });
     }
 
@@ -650,8 +613,77 @@ export class TribeRandomMap {
       0,
       objectPlacementEntries,
     );
+  }
 
-    // Make sure all non-valid data has been cleaned before linking these
+  readFromJsonFile(
+    jsonFile: TribeRandomMapJson,
+    id: Int16,
+    referenceId: string,
+    loadingContext: JsonLoadingContext,
+  ) {
+    this.id = id;
+    this.referenceId = referenceId;
+    applyJsonFieldsToObject(
+      jsonFile,
+      this,
+      TribeRandomMapJsonMapping,
+      loadingContext,
+    );
+  }
+
+  linkOtherData(
+    terrains: Nullable<Terrain>[],
+    objects: Nullable<BaseObjectPrototype>[],
+    loadingContext: LoadingContext,
+  ) {
+    this.baseTerrain = getDataEntry(
+      terrains,
+      this.baseTerrainId,
+      "Terrain",
+      this.referenceId,
+      loadingContext,
+    );
+    this.baseLandTerrain = getDataEntry(
+      terrains,
+      this.baseLandTerrainId,
+      "Terrain",
+      this.referenceId,
+      loadingContext,
+    );
+    this.baseLandAvoidingTerrain = getDataEntry(
+      terrains,
+      this.baseLandAvoidingTerrainId,
+      "Terrain",
+      this.referenceId,
+      loadingContext,
+    );
+
+    this.objectPlacements.forEach((objectPlacement) => {
+      objectPlacement.prototype = getDataEntry(
+        objects,
+        objectPlacement.prototypeId,
+        "ObjectPrototype",
+        this.referenceId,
+        loadingContext,
+      );
+      objectPlacement.placementTerrains =
+        objectPlacement.placementTerrainIds.map((terrainId) =>
+          getDataEntry(
+            terrains,
+            terrainId,
+            "Terrain",
+            this.referenceId,
+            loadingContext,
+          ),
+        );
+      objectPlacement.borderingTerrain = getDataEntry(
+        terrains,
+        objectPlacement.borderingTerrainId,
+        "Terrain",
+        this.referenceId,
+        loadingContext,
+      );
+    });
     this.terrainPlacements.forEach((terrainPlacement) => {
       terrainPlacement.terrain = getDataEntry(
         terrains,
@@ -688,7 +720,6 @@ export class TribeRandomMap {
         this.referenceId,
         loadingContext,
       );
-
       terrainPlacement.simplePrimarySurroundingTerrain = getDataEntry(
         terrains,
         terrainPlacement.simplePrimarySurroundingTerrainId,
@@ -714,37 +745,6 @@ export class TribeRandomMap {
         terrains,
         terrainPlacement.windyPathBorderingTerrainId,
         "Terrain",
-        this.referenceId,
-        loadingContext,
-      );
-    });
-  }
-
-  readFromJsonFile(
-    jsonFile: TribeRandomMapJson,
-    id: Int16,
-    referenceId: string,
-    loadingContext: JsonLoadingContext,
-  ) {
-    this.id = id;
-    this.referenceId = referenceId;
-    applyJsonFieldsToObject(
-      jsonFile,
-      this,
-      TribeRandomMapJsonMapping,
-      loadingContext,
-    );
-  }
-
-  linkOtherData(
-    objects: Nullable<SceneryObjectPrototype>[],
-    loadingContext: LoadingContext,
-  ) {
-    this.objectPlacements.forEach((objectPlacement) => {
-      objectPlacement.prototype = getDataEntry(
-        objects,
-        objectPlacement.prototypeId,
-        "ObjectPrototype",
         this.referenceId,
         loadingContext,
       );
@@ -839,14 +839,13 @@ export class TribeRandomMap {
 export function readTribeRandomMapsFromBuffer(
   randomMapCount: number,
   buffer: BufferReader,
-  terrains: Nullable<Terrain>[],
   loadingContext: LoadingContext,
 ): TribeRandomMap[] {
   const result: TribeRandomMap[] = [];
   if (semver.lt(loadingContext.version.numbering, "2.0.0")) {
     for (let i = 0; i < randomMapCount; ++i) {
       const randomMap = new TribeRandomMap();
-      randomMap.readFromBuffer(buffer, asInt16(i), terrains, loadingContext);
+      randomMap.readFromBuffer(buffer, asInt16(i), loadingContext);
       result.push(randomMap);
     }
   }

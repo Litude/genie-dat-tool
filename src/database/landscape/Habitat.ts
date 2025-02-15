@@ -1,6 +1,6 @@
 import JSON5 from "json5";
 import BufferReader from "../../BufferReader";
-import { JsonLoadingContext, LoadingContext } from "../LoadingContext";
+import { DatLoadingContext, JsonLoadingContext, LoadingContext } from "../LoadingContext";
 import { ReferenceStringSchema, TerrainId } from "../Types";
 import { Terrain } from "./Terrain";
 import { SavingContext } from "../SavingContext";
@@ -224,7 +224,7 @@ export function readHabitatNamesFromJsonFile(path: PathLike): string[] {
 export function readHabitatsFromDatFile(
   buffer: BufferReader,
   habitatNames: string[],
-  _loadingContext: LoadingContext,
+  _loadingContext: DatLoadingContext,
 ): Nullable<Habitat>[] {
   const habitats: Nullable<Habitat>[] = [];
   const validHabitats: boolean[] = [];

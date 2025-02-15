@@ -58,7 +58,7 @@ interface PreMapData {
   border: Rectangle<Int32>;
   borderEdgeFade: Int32;
   waterShapeLandPlacementEdge: Int32;
-  baseTerrain: TerrainId<Int32>;
+  baseTerrainId: TerrainId<Int32>;
   landCover: Int32;
   landId: Int32;
   baseLandDataEntryCount: Int32;
@@ -509,8 +509,7 @@ export class RandomMap {
   readFromBuffer(
     buffer: BufferReader,
     id: Int16,
-    terrains: Nullable<Terrain>[],
-    loadingContext: LoadingContext,
+    _loadingContext: LoadingContext,
     preMapData: PreMapData,
   ): void {
     this.id = id;
@@ -527,13 +526,7 @@ export class RandomMap {
     this.borderEdgeFade = buffer.readInt32();
     this.waterShapeLandPlacementEdge = buffer.readInt32();
     this.baseTerrainId = buffer.readInt32<TerrainId<Int32>>();
-    this.baseTerrain = getDataEntry(
-      terrains,
-      this.baseTerrainId,
-      "Terrain",
-      this.referenceId,
-      loadingContext,
-    );
+    this.baseTerrain = null;
     this.landCover = buffer.readInt32();
     this.landId = buffer.readInt32();
 
@@ -563,13 +556,6 @@ export class RandomMap {
         edgeFade: buffer.readInt32(),
         clumpinessFactor: buffer.readInt32(),
       };
-      landEntry.terrain = getDataEntry(
-        terrains,
-        landEntry.terrainId,
-        "Terrain",
-        this.referenceId,
-        loadingContext,
-      );
       this.baseLandData.push(landEntry);
     }
 
@@ -587,20 +573,6 @@ export class RandomMap {
         replacedTerrain: null,
         clumpinessFactor: buffer.readInt32(),
       };
-      terrainDataEntry.terrain = getDataEntry(
-        terrains,
-        terrainDataEntry.terrainId,
-        "Terrain",
-        this.referenceId,
-        loadingContext,
-      );
-      terrainDataEntry.replacedTerrain = getDataEntry(
-        terrains,
-        terrainDataEntry.replacedTerrainId,
-        "Terrain",
-        this.referenceId,
-        loadingContext,
-      );
       this.terrainData.push(terrainDataEntry);
     }
 
@@ -625,13 +597,6 @@ export class RandomMap {
         minDistanceToPlayers: buffer.readInt32(),
         maxDistanceToPlayers: buffer.readInt32(),
       };
-      objectData.placementTerrain = getDataEntry(
-        terrains,
-        objectData.placementTerrainId,
-        "Terrain",
-        this.referenceId,
-        loadingContext,
-      );
       this.objectData.push(objectData);
     }
 
@@ -648,13 +613,6 @@ export class RandomMap {
         placementTerrain: null,
         placementElevation: buffer.readInt32(),
       };
-      elevationData.placementTerrain = getDataEntry(
-        terrains,
-        elevationData.placementTerrainId,
-        "Terrain",
-        this.referenceId,
-        loadingContext,
-      );
       this.elevationData.push(elevationData);
     }
   }
@@ -676,14 +634,63 @@ export class RandomMap {
   }
 
   linkOtherData(
+    terrains: Nullable<Terrain>[],
     objects: (SceneryObjectPrototype | null)[],
     loadingContext: LoadingContext,
   ) {
-    this.objectData.forEach((object) => {
-      object.prototype = getDataEntry(
+    this.baseTerrain = getDataEntry(
+      terrains,
+      this.baseTerrainId,
+      "Terrain",
+      this.referenceId,
+      loadingContext,
+    );
+    this.baseLandData.forEach((landEntry) => {
+      landEntry.terrain = getDataEntry(
+        terrains,
+        landEntry.terrainId,
+        "Terrain",
+        this.referenceId,
+        loadingContext,
+      );
+    });
+    this.terrainData.forEach((terrainData) => {
+      terrainData.terrain = getDataEntry(
+        terrains,
+        terrainData.terrainId,
+        "Terrain",
+        this.referenceId,
+        loadingContext,
+      );
+      terrainData.replacedTerrain = getDataEntry(
+        terrains,
+        terrainData.replacedTerrainId,
+        "Terrain",
+        this.referenceId,
+        loadingContext,
+      );
+    });
+    this.objectData.forEach((objectData) => {
+      objectData.prototype = getDataEntry(
         objects,
-        object.prototypeId,
+        objectData.prototypeId,
         "ObjectPrototype",
+        this.referenceId,
+        loadingContext,
+      );
+      objectData.placementTerrain = getDataEntry(
+        terrains,
+        objectData.placementTerrainId,
+        "Terrain",
+        this.referenceId,
+        loadingContext,
+      );
+    });
+    this.elevationData.forEach((elevationData) => {
+      elevationData.placementTerrain = getDataEntry(
+        terrains,
+        elevationData.placementTerrainId,
+        "Terrain",
         this.referenceId,
         loadingContext,
       );
@@ -705,7 +712,6 @@ export class RandomMap {
 export function readRandomMapsFromBuffer(
   randomMapCount: number,
   buffer: BufferReader,
-  terrains: (Terrain | null)[],
   loadingContext: LoadingContext,
 ): RandomMap[] {
   const result: RandomMap[] = [];
@@ -722,7 +728,7 @@ export function readRandomMapsFromBuffer(
         },
         borderEdgeFade: buffer.readInt32(),
         waterShapeLandPlacementEdge: buffer.readInt32(),
-        baseTerrain: buffer.readInt32<TerrainId<Int32>>(),
+        baseTerrainId: buffer.readInt32<TerrainId<Int32>>(),
         landCover: buffer.readInt32(),
         landId: buffer.readInt32(),
         baseLandDataEntryCount: buffer.readInt32(),
@@ -741,7 +747,6 @@ export function readRandomMapsFromBuffer(
       randomMap.readFromBuffer(
         buffer,
         asInt16(i),
-        terrains,
         loadingContext,
         preMapData[i],
       );

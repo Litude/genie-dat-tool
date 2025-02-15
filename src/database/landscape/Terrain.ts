@@ -296,7 +296,6 @@ export class Terrain extends BaseTerrainTile {
   readFromBuffer(
     buffer: BufferReader,
     id: Int16,
-    soundEffects: SoundEffect[],
     loadingContext: LoadingContext,
   ): void {
     this.id = id;
@@ -314,13 +313,7 @@ export class Terrain extends BaseTerrainTile {
 
     this.graphicPointer = buffer.readPointer();
     this.soundEffectId = buffer.readInt32<SoundEffectId<Int32>>();
-    this.soundEffect = getDataEntry(
-      soundEffects,
-      this.soundEffectId,
-      "SoundEffect",
-      this.referenceId,
-      loadingContext,
-    );
+    this.soundEffect = null;
 
     this.minimapColor1 = buffer.readUInt8<PaletteIndex>();
     this.minimapColor2 = buffer.readUInt8<PaletteIndex>();
@@ -391,22 +384,16 @@ export class Terrain extends BaseTerrainTile {
     jsonFile: TerrainJson,
     id: Int16,
     referenceId: string,
-    soundEffects: SoundEffect[],
     loadingContext: JsonLoadingContext,
   ) {
-    super.readFromJsonFile(
-      jsonFile,
-      id,
-      referenceId,
-      soundEffects,
-      loadingContext,
-    );
+    super.readFromJsonFile(jsonFile, id, referenceId, loadingContext);
     applyJsonFieldsToObject(jsonFile, this, TerrainJsonMapping, loadingContext);
   }
 
   linkOtherData(
     terrains: Nullable<Terrain>[],
     borders: Nullable<Border>[],
+    soundEffects: SoundEffect[],
     objects: Nullable<BaseObjectPrototype>[],
     loadingContext: LoadingContext,
   ) {
@@ -459,6 +446,13 @@ export class Terrain extends BaseTerrainTile {
         return null;
       }
     });
+    this.soundEffect = getDataEntry(
+      soundEffects,
+      this.soundEffectId,
+      "SoundEffect",
+      this.referenceId,
+      loadingContext,
+    );
     this.objectPlacements.forEach((placement) => {
       placement.object = getDataEntry(
         objects,
@@ -522,13 +516,12 @@ export class Terrain extends BaseTerrainTile {
 
 export function readTerrainsFromDatFile(
   buffer: BufferReader,
-  soundEffects: SoundEffect[],
   loadingContext: LoadingContext,
 ): Nullable<Terrain>[] {
   const result: Nullable<Terrain>[] = [];
   for (let i = 0; i < 32; ++i) {
     const terrain = new Terrain();
-    terrain.readFromBuffer(buffer, asInt16(i), soundEffects, loadingContext);
+    terrain.readFromBuffer(buffer, asInt16(i), loadingContext);
     result.push(terrain.enabled ? terrain : null);
   }
   return result;
@@ -583,7 +576,6 @@ function writeTerrainObjectsToWorldTextFile(
 export function readTerrainsFromJsonFiles(
   inputDirectory: string,
   terrainIds: (string | null)[],
-  soundEffects: SoundEffect[],
   loadingContext: JsonLoadingContext,
 ) {
   const terrainDirectory = path.join(inputDirectory, "terrains");
@@ -604,7 +596,6 @@ export function readTerrainsFromJsonFiles(
         terrainJson,
         asInt16(terrainNumberId),
         terrainReferenceId,
-        soundEffects,
         loadingContext,
       );
       terrains.push(terrain);

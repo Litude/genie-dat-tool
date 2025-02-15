@@ -24,9 +24,17 @@
         */
         "console": "integratedTerminal",
         "internalConsoleOptions": "neverOpen",
+        // "args": [
+        //     "parse-json",
+        //     "output/empires_ror"
+        // ],
         "args": [
-            "parse-json",
-            "output/empires_ror"
+            "parse-dat",
+            "empires_ror.dat",
+            "--output-format",
+            "json",
+            "--habitats-file",
+            ".\\data\\habitats_970703.json5"
         ],
         // "args": [
         //     "parse-dat",

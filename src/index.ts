@@ -217,7 +217,7 @@ function parseDatFile() {
             {
               version: inputVersion,
               abortOnError: i !== potentialVersions.length - 1,
-              cleanedData: false,
+              cleanedData: true,
             },
           )
         ) {

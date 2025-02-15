@@ -97,7 +97,6 @@ export class Overlay extends BaseTerrainTile {
   readFromBuffer(
     buffer: BufferReader,
     id: Int16,
-    soundEffects: SoundEffect[],
     loadingContext: LoadingContext,
   ): void {
     this.id = id;
@@ -115,13 +114,7 @@ export class Overlay extends BaseTerrainTile {
 
     // NOTE: Unlike terrains and borders, here the sound effect comes first and then the graphic
     this.soundEffectId = buffer.readInt32<SoundEffectId<Int32>>();
-    this.soundEffect = getDataEntry(
-      soundEffects,
-      this.soundEffectId,
-      "SoundEffect",
-      this.referenceId,
-      loadingContext,
-    );
+    this.soundEffect = null;
     this.graphicPointer = buffer.readPointer();
 
     this.minimapColor1 = buffer.readUInt8<PaletteIndex>();
@@ -154,17 +147,20 @@ export class Overlay extends BaseTerrainTile {
     jsonFile: OverlayJson,
     id: Int16,
     referenceId: string,
-    soundEffects: SoundEffect[],
     loadingContext: JsonLoadingContext,
   ) {
-    super.readFromJsonFile(
-      jsonFile,
-      id,
-      referenceId,
+    super.readFromJsonFile(jsonFile, id, referenceId, loadingContext);
+    applyJsonFieldsToObject(jsonFile, this, OverlayJsonMapping, loadingContext);
+  }
+
+  linkOtherData(soundEffects: SoundEffect[], loadingContext: LoadingContext) {
+    this.soundEffect = getDataEntry(
       soundEffects,
+      this.soundEffectId,
+      "SoundEffect",
+      this.referenceId,
       loadingContext,
     );
-    applyJsonFieldsToObject(jsonFile, this, OverlayJsonMapping, loadingContext);
   }
 
   appendToTextFile(
@@ -196,14 +192,13 @@ export class Overlay extends BaseTerrainTile {
 
 export function readOverlaysFromDatFile(
   buffer: BufferReader,
-  soundEffects: SoundEffect[],
   loadingContext: LoadingContext,
 ): Nullable<Overlay>[] {
   const result: Nullable<Overlay>[] = [];
   if (semver.lt(loadingContext.version.numbering, "2.0.0")) {
     for (let i = 0; i < 16; ++i) {
       const overlay = new Overlay();
-      overlay.readFromBuffer(buffer, asInt16(i), soundEffects, loadingContext);
+      overlay.readFromBuffer(buffer, asInt16(i), loadingContext);
       result.push(overlay.enabled ? overlay : null);
     }
   }
@@ -229,7 +224,6 @@ export function readAndVerifyOverlayCountFromDatFile(
 export function readOverlaysFromJsonFiles(
   inputDirectory: string,
   overlayIds: (string | null)[],
-  soundEffects: SoundEffect[],
   loadingContext: JsonLoadingContext,
 ) {
   const overlaysDirectory = path.join(inputDirectory, "overlays");
@@ -250,7 +244,6 @@ export function readOverlaysFromJsonFiles(
         overlayJson,
         asInt16(overlayNumberId),
         overlayReferenceId,
-        soundEffects,
         loadingContext,
       );
       overlays.push(overlay);

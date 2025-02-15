@@ -3,7 +3,11 @@ import semver from "semver";
 import BufferReader from "../BufferReader";
 import { Point, PointSchema } from "../geometry/Point";
 import { Rectangle, RectangleSchema } from "../geometry/Rectangle";
-import { JsonLoadingContext, LoadingContext } from "./LoadingContext";
+import {
+  DatLoadingContext,
+  JsonLoadingContext,
+  LoadingContext,
+} from "./LoadingContext";
 import { SavingContext } from "./SavingContext";
 import {
   asBool8,
@@ -34,7 +38,6 @@ import {
 import { TextFileWriter } from "../textfile/TextFileWriter";
 import { TextFileNames } from "../textfile/TextFile";
 import { SoundEffect } from "./SoundEffect";
-import { Logger } from "../Logger";
 import { getDataEntry } from "../util";
 import { onParsingError } from "./Error";
 import path from "path";
@@ -364,8 +367,7 @@ export class Sprite {
   readFromBuffer(
     buffer: BufferReader,
     id: Int16,
-    soundEffects: SoundEffect[],
-    loadingContext: LoadingContext,
+    loadingContext: DatLoadingContext,
   ) {
     this.internalName = buffer.readFixedSizeString(21);
     this.referenceId = createReferenceIdFromString(this.internalName);
@@ -388,13 +390,7 @@ export class Sprite {
     const overlayCount = buffer.readInt16();
 
     this.soundEffectId = buffer.readInt16<SoundEffectId<Int16>>();
-    this.soundEffect = getDataEntry(
-      soundEffects,
-      this.soundEffectId,
-      "SoundEffect",
-      this.referenceId,
-      loadingContext,
-    );
+    this.soundEffect = null;
     this.angleSoundEffectsEnabled = buffer.readBool8();
     this.framesPerAngle = buffer.readInt16();
     this.angleCount = buffer.readInt16();
@@ -432,21 +428,26 @@ export class Sprite {
         for (let j = 0; j < 3; ++j) {
           const frameNumber = buffer.readInt16();
           const soundEffectId = buffer.readInt16<SoundEffectId<Int16>>();
-          let soundEffect: SoundEffect | null = null;
-          if (soundEffectId >= 0) {
-            if (soundEffectId < soundEffects.length) {
-              soundEffect = soundEffects[soundEffectId];
-            } else {
-              Logger.warn(
-                `Could not find sound effect ${soundEffectId}, data might be corrupt!`,
-              );
-            }
+          if (soundEffectId >= 0 || !loadingContext.cleanedData) {
+            this.angleSoundEffects.push({
+              angle: asInt16(i),
+              frameNumber,
+              soundEffectId,
+              soundEffect: null,
+            });
           }
+        }
+      }
+
+      // This is a hackish way to keep tower sound effects as they are. It would seem they were originally imported with a non-existing angle number of 1
+      // so they were set to -1 during import and such entries are not included by default
+      if (!this.angleSoundEffects.length && loadingContext.cleanedData) {
+        for (let i = 0; i < this.angleCount; ++i) {
           this.angleSoundEffects.push({
             angle: asInt16(i),
-            frameNumber,
-            soundEffectId,
-            soundEffect,
+            frameNumber: asInt16(-1),
+            soundEffectId: asInt16<SoundEffectId<Int16>>(-1),
+            soundEffect: null,
           });
         }
       }
@@ -468,7 +469,27 @@ export class Sprite {
     }
   }
 
-  linkOtherData(sprites: (Sprite | null)[], loadingContext: LoadingContext) {
+  linkOtherData(
+    sprites: Nullable<Sprite>[],
+    soundEffects: SoundEffect[],
+    loadingContext: LoadingContext,
+  ) {
+    this.soundEffect = getDataEntry(
+      soundEffects,
+      this.soundEffectId,
+      "SoundEffect",
+      this.referenceId,
+      loadingContext,
+    );
+    this.angleSoundEffects.forEach((angleSoundEffect) => {
+      angleSoundEffect.soundEffect = getDataEntry(
+        soundEffects,
+        angleSoundEffect.soundEffectId,
+        "SoundEffect",
+        this.referenceId,
+        loadingContext,
+      );
+    });
     this.overlays.forEach((overlay) => {
       overlay.sprite = getDataEntry(
         sprites,
@@ -484,19 +505,12 @@ export class Sprite {
     textFileWriter: TextFileWriter,
     savingContext: SavingContext,
   ) {
-    // This is a hackish way to keep tower sound effects as they are. It would seem they were originally imported with a non-existing angle number of 1
-    // so they were set to -1 during import and such entries are not included by default
-    let subsituteEntry = false;
-    let angleSoundEffectCount = this.angleSoundEffectsEnabled
+    const angleSoundEffectCount = this.angleSoundEffectsEnabled
       ? this.angleSoundEffects.reduce(
           (acc, cur) => acc + (cur.soundEffectId >= 0 ? 1 : 0),
           0,
         )
       : 0;
-    if (angleSoundEffectCount === 0 && this.angleSoundEffectsEnabled) {
-      angleSoundEffectCount = this.angleCount;
-      subsituteEntry = true;
-    }
 
     textFileWriter
       .integer(this.id)
@@ -541,21 +555,15 @@ export class Sprite {
         .eol();
     }
     if (this.angleSoundEffectsEnabled) {
-      if (subsituteEntry) {
-        for (let j = 0; j < this.angleCount; ++j) {
-          textFileWriter.indent(4).integer(-1).integer(-1).integer(-1).eol();
-        }
-      } else {
-        for (let j = 0; j < this.angleSoundEffects.length; ++j) {
-          const soundEffect = this.angleSoundEffects[j];
-          if (soundEffect.soundEffectId >= 0) {
-            textFileWriter
-              .indent(4)
-              .integer(soundEffect.angle)
-              .integer(soundEffect.frameNumber)
-              .integer(soundEffect.soundEffectId)
-              .eol();
-          }
+      for (let j = 0; j < this.angleSoundEffects.length; ++j) {
+        const soundEffect = this.angleSoundEffects[j];
+        if (soundEffect.soundEffectId >= 0) {
+          textFileWriter
+            .indent(4)
+            .integer(soundEffect.angle)
+            .integer(soundEffect.frameNumber)
+            .integer(soundEffect.soundEffectId)
+            .eol();
         }
       }
     }
@@ -568,8 +576,7 @@ export class Sprite {
 
 export function readSpritesFromDatFile(
   buffer: BufferReader,
-  soundEffects: SoundEffect[],
-  loadingContext: LoadingContext,
+  loadingContext: DatLoadingContext,
 ): Nullable<Sprite>[] {
   const result: Nullable<Sprite>[] = [];
   const validSprites: boolean[] = [];
@@ -588,7 +595,7 @@ export function readSpritesFromDatFile(
   for (let i = 0; i < spriteCount; ++i) {
     if (validSprites[i]) {
       const sprite = new Sprite();
-      sprite.readFromBuffer(buffer, asInt16(i), soundEffects, loadingContext);
+      sprite.readFromBuffer(buffer, asInt16(i), loadingContext);
       if (sprite.internalName && sprite.resourceFilename) {
         result.push(sprite);
       } else {

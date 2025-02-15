@@ -139,8 +139,6 @@ export class Border extends BaseTerrainTile {
   readFromBuffer(
     buffer: BufferReader,
     id: Int16,
-    soundEffects: SoundEffect[],
-    terrains: Nullable<Terrain>[],
     loadingContext: LoadingContext,
   ): void {
     this.id = id;
@@ -158,13 +156,7 @@ export class Border extends BaseTerrainTile {
 
     this.graphicPointer = buffer.readPointer();
     this.soundEffectId = buffer.readInt32<SoundEffectId<Int32>>();
-    this.soundEffect = getDataEntry(
-      soundEffects,
-      this.soundEffectId,
-      "SoundEffect",
-      this.referenceId,
-      loadingContext,
-    );
+    this.soundEffect = null;
 
     this.minimapColor1 = buffer.readUInt8<PaletteIndex>();
     this.minimapColor2 = buffer.readUInt8<PaletteIndex>();
@@ -197,13 +189,7 @@ export class Border extends BaseTerrainTile {
     this.drawTerrain = buffer.readBool8();
     this.padding59B = buffer.readUInt8();
     this.passabilityTerrainId = buffer.readInt16<TerrainId<Int16>>();
-    this.passabilityTerrain = getDataEntry(
-      terrains,
-      this.passabilityTerrainId,
-      "Terrain",
-      this.referenceId,
-      loadingContext,
-    );
+    this.passabilityTerrain = null;
     if (semver.gte(loadingContext.version.numbering, "2.0.0")) {
       this.overlayBorder = buffer.readBool16();
     } else {
@@ -217,24 +203,28 @@ export class Border extends BaseTerrainTile {
     jsonFile: BorderJson,
     id: Int16,
     referenceId: string,
-    soundEffects: SoundEffect[],
     loadingContext: JsonLoadingContext,
   ) {
-    super.readFromJsonFile(
-      jsonFile,
-      id,
-      referenceId,
-      soundEffects,
-      loadingContext,
-    );
+    super.readFromJsonFile(jsonFile, id, referenceId, loadingContext);
     applyJsonFieldsToObject(jsonFile, this, BorderJsonMapping, loadingContext);
   }
 
-  linkOtherData(terrains: Nullable<Terrain>[], loadingContext: LoadingContext) {
+  linkOtherData(
+    terrains: Nullable<Terrain>[],
+    soundEffects: SoundEffect[],
+    loadingContext: LoadingContext,
+  ) {
     this.passabilityTerrain = getDataEntry(
       terrains,
       this.passabilityTerrainId,
       "Terrain",
+      this.referenceId,
+      loadingContext,
+    );
+    this.soundEffect = getDataEntry(
+      soundEffects,
+      this.soundEffectId,
+      "SoundEffect",
       this.referenceId,
       loadingContext,
     );
@@ -280,20 +270,12 @@ export class Border extends BaseTerrainTile {
 
 export function readBordersFromDatFile(
   buffer: BufferReader,
-  soundEffects: SoundEffect[],
-  terrains: Nullable<Terrain>[],
   loadingContext: LoadingContext,
 ): Nullable<Border>[] {
   const result: Nullable<Border>[] = [];
   for (let i = 0; i < 16; ++i) {
     const border = new Border();
-    border.readFromBuffer(
-      buffer,
-      asInt16(i),
-      soundEffects,
-      terrains,
-      loadingContext,
-    );
+    border.readFromBuffer(buffer, asInt16(i), loadingContext);
     result.push(border.enabled ? border : null);
   }
   return result;
@@ -316,7 +298,6 @@ export function readAndVerifyBorderCountFromDatFile(
 export function readBordersFromJsonFiles(
   inputDirectory: string,
   borderIds: (string | null)[],
-  soundEffects: SoundEffect[],
   loadingContext: JsonLoadingContext,
 ) {
   const bordersDirectory = path.join(inputDirectory, "borders");
@@ -337,7 +318,6 @@ export function readBordersFromJsonFiles(
         borderJson,
         asInt16(borderNumberId),
         borderReferenceId,
-        soundEffects,
         loadingContext,
       );
       borders.push(border);

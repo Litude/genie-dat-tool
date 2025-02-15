@@ -26,7 +26,11 @@ import {
   writeHabitatsToJsonFiles,
   writeHabitatsToWorldTextFile,
 } from "./landscape/Habitat";
-import { JsonLoadingContext, LoadingContext } from "./LoadingContext";
+import {
+  DatLoadingContext,
+  JsonLoadingContext,
+  LoadingContext,
+} from "./LoadingContext";
 import {
   MapProperties,
   writeMapPropertiesToJsonFile,
@@ -132,8 +136,9 @@ import { isDefined, Nullable } from "../ts/ts-utils";
 import { ensureReferenceIdUniqueness } from "../json/reference-id";
 import { clearDirectory } from "../files/file-utils";
 import { asInt16 } from "../ts/base-types";
-import { createMappingFromJsonFileIndex } from "../json/json-serialization";
+import { createJson, createMappingFromJsonFileIndex } from "../json/json-serialization";
 import { Logger } from "../Logger";
+import { writeFileSync } from "fs";
 
 export class WorldDatabase {
   attributes: Attribute[] = [];
@@ -160,7 +165,7 @@ export class WorldDatabase {
       habitatsFile,
       attributesFile,
     }: { habitatsFile: string; attributesFile: string },
-    loadingContext: LoadingContext,
+    loadingContext: DatLoadingContext,
   ) {
     try {
       this.attributes = readAttributesFromJsonFile(attributesFile);
@@ -176,33 +181,14 @@ export class WorldDatabase {
 
       this.soundEffects = readSoundEffectsFromDatFile(buffer, loadingContext);
 
-      this.sprites = readSpritesFromDatFile(
-        buffer,
-        this.soundEffects,
-        loadingContext,
-      );
+      this.sprites = readSpritesFromDatFile(buffer, loadingContext);
 
       this.mapProperties = new MapProperties();
       this.mapProperties.readMainDataFromBuffer(buffer, loadingContext);
 
-      this.terrains = readTerrainsFromDatFile(
-        buffer,
-        this.soundEffects,
-        loadingContext,
-      );
-
-      this.overlays = readOverlaysFromDatFile(
-        buffer,
-        this.soundEffects,
-        loadingContext,
-      );
-
-      this.borders = readBordersFromDatFile(
-        buffer,
-        this.soundEffects,
-        this.terrains,
-        loadingContext,
-      );
+      this.terrains = readTerrainsFromDatFile(buffer, loadingContext);
+      this.overlays = readOverlaysFromDatFile(buffer, loadingContext);
+      this.borders = readBordersFromDatFile(buffer, loadingContext);
 
       this.mapProperties.readSecondaryDataFromBuffer(buffer, loadingContext);
       readAndVerifyTerrainCountFromDatFile(
@@ -224,13 +210,11 @@ export class WorldDatabase {
       this.tribeRandomMaps = readTribeRandomMapsFromBuffer(
         randomMapCount,
         buffer,
-        this.terrains,
         loadingContext,
       );
       this.randomMaps = readRandomMapsFromBuffer(
         randomMapCount,
         buffer,
-        this.terrains,
         loadingContext,
       );
 
@@ -252,90 +236,9 @@ export class WorldDatabase {
       this.technologies = readTechnologiesFromBuffer(buffer, loadingContext);
       this.tribeAi = readTribeAisFromBuffer(buffer, loadingContext);
 
-      ensureReferenceIdUniqueness(this.habitats);
-      ensureReferenceIdUniqueness(this.colormaps);
-      ensureReferenceIdUniqueness(this.soundEffects);
-      ensureReferenceIdUniqueness(this.sprites);
-      ensureReferenceIdUniqueness(this.terrains);
-      ensureReferenceIdUniqueness(this.overlays);
-      ensureReferenceIdUniqueness(this.borders);
+      this.fixReferenceIds(loadingContext);
 
-      ensureReferenceIdUniqueness(this.baselineObjects);
-
-      ensureReferenceIdUniqueness(this.technologies);
-
-      // TODO: The hardcoded ids are not always the same...
-      createFallbackStateEffectReferenceIdsIfNeeded(
-        this.stateEffects,
-        this.technologies,
-        this.civilizations,
-        {
-          104: "Triple Hitpoints",
-        },
-      );
-
-      ensureReferenceIdUniqueness(this.stateEffects);
-
-      this.sprites.forEach((sprite) =>
-        sprite?.linkOtherData(this.sprites, loadingContext),
-      );
-      this.habitats.forEach((habitat) =>
-        habitat?.linkTerrains(this.terrains, loadingContext),
-      );
-      this.terrains.forEach((terrain) =>
-        terrain?.linkOtherData(
-          this.terrains,
-          this.borders,
-          this.objects[0],
-          loadingContext,
-        ),
-      );
-      this.tribeRandomMaps.forEach((tribeMap) =>
-        tribeMap.linkOtherData(this.baselineObjects, loadingContext),
-      );
-      this.randomMaps.forEach((randomMap) =>
-        randomMap.linkOtherData(this.baselineObjects, loadingContext),
-      );
-      this.technologies.forEach((technology) =>
-        technology?.linkOtherData(
-          this.technologies,
-          this.baselineObjects,
-          this.stateEffects,
-          loadingContext,
-        ),
-      );
-      this.baselineObjects.forEach((object) =>
-        object?.linkOtherData(
-          this.sprites,
-          this.soundEffects,
-          this.terrains,
-          this.habitats,
-          this.baselineObjects,
-          this.technologies,
-          this.overlays,
-          loadingContext,
-        ),
-      );
-      this.civilizations.forEach((civilization) =>
-        civilization.linkOtherData(this.stateEffects, loadingContext),
-      );
-      this.objects.forEach((civObjects) =>
-        civObjects.forEach((object) =>
-          object?.linkOtherData(
-            this.sprites,
-            this.soundEffects,
-            this.terrains,
-            this.habitats,
-            this.baselineObjects,
-            this.technologies,
-            this.overlays,
-            loadingContext,
-          ),
-        ),
-      );
-      this.tribeAi.forEach((tribeAi) =>
-        tribeAi?.linkOtherData(this.baselineObjects, loadingContext),
-      );
+      this.linkOtherData(loadingContext);
 
       if (buffer.endOfBuffer()) {
         return true;
@@ -375,10 +278,9 @@ export class WorldDatabase {
 
     const loadingContext: JsonLoadingContext = {
       version: {
-        numbering: "9.9.9", // is there any reason why we would want to discard anything written into JSON files based on versions
+        numbering: "9.9.9", // Always read all fields from the JSON files and use version fallbacks. Only use written version as default output version.
       },
       abortOnError: true,
-      cleanedData: false,
       terrainCount,
       maxTerrainCount: 32, // TODO: Based on version...
       dataIds: {
@@ -417,19 +319,16 @@ export class WorldDatabase {
     this.terrains = readTerrainsFromJsonFiles(
       directory,
       terrainIds,
-      this.soundEffects,
       loadingContext,
     );
     this.overlays = readOverlaysFromJsonFiles(
       directory,
       overlayIds,
-      this.soundEffects,
       loadingContext,
     );
     this.borders = readBordersFromJsonFiles(
       directory,
       borderIds,
-      this.soundEffects,
       loadingContext,
     );
 
@@ -477,11 +376,114 @@ export class WorldDatabase {
       loadingContext,
     );
 
-    this.borders.forEach((border) =>
-      border?.linkOtherData(this.terrains, loadingContext),
-    );
+    this.linkOtherData(loadingContext);
 
     Logger.info("JSON parsing finished");
+  }
+
+  linkOtherData(loadingContext: LoadingContext) {
+    this.sprites.forEach((sprite) =>
+      sprite?.linkOtherData(this.sprites, this.soundEffects, loadingContext),
+    );
+    this.habitats.forEach((habitat) =>
+      habitat?.linkTerrains(this.terrains, loadingContext),
+    );
+    this.terrains.forEach((terrain) =>
+      terrain?.linkOtherData(
+        this.terrains,
+        this.borders,
+        this.soundEffects,
+        this.baselineObjects,
+        loadingContext,
+      ),
+    );
+    this.overlays.forEach((overlay) =>
+      overlay?.linkOtherData(this.soundEffects, loadingContext),
+    );
+    this.borders.forEach((border) =>
+      border?.linkOtherData(this.terrains, this.soundEffects, loadingContext),
+    );
+
+    this.tribeRandomMaps.forEach((tribeMap) =>
+      tribeMap.linkOtherData(
+        this.terrains,
+        this.baselineObjects,
+        loadingContext,
+      ),
+    );
+    this.randomMaps.forEach((randomMap) =>
+      randomMap.linkOtherData(
+        this.terrains,
+        this.baselineObjects,
+        loadingContext,
+      ),
+    );
+
+    this.civilizations.forEach((civilization) =>
+      civilization.linkOtherData(this.stateEffects, loadingContext),
+    );
+    this.baselineObjects.forEach((object) =>
+      object?.linkOtherData(
+        this.sprites,
+        this.soundEffects,
+        this.terrains,
+        this.habitats,
+        this.baselineObjects,
+        this.technologies,
+        this.overlays,
+        loadingContext,
+      ),
+    );
+    this.objects.forEach((civObjects) =>
+      civObjects.forEach((object) =>
+        object?.linkOtherData(
+          this.sprites,
+          this.soundEffects,
+          this.terrains,
+          this.habitats,
+          this.baselineObjects,
+          this.technologies,
+          this.overlays,
+          loadingContext,
+        ),
+      ),
+    );
+    this.technologies.forEach((technology) =>
+      technology?.linkOtherData(
+        this.technologies,
+        this.baselineObjects,
+        this.stateEffects,
+        loadingContext,
+      ),
+    );
+    this.tribeAi.forEach((tribeAi) =>
+      tribeAi?.linkOtherData(this.baselineObjects, loadingContext),
+    );
+  }
+
+  fixReferenceIds(_loadingContext: LoadingContext) {
+    ensureReferenceIdUniqueness(this.habitats);
+    ensureReferenceIdUniqueness(this.colormaps);
+    ensureReferenceIdUniqueness(this.soundEffects);
+    ensureReferenceIdUniqueness(this.sprites);
+    ensureReferenceIdUniqueness(this.terrains);
+    ensureReferenceIdUniqueness(this.overlays);
+    ensureReferenceIdUniqueness(this.borders);
+
+    ensureReferenceIdUniqueness(this.baselineObjects);
+
+    ensureReferenceIdUniqueness(this.technologies);
+
+    // TODO: The hardcoded ids are not always the same...
+    createFallbackStateEffectReferenceIdsIfNeeded(
+      this.stateEffects,
+      this.technologies,
+      this.civilizations,
+      {
+        104: "Triple Hitpoints",
+      },
+    );
+    ensureReferenceIdUniqueness(this.stateEffects);
   }
 
   writeToWorldTextFile(outputDirectory: string, savingContext: SavingContext) {
@@ -651,6 +653,17 @@ export class WorldDatabase {
       savingContext,
     );
     writeTribeAisToJsonFiles(outputDirectory, this.tribeAi, savingContext);
+
+    writeFileSync(
+      path.join(outputDirectory, `version.json`),
+      createJson({
+        version: {
+          numbering: savingContext.version.numbering,
+          flavor: savingContext.version.flavor,
+        },
+        jsonVersion: "0.0.0",
+      }),
+    );
 
     Logger.info(`Finished writing JSON files`);
   }

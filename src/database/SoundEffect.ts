@@ -1,7 +1,7 @@
 import JSON5 from "json5";
 import semver from "semver";
 import BufferReader from "../BufferReader";
-import { JsonLoadingContext, LoadingContext } from "./LoadingContext";
+import { DatLoadingContext, JsonLoadingContext, LoadingContext } from "./LoadingContext";
 import { SavingContext } from "./SavingContext";
 import {
   asInt16,
@@ -101,7 +101,7 @@ export class SoundEffect {
   readFromBuffer(
     buffer: BufferReader,
     id: Int16,
-    loadingContext: LoadingContext,
+    loadingContext: DatLoadingContext,
   ) {
     this.id = buffer.readInt16();
     this.referenceId = `SoundEffect_${id}`;
@@ -208,7 +208,7 @@ export class SoundEffect {
 
 export function readSoundEffectsFromDatFile(
   buffer: BufferReader,
-  loadingContext: LoadingContext,
+  loadingContext: DatLoadingContext,
 ) {
   const result: SoundEffect[] = [];
   const soundEffectCount = buffer.readInt16();

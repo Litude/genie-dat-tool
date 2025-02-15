@@ -3,6 +3,9 @@ import { Version } from "./Version";
 export interface LoadingContext {
   version: Version;
   abortOnError: boolean;
+}
+
+export interface DatLoadingContext extends LoadingContext {
   cleanedData: boolean;
 }
 

@@ -1,6 +1,6 @@
 import JSON5 from "json5";
 import BufferReader from "../BufferReader";
-import { JsonLoadingContext, LoadingContext } from "./LoadingContext";
+import { DatLoadingContext, JsonLoadingContext, LoadingContext } from "./LoadingContext";
 import { SavingContext } from "./SavingContext";
 import {
   asResourceId,
@@ -65,7 +65,7 @@ export class Colormap {
   readFromBuffer(
     buffer: BufferReader,
     id: Int16,
-    loadingContext: LoadingContext,
+    loadingContext: DatLoadingContext,
   ) {
     this.resourceFilename = buffer.readFixedSizeString(30);
     this.internalName = this.resourceFilename.endsWith(".col")
@@ -125,7 +125,7 @@ export class Colormap {
 
 export function readColormapsFromDatFile(
   buffer: BufferReader,
-  loadingContext: LoadingContext,
+  loadingContext: DatLoadingContext,
 ) {
   const result: Colormap[] = [];
   const colormapCount = buffer.readInt16();
