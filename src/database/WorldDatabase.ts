@@ -261,7 +261,12 @@ export class WorldDatabase {
     }
   }
 
-  readFromJsonFiles(directory: string) {
+  readFromJsonFiles(
+    directory: string,
+    { attributesFile }: { attributesFile: string },
+  ) {
+    this.attributes = readAttributesFromJsonFile(attributesFile);
+
     const habitatIds = readHabitatIdsFromJsonIndex(directory);
     const colormapIds = readColormapIdsFromJsonIndex(directory);
     const spriteIds = readSpriteIdsFromJsonIndex(directory);

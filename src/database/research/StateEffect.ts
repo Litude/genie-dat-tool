@@ -11,8 +11,6 @@ import {
   Float32Schema,
   Int16,
   Int16Schema,
-  UInt8,
-  UInt8Schema,
 } from "../../ts/base-types";
 import path from "path";
 import { createReferenceIdFromString } from "../../json/reference-id";
@@ -33,7 +31,7 @@ import { z } from "zod";
 // TODO: Split different command types in JSON to make the JSON more readable and allow usage of references
 
 interface EffectCommand {
-  commandType: UInt8;
+  commandType: Int16; // Note: This is actually UInt8 in the data, but text files use -1 for none so this must be at least int16 here
   value1: Int16;
   value2: Int16;
   value3: Int16;
@@ -44,7 +42,7 @@ const StateEffectSchema = z.object({
   internalName: z.string(),
   commands: z.array(
     z.object({
-      commandType: UInt8Schema,
+      commandType: Int16Schema,
       value1: Int16Schema,
       value2: Int16Schema,
       value3: Int16Schema,
@@ -71,13 +69,13 @@ export class StateEffect {
   ): void {
     this.id = id;
     this.internalName = buffer.readFixedSizeString(31);
-    // TODO: Some other way of generating a reference id since all original names have been lost?
     this.referenceId = createReferenceIdFromString(this.internalName);
     const commandCount = buffer.readInt16();
     this.commands = [];
     for (let i = 0; i < commandCount; ++i) {
+      const commandType = buffer.readUInt8();
       this.commands.push({
-        commandType: buffer.readUInt8(),
+        commandType: asInt16(commandType === 255 ? -1 : commandType),
         value1: buffer.readInt16(),
         value2: buffer.readInt16(),
         value3: buffer.readInt16(),

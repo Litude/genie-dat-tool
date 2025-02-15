@@ -27,6 +27,7 @@ interface ParseJsonArgs {
   outputVersion: string;
   outputFormat?: "textfile" | "json" | "dat" | "resource-list";
   outputDir: string;
+  attributesFile: string;
 }
 
 const yargsInstance = yargs(hideBin(process.argv))
@@ -98,6 +99,11 @@ const yargsInstance = yargs(hideBin(process.argv))
           type: "string",
           describe: "Directory where output files will be written",
           default: "output",
+        })
+        .option("attributes-file", {
+          type: "string",
+          describe: "Path to JSON file that contains names used for attributes",
+          default: "data/attributes.json5",
         });
     },
   )
@@ -323,7 +329,7 @@ const JsonVersionSchema = z.object({
 });
 
 function parseJsonFiles() {
-  const { directory, outputDir, outputVersion, outputFormat } =
+  const { directory, outputDir, outputVersion, outputFormat, attributesFile } =
     argv as unknown as ParseJsonArgs;
   if (existsSync(directory) && statSync(directory).isDirectory()) {
     let versionData: z.infer<typeof JsonVersionSchema>;
@@ -343,7 +349,7 @@ function parseJsonFiles() {
       `JSON data identifies itself as version ${[versionData.version.numbering, versionData.version.flavor].filter(isDefined).join("-")}`,
     );
     const worldDatabase = new WorldDatabase();
-    worldDatabase.readFromJsonFiles(directory);
+    worldDatabase.readFromJsonFiles(directory, { attributesFile } );
 
     Logger.info("JSON parsing finished");
     if (outputFormat) {
