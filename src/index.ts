@@ -150,7 +150,7 @@ function parseVersion(input: string) {
 
 const SupportedDatVersions = {
   "1.3": ["1.3.0", "1.3.1"], // There are actually two different revisions of 1.3
-  "1.4": ["1.4.0", "1.4.0-mickey"], // There is a special Mickey flavor of 1.4
+  "1.4": ["1.4.0", "1.4.0-mickey", "1.4.1"], // There is a special Mickey flavor of 1.4
   "1.5": ["1.5.0"],
   "2.7": ["2.7.0"],
   "3.1": ["3.1.0", "3.1.1"], // There are actually two different revisions of 3.1
@@ -260,7 +260,6 @@ function parseDatFile() {
           Logger.error(`Parsing file as version ${parsingVersion} failed!`);
           inputVersion = null;
           worldDatabase = null;
-          return;
         }
       }
 

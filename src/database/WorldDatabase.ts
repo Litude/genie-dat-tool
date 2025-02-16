@@ -226,7 +226,11 @@ export class WorldDatabase {
       const stateEffectNames = effectNames
         ? readStateEffectNamesFromJsonFile(effectNames)
         : [];
-      this.stateEffects = readStateEffectsFromBuffer(buffer, stateEffectNames, loadingContext);
+      this.stateEffects = readStateEffectsFromBuffer(
+        buffer,
+        stateEffectNames,
+        loadingContext,
+      );
 
       const civilizationCount = buffer.readInt16();
       this.civilizations = [];

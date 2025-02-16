@@ -187,7 +187,7 @@ export function writeStateEffectsToWorldTextFile(
     semver.lt(savingContext.version.numbering, "2.0.0")
   ) {
     throw new Error(
-      "Saving dummy effect entries not implemented for version < 2.0",
+      "Saving null effect entries not implemented for version < 2.0",
     );
   }
 

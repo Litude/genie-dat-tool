@@ -45,6 +45,8 @@ import { BaseObjectPrototype } from "../object/ObjectPrototypes";
 interface TerrainPlacementData {
   terrainId: TerrainId<Int32>;
   terrain: Terrain | null;
+  unusedTerrainId: TerrainId<Int32>; // This is only used in the text files but the game skipped this entry
+  unusedTerrain: Terrain | null;
   placementType: Int32;
   density: Int32;
   simplePrimarySurroundingTerrainId: TerrainId<Int32>; // If this is non-null. This is the terrain that will surround terrainId (1 tile)
@@ -68,6 +70,7 @@ interface TerrainPlacementData {
 
 const TerrainPlacementDataSchema = z.object({
   terrainId: ReferenceStringSchema,
+  unusedTerrainId: ReferenceStringSchema.optional(),
   placementType: Int32Schema,
   density: Int32Schema,
   simplePrimarySurroundingTerrainId: ReferenceStringSchema,
@@ -102,6 +105,29 @@ const TerrainPlacementDataJsonMapping: JsonFieldMapping<
       ),
   },
   { objectField: "terrain", fromJson: () => null },
+  {
+    jsonField: "unusedTerrainId",
+    flags: { unusedField: true, internalField: true },
+    toJson: (obj) =>
+      createReferenceString(
+        "Terrain",
+        obj.unusedTerrain?.referenceId,
+        obj.unusedTerrainId,
+      ),
+  },
+  {
+    objectField: "unusedTerrainId",
+    fromJson: (json, _obj, loadingContext) =>
+      json.unusedTerrainId !== undefined
+        ? getIdFromReferenceString<TerrainId<Int32>>(
+            "Terrain",
+            "TribeMap_Terrain",
+            json.unusedTerrainId,
+            loadingContext.dataIds.terrainIds,
+          )
+        : asInt32<TerrainId<Int32>>(-1),
+  },
+  { objectField: "unusedTerrain", fromJson: () => null },
   { field: "placementType" },
   { field: "density" },
   {
@@ -549,6 +575,8 @@ export class TribeRandomMap {
       this.terrainPlacements.push({
         terrainId: buffer.readInt32<TerrainId<Int32>>(),
         terrain: null,
+        unusedTerrainId: asInt32<TerrainId<Int32>>(-1),
+        unusedTerrain: null,
         placementType: buffer.readInt32(),
         density: buffer.readInt32(),
         simplePrimarySurroundingTerrainId: buffer.readInt32<TerrainId<Int32>>(),
@@ -778,7 +806,7 @@ export class TribeRandomMap {
     this.terrainPlacements.forEach((terrainPlacement) => {
       textFileWriter
         .indent(3)
-        .integer(-1) // Seems to have been a terrain id that was never actually read into the DAT file...
+        .integer(terrainPlacement.unusedTerrainId)
         .integer(terrainPlacement.placementType)
         .integer(terrainPlacement.terrainId)
         .integer(terrainPlacement.density)

@@ -289,7 +289,11 @@ export class Technology {
     savingContext: SavingContext,
   ): void {
     textFileWriter
-      .integer(this.id)
+      .dynamic((writer) => {
+        if (semver.gte(savingContext.version.numbering, "1.4.1")) {
+          writer.integer(this.id);
+        }
+      })
       .string(this.internalName, 31)
       .integer(this.minimumPrerequisites)
       .integer(this.researchDuration)
@@ -368,7 +372,18 @@ export function writeTechnologiesToWorldTextFile(
   );
   textFileWriter.raw(technologies.length).eol(); // Total technology entries
   const validEntries = technologies.filter(isDefined);
-  textFileWriter.raw(validEntries.length).eol(); // Entries that have data
+
+  if (semver.gte(savingContext.version.numbering, "1.4.1")) {
+    textFileWriter.raw(validEntries.length).eol(); // Entries that have data
+  }
+  if (
+    validEntries.length !== technologies.length &&
+    semver.lt(savingContext.version.numbering, "1.4.1")
+  ) {
+    throw new Error(
+      "Saving null technology entries not implemented for version < 1.4.1",
+    );
+  }
 
   validEntries.forEach((entry) => {
     entry.appendToTextFile(textFileWriter, savingContext);
