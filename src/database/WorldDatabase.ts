@@ -71,6 +71,7 @@ import {
 import {
   createFallbackStateEffectReferenceIdsIfNeeded,
   readStateEffectIdsFromJsonIndex,
+  readStateEffectNamesFromJsonFile,
   readStateEffectsFromBuffer,
   readStateEffectsFromJsonFiles,
   StateEffect,
@@ -167,7 +168,8 @@ export class WorldDatabase {
     {
       habitatsFile,
       attributesFile,
-    }: { habitatsFile: string; attributesFile: string },
+      effectNames,
+    }: { habitatsFile: string; attributesFile: string; effectNames?: string },
     loadingContext: DatLoadingContext,
   ) {
     try {
@@ -221,7 +223,10 @@ export class WorldDatabase {
         loadingContext,
       );
 
-      this.stateEffects = readStateEffectsFromBuffer(buffer, loadingContext);
+      const stateEffectNames = effectNames
+        ? readStateEffectNamesFromJsonFile(effectNames)
+        : [];
+      this.stateEffects = readStateEffectsFromBuffer(buffer, stateEffectNames, loadingContext);
 
       const civilizationCount = buffer.readInt16();
       this.civilizations = [];

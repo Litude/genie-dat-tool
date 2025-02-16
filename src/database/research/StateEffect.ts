@@ -15,7 +15,7 @@ import {
 import path from "path";
 import { createReferenceIdFromString } from "../../json/reference-id";
 import { isDefined, Nullable } from "../../ts/ts-utils";
-import { readFileSync, writeFileSync } from "fs";
+import { PathLike, readFileSync, writeFileSync } from "fs";
 import { Civilization } from "../Civilization";
 import { Technology } from "./Technology";
 import {
@@ -65,10 +65,14 @@ export class StateEffect {
   readFromBuffer(
     buffer: BufferReader,
     id: Int16,
+    internalName: string | undefined,
     _loadingContext: LoadingContext,
   ): void {
     this.id = id;
     this.internalName = buffer.readFixedSizeString(31);
+    if (internalName) {
+      this.internalName = internalName;
+    }
     this.referenceId = createReferenceIdFromString(this.internalName);
     const commandCount = buffer.readInt16();
     this.commands = [];
@@ -145,13 +149,19 @@ export class StateEffect {
 
 export function readStateEffectsFromBuffer(
   buffer: BufferReader,
+  stateEffectNames: string[],
   loadingContext: LoadingContext,
 ): (StateEffect | null)[] {
   const result: (StateEffect | null)[] = [];
   const effectCount = buffer.readInt32();
   for (let i = 0; i < effectCount; ++i) {
     const stateEffect = new StateEffect();
-    stateEffect.readFromBuffer(buffer, asInt16(i), loadingContext);
+    stateEffect.readFromBuffer(
+      buffer,
+      asInt16(i),
+      stateEffectNames.at(i),
+      loadingContext,
+    );
     result.push(stateEffect.isValid() ? stateEffect : null);
   }
 
@@ -295,4 +305,20 @@ export function readStateEffectsFromJsonFiles(
 
 export function readStateEffectIdsFromJsonIndex(inputDirectory: string) {
   return readJsonFileIndex(path.join(inputDirectory, "effects"));
+}
+
+export function readStateEffectNamesFromJsonFile(path: PathLike): string[] {
+  try {
+    const rawTextData = readFileSync(path);
+    if (rawTextData) {
+      const effectNames = z
+        .array(z.string())
+        .parse(JSON5.parse(rawTextData.toString("utf-8")));
+      return effectNames;
+    } else {
+      return [];
+    }
+  } catch (_err: unknown) {
+    return [];
+  }
 }

@@ -20,6 +20,7 @@ interface ParseDatArgs {
   outputDir: string;
   attributesFile: string;
   habitatsFile: string;
+  effectNames?: string;
 }
 
 interface ParseJsonArgs {
@@ -72,6 +73,10 @@ const yargsInstance = yargs(hideBin(process.argv))
           type: "string",
           describe: "Path to JSON file that contains names used for habitats",
           default: "data/habitats.json5",
+        })
+        .option("effect-names", {
+          type: "string",
+          describe: "Path to JSON file that contains names used for effects",
         });
     },
   )
@@ -186,6 +191,7 @@ function parseDatFile() {
     outputDir,
     habitatsFile,
     attributesFile,
+    effectNames,
   } = argv as unknown as ParseDatArgs;
   const dataBuffer = new BufferReader(decompressFile(filename));
   const headerString = dataBuffer.readFixedSizeString(8);
@@ -240,7 +246,7 @@ function parseDatFile() {
         if (
           worldDatabase.readFromBuffer(
             dataBuffer,
-            { habitatsFile, attributesFile },
+            { habitatsFile, attributesFile, effectNames },
             {
               version: inputVersion,
               abortOnError: i !== potentialVersions.length - 1,
