@@ -70,6 +70,16 @@ export class TextFileWriter {
     return this;
   }
 
+  filenameWithExtension(input: string) {
+    let parsedInput = input;
+    if (parsedInput.length > 12) {
+      Logger.warn(`Filename ${parsedInput} is too long and will be truncated!`);
+    }
+    parsedInput = parsedInput.slice(0, 12);
+    this.buffer.push(sprintf(`%-13s`, parsedInput));
+    return this;
+  }
+
   string(input: string, maxWidth: number) {
     let parsedInput = input.replaceAll(" ", "_");
     if (input.length > maxWidth - 1) {

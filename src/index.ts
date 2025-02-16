@@ -57,7 +57,7 @@ const yargsInstance = yargs(hideBin(process.argv))
         .option("output-format", {
           type: "string",
           describe: "Format that output file will be written in",
-          choices: ["textfile", "json", "dat", "resource-list"],
+          choices: ["textfile", "json", "resource-list"],
         })
         .option("output-dir", {
           type: "string",
@@ -98,7 +98,7 @@ const yargsInstance = yargs(hideBin(process.argv))
         .option("output-format", {
           type: "string",
           describe: "Format that output file will be written in",
-          choices: ["textfile", "json", "dat", "resource-list"],
+          choices: ["textfile", "json", "resource-list"],
         })
         .option("output-dir", {
           type: "string",
@@ -301,26 +301,41 @@ function writeWorldDatabaseOutput(
 
     mkdirSync(outputDirectory, { recursive: true });
     const fileOutputDir = path.parse(filename).name;
-    if (outputFormat === "textfile") {
-      const textOutputDir = path.join(
-        outputDirectory,
-        "textfile",
-        fileOutputDir,
-      );
-      clearDirectory(textOutputDir);
-      Logger.info(`Writing ${versionFormatted} text files`);
-      worldDatabase.writeToWorldTextFile(textOutputDir, {
-        version: outputVersion,
-      });
-    } else if (outputFormat === "json") {
-      const jsonOutputDir = path.join(outputDirectory, "json", fileOutputDir);
-      clearDirectory(jsonOutputDir);
-      Logger.info(`Writing ${versionFormatted} json files`);
-      worldDatabase.writeToJsonFile(jsonOutputDir, {
-        version: outputVersion,
-      });
-    } else {
-      Logger.error(`Output format ${outputFormat} not yet implemented!`);
+    switch (outputFormat) {
+      case "textfile": {
+        const textOutputDir = path.join(
+          outputDirectory,
+          "textfile",
+          fileOutputDir,
+        );
+        clearDirectory(textOutputDir);
+        Logger.info(`Writing ${versionFormatted} text files`);
+        worldDatabase.writeToWorldTextFile(textOutputDir, {
+          version: outputVersion,
+        });
+        break;
+      }
+      case "json": {
+        const jsonOutputDir = path.join(outputDirectory, "json", fileOutputDir);
+        clearDirectory(jsonOutputDir);
+        Logger.info(`Writing ${versionFormatted} json files`);
+        worldDatabase.writeToJsonFile(jsonOutputDir, {
+          version: outputVersion,
+        });
+        break;
+      }
+      case "resource-list": {
+        const resourceListOutputDir = path.join(
+          outputDirectory,
+          "resources",
+          fileOutputDir,
+        );
+        clearDirectory(resourceListOutputDir);
+        worldDatabase.writeResourceLists(resourceListOutputDir);
+        break;
+      }
+      default:
+        Logger.error(`Unknown output format ${outputFormat}!`);
     }
   }
 }
@@ -354,7 +369,7 @@ function parseJsonFiles() {
       `JSON data identifies itself as version ${[versionData.version.numbering, versionData.version.flavor].filter(isDefined).join("-")}`,
     );
     const worldDatabase = new WorldDatabase();
-    worldDatabase.readFromJsonFiles(directory, { attributesFile } );
+    worldDatabase.readFromJsonFiles(directory, { attributesFile });
 
     Logger.info("JSON parsing finished");
     if (outputFormat) {

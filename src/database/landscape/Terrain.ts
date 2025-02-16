@@ -58,6 +58,7 @@ import {
 } from "../../json/json-serialization";
 import { readFileSync } from "fs";
 import { BaseObjectPrototype } from "../object/ObjectPrototypes";
+import { writeResourceList } from "../../textfile/ResourceList";
 
 interface TerrainObjectPlacement {
   prototypeId: PrototypeId<Int16>;
@@ -635,4 +636,16 @@ export function writeTerrainsToJsonFiles(
 
 export function readTerrainIdsFromJsonIndex(inputDirectory: string) {
   return readJsonFileIndex(path.join(inputDirectory, "terrains"));
+}
+
+export function writeTerrainsResourceList(
+  outputDirectory: string,
+  terrains: Nullable<Terrain>[],
+) {
+  writeResourceList(
+    "Terrains",
+    outputDirectory,
+    terrains.filter(isDefined),
+    ".slp",
+  );
 }

@@ -8,6 +8,7 @@ import {
   writeBordersToWorldTextFile,
   readBorderIdsFromJsonIndex,
   readBordersFromJsonFiles,
+  writeBordersResourceList,
 } from "./landscape/Border";
 import {
   Colormap,
@@ -48,6 +49,7 @@ import {
   readSoundEffectsFromDatFile,
   readSoundEffectsFromJsonFiles,
   SoundEffect,
+  writeSoundEffectsResourceList,
   writeSoundEffectsToJsonFiles,
   writeSoundEffectsToWorldTextFile,
 } from "./SoundEffect";
@@ -56,6 +58,7 @@ import {
   readSpritesFromDatFile,
   readSpritesFromJsonFiles,
   Sprite,
+  writeSpriteResourceList,
   writeSpritesToJsonFiles,
   writeSpritesToWorldTextFile,
 } from "./Sprite";
@@ -65,6 +68,7 @@ import {
   readTerrainsFromDatFile,
   readTerrainsFromJsonFiles,
   Terrain,
+  writeTerrainsResourceList,
   writeTerrainsToJsonFiles,
   writeTerrainsToWorldTextFile,
 } from "./landscape/Terrain";
@@ -114,6 +118,7 @@ import {
   writeOverlaysToWorldTextFile,
   readOverlayIdsFromJsonIndex,
   readOverlaysFromJsonFiles,
+  writeOverlaysResourceList,
 } from "./landscape/Overlay";
 import {
   readTribeRandomMapIdsFromJsonIndex,
@@ -680,5 +685,13 @@ export class WorldDatabase {
     );
 
     Logger.info(`Finished writing JSON files`);
+  }
+
+  writeResourceLists(outputDirectory: string) {
+    writeSoundEffectsResourceList(outputDirectory, this.soundEffects);
+    writeSpriteResourceList(outputDirectory, this.sprites);
+    writeTerrainsResourceList(outputDirectory, this.terrains);
+    writeBordersResourceList(outputDirectory, this.borders);
+    writeOverlaysResourceList(outputDirectory, this.overlays);
   }
 }

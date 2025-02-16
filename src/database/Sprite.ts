@@ -47,7 +47,7 @@ import {
   createReferenceIdFromString,
   getIdFromReferenceString,
 } from "../json/reference-id";
-import { Nullable } from "../ts/ts-utils";
+import { isDefined, Nullable } from "../ts/ts-utils";
 import {
   applyJsonFieldsToObject,
   JsonFieldMapping,
@@ -58,6 +58,7 @@ import {
   writeDataEntryToJsonFile,
 } from "../json/json-serialization";
 import { z } from "zod";
+import { writeResourceList } from "../textfile/ResourceList";
 
 interface SpriteOverlay {
   spriteId: Int16;
@@ -674,4 +675,16 @@ export function writeSpritesToJsonFiles(
 
 export function readSpriteIdsFromJsonIndex(inputDirectory: string) {
   return readJsonFileIndex(path.join(inputDirectory, "sprites"));
+}
+
+export function writeSpriteResourceList(
+  outputDirectory: string,
+  sprites: Nullable<Sprite>[],
+) {
+  writeResourceList(
+    "Graphics",
+    outputDirectory,
+    sprites.filter(isDefined),
+    ".slp",
+  );
 }

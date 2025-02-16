@@ -36,6 +36,7 @@ import {
 import { z } from "zod";
 import { readFileSync } from "fs";
 import { Logger } from "../Logger";
+import { writeResourceList } from "../textfile/ResourceList";
 
 interface SoundSample {
   resourceFilename: string;
@@ -285,4 +286,12 @@ export function writeSoundEffectsToJsonFiles(
 
 export function readSoundEffectIdsFromJsonIndex(inputDirectory: string) {
   return readJsonFileIndex(path.join(inputDirectory, "sounds"));
+}
+
+export function writeSoundEffectsResourceList(
+  outputDirectory: string,
+  soundEffects: SoundEffect[],
+) {
+  const samples = soundEffects.flatMap((soundEffect) => soundEffect.samples);
+  writeResourceList("Sounds", outputDirectory, samples);
 }

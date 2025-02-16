@@ -40,6 +40,7 @@ import {
 } from "../../json/json-serialization";
 import { z } from "zod";
 import { readFileSync } from "fs";
+import { writeResourceList } from "../../textfile/ResourceList";
 
 const OverlaySchema = BaseTerrainTileSchema.merge(
   z.object({
@@ -292,4 +293,16 @@ export function readOverlayIdsFromJsonIndex(inputDirectory: string) {
   } catch (_err: unknown) {
     return [];
   }
+}
+
+export function writeOverlaysResourceList(
+  outputDirectory: string,
+  overlays: Nullable<Overlay>[],
+) {
+  writeResourceList(
+    "Overlays",
+    outputDirectory,
+    overlays.filter(isDefined),
+    ".slp",
+  );
 }

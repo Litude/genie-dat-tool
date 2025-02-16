@@ -56,6 +56,7 @@ import {
   applyJsonFieldsToObject,
 } from "../../json/json-serialization";
 import { readFileSync } from "fs";
+import { writeResourceList } from "../../textfile/ResourceList";
 
 const BorderSchema = BaseTerrainTileSchema.merge(
   z.object({
@@ -355,4 +356,16 @@ export function writeBordersToJsonFiles(
 
 export function readBorderIdsFromJsonIndex(inputDirectory: string) {
   return readJsonFileIndex(path.join(inputDirectory, "borders"));
+}
+
+export function writeBordersResourceList(
+  outputDirectory: string,
+  borders: Nullable<Border>[],
+) {
+  writeResourceList(
+    "Borders",
+    outputDirectory,
+    borders.filter(isDefined),
+    ".slp",
+  );
 }
