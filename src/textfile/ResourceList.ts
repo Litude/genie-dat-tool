@@ -2,6 +2,7 @@ import path from "path";
 import { ResourceId } from "../database/Types";
 import { forEachObjectEntry } from "../ts/ts-utils";
 import { TextFileWriter } from "./TextFileWriter";
+import { textFileStringCompare } from "./TextFile";
 
 type ResourceListType =
   | "Sounds"
@@ -104,9 +105,21 @@ export function writeResourceList(
     const textFileWriter = new TextFileWriter(
       path.join(outputDirectory, `${getFilenameStem(type)}_orphan.log`),
     );
-    [...orphanResources].sort().forEach((entry) => {
+    [...orphanResources].sort(textFileStringCompare).forEach((entry) => {
       textFileWriter.filenameWithExtension(entry).eol();
     });
+    textFileWriter.close();
+  }
+
+  if (usedResources.size || orphanResources.size) {
+    const textFileWriter = new TextFileWriter(
+      path.join(outputDirectory, `${getFilenameStem(type)}_all.log`),
+    );
+    [...usedResources, ...orphanResources]
+      .sort(textFileStringCompare)
+      .forEach((entry) => {
+        textFileWriter.filenameWithExtension(entry).eol();
+      });
     textFileWriter.close();
   }
 }
