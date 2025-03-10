@@ -206,7 +206,8 @@ export class Technology {
     if (loadingContext.cleanedData) {
       this.resourceCosts = trimEnd(
         this.resourceCosts,
-        (entry) => entry.attributeId === -1,
+        (entry) =>
+          entry.attributeId === -1 && !entry.costDeducted && !entry.amount,
       );
     }
     this.minimumPrerequisites = buffer.readInt16();
