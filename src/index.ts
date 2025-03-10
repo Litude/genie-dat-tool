@@ -11,6 +11,7 @@ import path from "path";
 import { existsSync, mkdirSync, readFileSync, statSync } from "fs";
 import { clearDirectory } from "./files/file-utils";
 import { z } from "zod";
+import { DrsFile } from "./drs/DrsFile";
 
 interface ParseDatArgs {
   filename: string;
@@ -29,6 +30,11 @@ interface ParseJsonArgs {
   outputFormat?: "textfile" | "json" | "dat" | "resource-list";
   outputDir: string;
   attributesFile: string;
+}
+
+interface ParseDrsArgs {
+  filename: string;
+  outputDir: string;
 }
 
 const yargsInstance = yargs(hideBin(process.argv))
@@ -80,7 +86,7 @@ const yargsInstance = yargs(hideBin(process.argv))
         });
     },
   )
-  .command(
+  .command<ParseJsonArgs>(
     "parse-json <directory>",
     "Process a directory of JSON files",
     (yargs) => {
@@ -109,6 +115,23 @@ const yargsInstance = yargs(hideBin(process.argv))
           type: "string",
           describe: "Path to JSON file that contains names used for attributes",
           default: "data/attributes.json5",
+        });
+    },
+  )
+  .command<ParseDrsArgs>(
+    "parse-drs <filename>",
+    "Process a DRS file and extract its contents",
+    (yargs) => {
+      return yargs
+        .positional("filename", {
+          type: "string",
+          describe: "Filename of DRS file that will be parsed",
+          demandOption: true,
+        })
+        .option("output-dir", {
+          type: "string",
+          describe: "Directory where output files will be written",
+          default: "output",
         });
     },
   )
@@ -387,6 +410,17 @@ function parseJsonFiles() {
   }
 }
 
+function parseDrsFile() {
+  const { filename, outputDir } = argv as unknown as ParseDrsArgs;
+  Logger.info(`Parsing DRS file ${filename}`);
+
+  const files = DrsFile.readFromFile(filename);
+  files.forEach((file) => {
+    file.writeToFile(outputDir);
+  });
+  Logger.info(`Finished writing DRS files`);
+}
+
 function main() {
   const { listDatVersions } = argv;
   if (listDatVersions) {
@@ -403,6 +437,9 @@ function main() {
         break;
       case "parse-json":
         parseJsonFiles();
+        break;
+      case "parse-drs":
+        parseDrsFile();
         break;
       default:
         yargsInstance.showHelp();

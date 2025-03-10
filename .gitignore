@@ -3,4 +3,5 @@ build/
 output/
 *.dat
 *.ucr
+*.drs
 tr_*.txt

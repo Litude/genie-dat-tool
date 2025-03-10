@@ -13,6 +13,12 @@ import {
   UInt8,
 } from "./ts/base-types";
 
+export const enum BufferReaderSeekWhence {
+  Start = 0,
+  Relative = 1,
+  End = 2,
+}
+
 export default class BufferReader {
   private buffer: Buffer;
   private offset: number;
@@ -135,8 +141,26 @@ export default class BufferReader {
     return this.buffer.length;
   }
 
-  seek(offset: number) {
-    this.offset = offset;
+  seek(
+    offset: number,
+    whence: BufferReaderSeekWhence = BufferReaderSeekWhence.Start,
+  ) {
+    switch (whence) {
+      case BufferReaderSeekWhence.Start:
+        this.offset = offset;
+        break;
+      case BufferReaderSeekWhence.Relative:
+        this.offset += offset;
+        break;
+      case BufferReaderSeekWhence.End:
+        this.offset = this.buffer.length + offset;
+        break;
+    }
+    this.offset = Math.max(0, Math.min(this.offset, this.buffer.length));
+  }
+
+  slice(start: number, end: number) {
+    return this.buffer.subarray(start, end);
   }
 
   endOfBuffer(): boolean {
