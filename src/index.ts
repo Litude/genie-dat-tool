@@ -11,7 +11,7 @@ import path from "path";
 import { existsSync, mkdirSync, readFileSync, statSync } from "fs";
 import { clearDirectory } from "./files/file-utils";
 import { z } from "zod";
-import { DrsFile } from "./drs/DrsFile";
+import { ParseDrsCommandArgs, parseDrsFile } from "./drs/command";
 
 interface ParseDatArgs {
   filename: string;
@@ -30,11 +30,6 @@ interface ParseJsonArgs {
   outputFormat?: "textfile" | "json" | "dat" | "resource-list";
   outputDir: string;
   attributesFile: string;
-}
-
-interface ParseDrsArgs {
-  filename: string;
-  outputDir: string;
 }
 
 const yargsInstance = yargs(hideBin(process.argv))
@@ -118,7 +113,7 @@ const yargsInstance = yargs(hideBin(process.argv))
         });
     },
   )
-  .command<ParseDrsArgs>(
+  .command<ParseDrsCommandArgs>(
     "parse-drs <filename>",
     "Process a DRS file and extract its contents",
     (yargs) => {
@@ -132,6 +127,11 @@ const yargsInstance = yargs(hideBin(process.argv))
           type: "string",
           describe: "Directory where output files will be written",
           default: "output",
+        })
+        .option("resource-names-file", {
+          type: "string",
+          describe:
+            "Path to JSON file that contains filenames used for resources",
         });
     },
   )
@@ -410,17 +410,6 @@ function parseJsonFiles() {
   }
 }
 
-function parseDrsFile() {
-  const { filename, outputDir } = argv as unknown as ParseDrsArgs;
-  Logger.info(`Parsing DRS file ${filename}`);
-
-  const files = DrsFile.readFromFile(filename);
-  files.forEach((file) => {
-    file.writeToFile(outputDir);
-  });
-  Logger.info(`Finished writing DRS files`);
-}
-
 function main() {
   const { listDatVersions } = argv;
   if (listDatVersions) {
@@ -439,7 +428,7 @@ function main() {
         parseJsonFiles();
         break;
       case "parse-drs":
-        parseDrsFile();
+        parseDrsFile(argv as unknown as ParseDrsCommandArgs);
         break;
       default:
         yargsInstance.showHelp();

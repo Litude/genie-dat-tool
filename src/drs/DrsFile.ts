@@ -108,6 +108,7 @@ export class DrsFile {
       }
       const rscResourceId = buffer.readInt32<ResourceId>();
       // There are official files where these don't match, so only log a warning
+      // If this occurs in an official file, it should mean that the data for both resources is identical
       if (rscResourceId !== resourceId) {
         Logger.warn(
           `Different resource id specified in central directory and resource entry. ${resourceId} != ${rscResourceId}`,

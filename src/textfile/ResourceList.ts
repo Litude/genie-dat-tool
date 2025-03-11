@@ -3,6 +3,7 @@ import { ResourceId } from "../database/Types";
 import { forEachObjectEntry } from "../ts/ts-utils";
 import { TextFileWriter } from "./TextFileWriter";
 import { textFileStringCompare } from "./TextFile";
+import { writeFileSync } from "fs";
 
 type ResourceListType =
   | "Sounds"
@@ -99,6 +100,18 @@ export function writeResourceList(
         .eol();
     });
     textFileWriter.close();
+
+    const jsonEntries = uniqueResourceEntries.reduce(
+      (acc, cur) => {
+        acc[cur.resourceId] = cur.filename;
+        return acc;
+      },
+      {} as Record<string, string>,
+    );
+    writeFileSync(
+      path.join(outputDirectory, `${getFilenameStem(type)}.json`),
+      JSON.stringify(jsonEntries, undefined, 4),
+    );
   }
 
   if (orphanResources.size > 0) {
