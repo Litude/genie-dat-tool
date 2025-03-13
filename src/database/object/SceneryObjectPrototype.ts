@@ -212,7 +212,7 @@ function getResourceGatherGroup(prototype: SceneryObjectPrototype) {
 
 function getResourceDoppelgangerMode(prototype: SceneryObjectPrototype) {
   if (isTrackedAsResource(prototype)) {
-    return asUInt8(prototype.objectClass == ObjectClasses.Tree ? 2 : 1);
+    return asUInt8(prototype.objectClass === ObjectClasses.Tree ? 2 : 1);
   } else {
     return asUInt8(0);
   }
@@ -710,7 +710,7 @@ export class SceneryObjectPrototype {
       );
       this.reusable = asBool8(
         this.objectClass === ObjectClasses.Miscellaneous ||
-          this.objectType == ObjectTypes.Doppelganger,
+          this.objectType === ObjectTypes.Doppelganger,
       );
     }
 
@@ -853,7 +853,7 @@ export class SceneryObjectPrototype {
     if (jsonFile.reusable === undefined) {
       this.reusable = asBool8(
         this.objectClass === ObjectClasses.Miscellaneous ||
-          this.objectType == ObjectTypes.Doppelganger,
+          this.objectType === ObjectTypes.Doppelganger,
       );
     }
 

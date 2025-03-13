@@ -1,3 +1,4 @@
+import { isAscii } from "buffer";
 import {
   Bool16,
   Bool32,
@@ -165,5 +166,13 @@ export default class BufferReader {
 
   endOfBuffer(): boolean {
     return this.offset === this.buffer.length;
+  }
+
+  isAscii() {
+    return isAscii(this.buffer);
+  }
+
+  toString(encoding?: BufferEncoding) {
+    return this.buffer.toString(encoding);
   }
 }

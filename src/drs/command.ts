@@ -70,7 +70,7 @@ export function parseDrsFile(args: ParseDrsCommandArgs) {
         .join("\n"),
     );
   }
-  if (orphanResourceIds) {
+  if (orphanResourceIds.length) {
     Logger.info(
       `The following DRS resources exist but did not have an entry in the provided JSON file:`,
     );

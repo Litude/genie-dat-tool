@@ -344,7 +344,7 @@ export function writeObjectPrototypesToJsonFiles(
             overrides: jsonObjects.reduce(
               (acc, curCiv, civIndex) => {
                 const enabledStateDiffers =
-                  Boolean(curCiv[objIndex]) != baselineEnableStates[objIndex];
+                  Boolean(curCiv[objIndex]) !== baselineEnableStates[objIndex];
                 if (curCiv[objIndex] && Object.keys(curCiv[objIndex]).length) {
                   acc[civIndex] = enabledStateDiffers
                     ? {

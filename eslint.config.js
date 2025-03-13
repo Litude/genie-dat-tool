@@ -13,6 +13,7 @@ export default [
   eslintPluginPrettierRecommended,
   {
     rules: {
+      eqeqeq: "error",
       "@typescript-eslint/no-explicit-any": "warn",
       "@typescript-eslint/no-unused-vars": [
         "error",

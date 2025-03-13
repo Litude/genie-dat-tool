@@ -74,8 +74,8 @@ export class DrsFile {
     }
 
     buffer.seek(40, BufferReaderSeekWhence.Start);
-    const _smallestResourceId = buffer.readInt32<ResourceId>();
-    const _largestResourceId = buffer.readInt32<ResourceId>();
+    const smallestResourceId = buffer.readInt32<ResourceId>();
+    const largestResourceId = buffer.readInt32<ResourceId>();
     const entryCount = buffer.readUInt32();
 
     const results: FileEntry[] = [];
@@ -88,6 +88,17 @@ export class DrsFile {
         .join("")
         .trim();
       const resourceId = buffer.readInt32<ResourceId>();
+      if (resourceId < smallestResourceId) {
+        Logger.warn(
+          `Smallest resource id should be ${smallestResourceId}, but found resource with id ${resourceId}`,
+        );
+      }
+      if (resourceId > largestResourceId) {
+        Logger.warn(
+          `Largest resource id should be ${largestResourceId}, but found resource with id ${resourceId}`,
+        );
+      }
+
       const rscDataOffset = buffer.readUInt32();
 
       const currentDirectoryOffset = buffer.tell();
@@ -116,10 +127,15 @@ export class DrsFile {
       }
       const entrySize = buffer.readUInt32();
 
-      const extension = extensionMap[resourceType] ?? "bin";
+      let extension = extensionMap[resourceType] ?? "bin";
+      const data = buffer.slice(buffer.tell(), buffer.tell() + entrySize);
+      if (extension === "bin") {
+        extension = detectBinaryFileType(data);
+      }
+
       results.push(
         new FileEntry({
-          data: buffer.slice(buffer.tell(), buffer.tell() + entrySize),
+          data,
           resourceId,
           filename: `${resourceId}.${extension}`,
           modificationTime,
@@ -193,5 +209,166 @@ export class DrsFile {
     Logger.info(`Finished parsing DRS, got ${results.length} files`);
 
     return results;
+  }
+}
+
+function checkIfWavFile(bufferReader: BufferReader) {
+  try {
+    bufferReader.seek(0);
+    const firstBytes = bufferReader.readFixedSizeString(4);
+    if (firstBytes === "RIFF") {
+      bufferReader.seek(8);
+      return bufferReader.readFixedSizeString(8) === "WAVEfmt ";
+    }
+    return false;
+  } catch (_e: unknown) {
+    return false;
+  }
+}
+
+function checkIfBmpFile(bufferReader: BufferReader) {
+  try {
+    bufferReader.seek(0);
+    const firstBytes = bufferReader.readFixedSizeString(2);
+    if (firstBytes === "BM") {
+      const fileSize = bufferReader.readUInt32();
+      return fileSize === bufferReader.size();
+    }
+    return false;
+  } catch (_e: unknown) {
+    return false;
+  }
+}
+
+function checkIfShpFile(bufferReader: BufferReader) {
+  try {
+    bufferReader.seek(0);
+    const firstBytes = bufferReader.readFixedSizeString(4);
+    if (firstBytes === "1.10") {
+      const frameCount = bufferReader.readUInt32();
+      // If all frame offsets seem plausible, we assume that this is an SHP file
+      if (frameCount >= 1 && frameCount <= 1000) {
+        const headerSize = 8 + frameCount * 8;
+        const minimumFrameData = 4 * 2 + 4 * 4;
+        const maxFrameOffset = bufferReader.size() - minimumFrameData;
+        for (let i = 0; i < frameCount; ++i) {
+          const frameOffset = bufferReader.readUInt32();
+          const _paletteOffset = bufferReader.readUInt32();
+          if (frameOffset < headerSize || frameOffset > maxFrameOffset) {
+            return false;
+          }
+        }
+        return true;
+      }
+    }
+    return false;
+  } catch (_e: unknown) {
+    return false;
+  }
+}
+
+function checkIfSlpFile(bufferReader: BufferReader) {
+  try {
+    bufferReader.seek(0);
+    const firstBytes = bufferReader.readFixedSizeString(4);
+    if (firstBytes === "2.0N") {
+      const frameCount = bufferReader.readUInt32();
+      if (frameCount >= 1 && frameCount <= 10000) {
+        const comment = bufferReader.readFixedSizeString(24);
+        return (
+          comment === "RGE RLE shape file" ||
+          comment === "ArtDesk 1.00 SLP Writer"
+        );
+      }
+    }
+    return false;
+  } catch (_e: unknown) {
+    return false;
+  }
+}
+
+function checkIfPalFile(bufferReader: BufferReader) {
+  try {
+    if (bufferReader.isAscii()) {
+      const contents = bufferReader.toString("ascii").trim();
+      return contents.startsWith("JASC-PAL");
+    }
+    return false;
+  } catch (_e: unknown) {
+    return false;
+  }
+}
+
+function checkIfSinFile(bufferReader: BufferReader) {
+  try {
+    if (bufferReader.isAscii()) {
+      const contents = bufferReader.toString("ascii").trim();
+      return contents.startsWith("background1_files ");
+    }
+    return false;
+  } catch (_e: unknown) {
+    return false;
+  }
+}
+
+function checkIfColFile(bufferReader: BufferReader) {
+  try {
+    if (bufferReader.isAscii()) {
+      const contents = bufferReader.toString("ascii").trim();
+      const validLines = contents.split("\r\n").filter((line) => line);
+      if (validLines.length === 256) {
+        return validLines.every((line) => {
+          const num = Number(line);
+          if (!Number.isInteger(num) || num < 0 || num > 255) {
+            return false;
+          }
+          return true;
+        });
+      }
+    }
+    return false;
+  } catch (_e: unknown) {
+    return false;
+  }
+}
+
+function checkIfDatFile(bufferReader: BufferReader) {
+  // Not really a good check at the moment...
+  try {
+    bufferReader.seek(0);
+    if (bufferReader.size() === 147304) {
+      const firstInt = bufferReader.readInt32();
+      if (firstInt === 68) {
+        bufferReader.seek(-4, BufferReaderSeekWhence.End);
+        return bufferReader.readInt32() === -192;
+      }
+    }
+    return false;
+  } catch (_e: unknown) {
+    return false;
+  }
+}
+
+function detectBinaryFileType(data: Buffer<ArrayBufferLike>): string {
+  const bufferReader = new BufferReader(data);
+  // 1996 DRS format files have bin for wav, shp and slp as well so need to detect these too...
+  if (checkIfWavFile(bufferReader)) {
+    return "wav";
+  } else if (checkIfBmpFile(bufferReader)) {
+    return "bmp";
+  } else if (checkIfShpFile(bufferReader)) {
+    return "shp";
+  } else if (checkIfSlpFile(bufferReader)) {
+    return "slp";
+  } else if (checkIfPalFile(bufferReader)) {
+    return "pal";
+  } else if (checkIfSinFile(bufferReader)) {
+    return "sin";
+  } else if (checkIfColFile(bufferReader)) {
+    return "col";
+  } else if (checkIfDatFile(bufferReader)) {
+    return "dat";
+  } else {
+    return "bin";
   }
 }
