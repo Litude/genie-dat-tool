@@ -194,10 +194,16 @@ export class DrsFile {
         const resourceId = buffer.readInt32<ResourceId>();
         const dataOffset = buffer.readUInt32();
         const entrySize = buffer.readUInt32();
-        const extension = extensionMap[resourceType] ?? "bin";
+
+        let extension = extensionMap[resourceType] ?? "bin";
+        const data = buffer.slice(dataOffset, dataOffset + entrySize);
+        if (extension === "bin") {
+          extension = detectBinaryFileType(data);
+        }
+
         results.push(
           new FileEntry({
-            data: buffer.slice(dataOffset, dataOffset + entrySize),
+            data,
             resourceId,
             filename: `${resourceId}.${extension}`,
             modificationTime,
