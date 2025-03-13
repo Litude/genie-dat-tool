@@ -12,7 +12,6 @@
     "50060": "scr9.sin",
     "50061": "scr10.sin",
 
-    "50154": "credit1.shp",
     "50155": "credit2.shp",
     "50156": "credit3.shp",
     "50157": "credit4.shp",
@@ -64,7 +63,9 @@
     "50719": "btnbrdb2.slp",
     "50720": "btnbrdb3.slp",
     "50721": "btncmd.slp",
-
+    "50722": "btnmain.slp",
+    "50723": "btnmain1.slp",
+    "50724": "btnmain2.slp",
     "50725": "btnoth0.slp",
     "50726": "btnoth1.slp",
     "50727": "btnoth2.slp",

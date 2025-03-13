@@ -117,6 +117,7 @@ export class DrsFile {
       if (!result[filenameEntry.resourceId]) {
         result[filenameEntry.resourceId] = filenameEntry.filename;
       } else if (result[filenameEntry.resourceId] !== filenameEntry.filename) {
+        // TODO: If there are multiple filenames, should the same file be extracted multiple times...?
         Logger.warn(
           `Found multiple filenames for resource ${filenameEntry.resourceId}: ${filenameEntry.filename} and ${result[filenameEntry.resourceId]}. ${result[filenameEntry.resourceId]} will be used`,
         );

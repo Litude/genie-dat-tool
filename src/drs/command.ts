@@ -35,7 +35,7 @@ export function parseDrsFile(args: ParseDrsCommandArgs) {
           filenames[key] = filename;
         } else if (filenames[key] !== filename) {
           Logger.warn(
-            `Extracted filename ${filenames[key]} for resource ${key} but ${filename} was provided as input and will override it`,
+            `Extracted filename ${filenames[key]} for resource ${key} but ${filename} was provided as input. Input will be ignored.`,
           );
         }
       });
