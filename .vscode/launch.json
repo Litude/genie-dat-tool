@@ -29,13 +29,17 @@
         //     "output/empires_ror"
         // ],
         "args": [
-            "parse-dat",
-            "empires_ror.dat",
-            "--output-format",
-            "json",
-            "--habitats-file",
-            ".\\data\\habitats_970703.json5"
+            "parse-drs",
+            "Interfac.drs"
         ],
+        // "args": [
+        //     "parse-dat",
+        //     "empires_ror.dat",
+        //     "--output-format",
+        //     "json",
+        //     "--habitats-file",
+        //     ".\\data\\habitats_970703.json5"
+        // ],
         // "args": [
         //     "parse-dat",
         //     "tr_game.dat",

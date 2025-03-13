@@ -18,6 +18,9 @@ export function parseDrsFile(args: ParseDrsCommandArgs) {
 
   const files = DrsFile.readFromFile(filename);
 
+  DrsFile.detectBinaryFileTypes(files);
+  const filenames = DrsFile.extractFilenamesFromResources(files);
+
   const orphanResourceIds: ResourceId[] = [];
   const orphanFilenameEntries: {
     resourceId: ResourceId;
@@ -25,34 +28,46 @@ export function parseDrsFile(args: ParseDrsCommandArgs) {
   }[] = [];
 
   if (resourceNamesFile) {
-    const filenames = getResourceFilenames(resourceNamesFile);
-    if (filenames) {
-      // list json resources that don't exist
-      // list resources that don't have a json entry
-      files.forEach((file) => {
-        if (file.resourceId) {
-          const newFilename = filenames[file.resourceId.toString()];
-          if (!newFilename) {
-            orphanResourceIds.push(file.resourceId);
-          } else {
-            file.filename = newFilename;
-          }
+    const providedFilenames = getResourceFilenames(resourceNamesFile);
+    if (providedFilenames) {
+      Object.entries(providedFilenames).forEach(([key, filename]) => {
+        if (!filenames[key]) {
+          filenames[key] = filename;
+        } else if (filenames[key] !== filename) {
+          Logger.warn(
+            `Extracted filename ${filenames[key]} for resource ${key} but ${filename} was provided as input and will override it`,
+          );
         }
       });
-
-      Object.entries(filenames).forEach(([key, filename]) => {
-        const resourceId = asInt32<ResourceId>(+key);
-        if (!files.some((file) => file.resourceId === resourceId)) {
-          orphanFilenameEntries.push({
-            resourceId,
-            filename,
-          });
-        }
-      });
-    } else {
-      // Quit if there is an error reading the provided resource file
-      return;
     }
+  }
+
+  if (Object.keys(filenames).length) {
+    // list json resources that don't exist
+    // list resources that don't have a json entry
+    files.forEach((file) => {
+      if (file.resourceId) {
+        const newFilename = filenames[file.resourceId.toString()];
+        if (!newFilename) {
+          orphanResourceIds.push(file.resourceId);
+        } else {
+          file.filename = newFilename;
+        }
+      }
+    });
+
+    Object.entries(filenames).forEach(([key, filename]) => {
+      const resourceId = asInt32<ResourceId>(+key);
+      if (!files.some((file) => file.resourceId === resourceId)) {
+        orphanFilenameEntries.push({
+          resourceId,
+          filename,
+        });
+      }
+    });
+  } else {
+    // Quit if there is an error reading the provided resource file
+    return;
   }
 
   files.forEach((file) => {

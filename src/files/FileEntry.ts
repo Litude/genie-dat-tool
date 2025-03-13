@@ -2,14 +2,15 @@ import fs from "fs";
 import path from "path";
 import { ResourceId } from "../database/Types";
 import { Logger } from "../Logger";
+import { PropertiesOnly } from "../ts/ts-utils";
 
 export class FileEntry {
-  data?: Buffer;
+  data: Buffer;
   resourceId?: ResourceId;
-  filename?: string;
-  modificationTime?: number;
+  filename: string;
+  modificationTime: number;
 
-  constructor(inputData: Partial<FileEntry>) {
+  constructor(inputData: PropertiesOnly<FileEntry>) {
     this.data = inputData.data;
     this.resourceId = inputData.resourceId;
     this.filename = inputData.filename;

@@ -1,7 +1,7 @@
 import { readFileSync, statSync } from "fs";
 import BufferReader, { BufferReaderSeekWhence } from "../BufferReader";
 import { Logger } from "../Logger";
-import { UInt32 } from "../ts/base-types";
+import { asInt32, UInt32 } from "../ts/base-types";
 import { FileEntry } from "../files/FileEntry";
 import { ResourceId } from "../database/Types";
 
@@ -9,6 +9,11 @@ interface ResourceTypeDirectory {
   resourceType: string;
   entryDirectoryOffset: UInt32;
   entryCount: UInt32;
+}
+
+interface ResourceLocator {
+  resourceId: ResourceId;
+  filename: string;
 }
 
 const extensionMap: Record<string, string> = {
@@ -41,16 +46,84 @@ export class DrsFile {
     modificationTime: number,
   ): FileEntry[] {
     const headerString = buffer.readFixedSizeString(40).slice(0, 36);
+    let result: FileEntry[] = [];
     if (headerString === "Copyright (c) 1996 Ensemble Studios.") {
-      return this.readDrs1996(buffer, modificationTime);
+      result = this.readDrs1996(buffer, modificationTime);
     } else if (headerString === "Copyright (c) 1997 Ensemble Studios.") {
-      return this.readDrs1997(buffer, modificationTime);
+      result = this.readDrs1997(buffer, modificationTime);
     } else {
       Logger.error(
         `Encountered unrecognized DRS header ${headerString}, perhaps it is not a DRS file`,
       );
-      return [];
     }
+    if (result.length) {
+      Logger.info(`Finished parsing DRS, got ${result.length} files`);
+
+      const extractedFilenames: ResourceLocator[] = [];
+
+      result.forEach((entry) => {
+        if (entry.filename.slice(-4) === ".sin") {
+          extractedFilenames.push(
+            ...extractFilenamesFromScreenInformationResource(
+              new BufferReader(entry.data),
+            ),
+          );
+        }
+      });
+    }
+    return result;
+  }
+
+  static detectBinaryFileTypes(entries: FileEntry[]) {
+    entries.forEach((entry) => {
+      if (entry.filename.endsWith(".bin")) {
+        const extension = detectBinaryFileType(entry.data);
+        if (extension !== "bin") {
+          entry.filename = entry.filename.slice(0, -3) + extension;
+        }
+      }
+    });
+  }
+
+  static extractFilenamesFromResources(entries: FileEntry[]) {
+    const extractedFilenames: ResourceLocator[] = [];
+
+    const result: Record<string, string> = {};
+
+    entries.forEach((entry) => {
+      if (entry.filename.endsWith(".sin")) {
+        extractedFilenames.push(
+          ...extractFilenamesFromScreenInformationResource(
+            new BufferReader(entry.data),
+          ),
+        );
+      }
+    });
+
+    // Graphic files could be either slp or shp, but we can use the previously detected
+    // extension to determine this
+    extractedFilenames.forEach((filenameEntry) => {
+      if (filenameEntry.filename.endsWith(".slp")) {
+        const dataEntry = entries.find(
+          (entry) => entry.resourceId === filenameEntry.resourceId,
+        );
+        if (dataEntry && dataEntry.filename.endsWith(".shp")) {
+          filenameEntry.filename = filenameEntry.filename.slice(0, -3) + "shp";
+        }
+      }
+    });
+
+    extractedFilenames.forEach((filenameEntry) => {
+      if (!result[filenameEntry.resourceId]) {
+        result[filenameEntry.resourceId] = filenameEntry.filename;
+      } else if (result[filenameEntry.resourceId] !== filenameEntry.filename) {
+        Logger.warn(
+          `Found multiple filenames for resource ${filenameEntry.resourceId}: ${filenameEntry.filename} and ${result[filenameEntry.resourceId]}. ${result[filenameEntry.resourceId]} will be used`,
+        );
+      }
+    });
+
+    return result;
   }
 
   private static readDrs1996(
@@ -127,15 +200,11 @@ export class DrsFile {
       }
       const entrySize = buffer.readUInt32();
 
-      let extension = extensionMap[resourceType] ?? "bin";
-      const data = buffer.slice(buffer.tell(), buffer.tell() + entrySize);
-      if (extension === "bin") {
-        extension = detectBinaryFileType(data);
-      }
+      const extension = extensionMap[resourceType] ?? "bin";
 
       results.push(
         new FileEntry({
-          data,
+          data: buffer.slice(buffer.tell(), buffer.tell() + entrySize),
           resourceId,
           filename: `${resourceId}.${extension}`,
           modificationTime,
@@ -144,8 +213,6 @@ export class DrsFile {
 
       buffer.seek(currentDirectoryOffset);
     }
-
-    Logger.info(`Finished parsing DRS, got ${results.length} files`);
 
     return results;
   }
@@ -195,15 +262,11 @@ export class DrsFile {
         const dataOffset = buffer.readUInt32();
         const entrySize = buffer.readUInt32();
 
-        let extension = extensionMap[resourceType] ?? "bin";
-        const data = buffer.slice(dataOffset, dataOffset + entrySize);
-        if (extension === "bin") {
-          extension = detectBinaryFileType(data);
-        }
+        const extension = extensionMap[resourceType] ?? "bin";
 
         results.push(
           new FileEntry({
-            data,
+            data: buffer.slice(dataOffset, dataOffset + entrySize),
             resourceId,
             filename: `${resourceId}.${extension}`,
             modificationTime,
@@ -212,10 +275,104 @@ export class DrsFile {
       }
     });
 
-    Logger.info(`Finished parsing DRS, got ${results.length} files`);
-
     return results;
   }
+}
+
+function extractFilenamesFromScreenInformationResource(
+  bufferReader: BufferReader,
+) {
+  const fileLines = bufferReader
+    .toString("utf8")
+    .split("\r\n")
+    .map((x) => x.trim())
+    .filter((x) => x);
+
+  const result: ResourceLocator[] = [];
+  fileLines.forEach((line) => {
+    const backgroundMatch = line.match(
+      /background\d+_files\s+(\S+)\s+(\S+)\s+(-?\d+)\s+(-?\d+)/,
+    );
+    if (backgroundMatch) {
+      const [
+        ,
+        regularFilename,
+        darkenedFilename,
+        regularResourceIdStr,
+        darkenedResourceIdStr,
+      ] = backgroundMatch;
+      const regularResourceId = Number(regularResourceIdStr);
+      if (
+        regularResourceId >= 0 &&
+        regularFilename.toLocaleLowerCase() !== "none"
+      ) {
+        result.push({
+          resourceId: asInt32<ResourceId>(regularResourceId),
+          filename: `${regularFilename}.slp`, // graphic files could be either slp or shp, we assume slp and fix this later
+        });
+      }
+      const darkenedResourceId = Number(darkenedResourceIdStr);
+      if (
+        darkenedResourceId >= 0 &&
+        darkenedFilename.toLocaleLowerCase() !== "none"
+      ) {
+        result.push({
+          resourceId: asInt32<ResourceId>(darkenedResourceId),
+          filename: `${darkenedFilename}.slp`,
+        });
+      }
+      return;
+    }
+    const paletteMatch = line.match(/palette_file\s+(\S+)\s+(-?\d+)/);
+    if (paletteMatch) {
+      const [, filename, resourceIdStr] = paletteMatch;
+      const resourceId = Number(resourceIdStr);
+      if (resourceId >= 0 && filename.toLocaleLowerCase() !== "none") {
+        result.push({
+          resourceId: asInt32<ResourceId>(resourceId),
+          filename: `${filename}.pal`,
+        });
+      }
+      return;
+    }
+    const cursorMatch = line.match(/cursor_file\s+(\S+)\s+(-?\d+)/);
+    if (cursorMatch) {
+      const [, filename, resourceIdStr] = cursorMatch;
+      const resourceId = Number(resourceIdStr);
+      if (resourceId >= 0 && filename.toLocaleLowerCase() !== "none") {
+        result.push({
+          resourceId: asInt32<ResourceId>(resourceId),
+          filename: `${filename}.slp`,
+        });
+      }
+      return;
+    }
+    const buttonMatch = line.match(/button_file\s+(\S+)\s+(-?\d+)/);
+    if (buttonMatch) {
+      const [, filename, resourceIdStr] = buttonMatch;
+      const resourceId = Number(resourceIdStr);
+      if (resourceId >= 0 && filename.toLocaleLowerCase() !== "none") {
+        result.push({
+          resourceId: asInt32<ResourceId>(resourceId),
+          filename: `${filename}.slp`,
+        });
+      }
+      return;
+    }
+    const dialogMatch = line.match(/popup_dialog_sin\s+(\S+)\s+(-?\d+)/);
+    if (dialogMatch) {
+      const [, filename, resourceIdStr] = dialogMatch;
+      const resourceId = Number(resourceIdStr);
+      if (resourceId >= 0 && filename.toLocaleLowerCase() !== "none") {
+        result.push({
+          resourceId: asInt32<ResourceId>(resourceId),
+          filename: `${filename}.sin`,
+        });
+      }
+      return;
+    }
+  });
+  return result;
 }
 
 function checkIfWavFile(bufferReader: BufferReader) {
