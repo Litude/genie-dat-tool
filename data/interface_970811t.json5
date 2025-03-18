@@ -1,5 +1,3 @@
-// Most of these filenames are hardcoded inside the game EXE file
-// TODO: Resource 50516, which is a palette is missing its filename
 {
     "50051": "scr1.sin",
     "50052": "scr2.sin",
