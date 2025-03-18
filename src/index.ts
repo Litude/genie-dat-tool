@@ -350,7 +350,7 @@ function writeWorldDatabaseOutput(
       case "resource-list": {
         const resourceListOutputDir = path.join(
           outputDirectory,
-          "resources",
+          "reslists",
           fileOutputDir,
         );
         clearDirectory(resourceListOutputDir);

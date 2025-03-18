@@ -30,7 +30,9 @@
         // ],
         "args": [
             "parse-drs",
-            "Interfac.drs"
+            "Interfac_971002T.drs",
+            "--resource-names-file",
+            "data/interface_971002t.json5"
         ],
         // "args": [
         //     "parse-dat",

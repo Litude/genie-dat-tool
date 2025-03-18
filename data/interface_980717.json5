@@ -1,10 +1,15 @@
-// TODO: This is totally unfinished
 {
-    "50315": "res.wav",
-    "50316": "farmdie.wav",
-    "50406": "circlep2.slp",
+    "50051": "scr1.sin",
+
+    "50053": "scr3.sin",
+
+    "50721": "btncmd.slp",
+    "50729": "btntech.slp",
+    "50730": "btnunit.slp",
 
     "53000": "dlg6_4.sin",
+    "53001": "dlg6_4.slp", // This is a total guess, graphic is unused and corrupt...
+    "53002": "dlg6_4d.slp",
 
     "53004": "btn6_4.slp",
     "53005": "btnbldg4.slp",

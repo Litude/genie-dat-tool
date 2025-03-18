@@ -1,0 +1,34 @@
+{
+    "50051": "scr1.sin",
+
+    "50053": "scr3.sin",
+
+    "50137": "scr8a.slp",
+    "50139": "scr8b.slp",
+    "50141": "scr8c.slp",
+    "50149": "scr10a.slp",
+    "50151": "scr10b.slp",
+    "50153": "scr10c.slp",
+
+    "50315": "res.wav",
+    "50316": "farmdie.wav",
+    "50406": "circlep2.slp",
+
+    "50721": "btncmd.slp",
+    "50729": "btntech.slp",
+    "50730": "btnunit.slp",
+
+    "53000": "dlg6_4.sin",
+    "53001": "dlg6_4.slp", // This is a total guess, graphic is unused and corrupt...
+    "53002": "dlg6_4d.slp",
+
+    "53004": "btn6_4.slp",
+    "53005": "btnbldg4.slp",
+    "53006": "btnbrda4.slp",
+    "53007": "btnbrdb4.slp",
+    "53008": "btnbrdc4.slp",
+    "53009": "btnoth4.slp",
+    "53010": "gamea4.slp",
+    "53011": "gameb4.slp",
+    "53012": "gamec4.slp",
+}

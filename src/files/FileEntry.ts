@@ -36,8 +36,6 @@ export class FileEntry {
           this.modificationTime / 1000,
         );
       }
-
-      Logger.info(`File written successfully: ${filePath}`);
     } catch (err: unknown) {
       if (err instanceof Error) {
         Logger.error(`Error writing file ${this.filename}: ${err.message}`);
