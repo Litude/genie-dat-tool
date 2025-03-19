@@ -30,9 +30,9 @@
         // ],
         "args": [
             "parse-drs",
-            "Interfac_971002T.drs",
+            "graphics_970917.drs",
             "--resource-names-file",
-            "data/interface_971002t.json5"
+            "output/reslists/empires_970917/graphics.json"
         ],
         // "args": [
         //     "parse-dat",

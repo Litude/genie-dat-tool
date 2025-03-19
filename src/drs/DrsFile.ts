@@ -655,7 +655,7 @@ export function writeResourceList(
     textFileWriter.raw("").eol();
     files.forEach((entry) => {
       const resourceId = entry.resourceId;
-      if (resourceId) {
+      if (resourceId !== undefined) {
         textFileWriter
           .filenameWithExtension(entry.filename)
           .integer(resourceId)

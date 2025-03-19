@@ -64,7 +64,7 @@ export function parseDrsFile(args: ParseDrsCommandArgs) {
     // list json resources that don't exist
     // list resources that don't have a json entry
     result.files.forEach((file) => {
-      if (file.resourceId) {
+      if (file.resourceId !== undefined) {
         const newFilename = filenames[file.resourceId.toString()];
         if (!newFilename) {
           orphanResourceIds.push(file.resourceId);
