@@ -16,7 +16,7 @@
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.24.0"
   },
-  "name": "genie-dat-tool",
+  "name": "rge-multitool",
   "version": "0.0.1",
   "main": "src/index.js",
   "type": "module",

@@ -2,7 +2,8 @@ import { z } from "zod";
 import { asInt16, Int16, Int16Schema } from "../../ts/base-types";
 
 export type ObjectClass = Int16 & { __type: "ObjectClass" };
-export const ObjectClassSchema: z.Schema<ObjectClass> = Int16Schema as any;
+export const ObjectClassSchema: z.Schema<ObjectClass> =
+  Int16Schema as z.Schema<ObjectClass>;
 
 export const ObjectClasses = {
   None: asInt16<ObjectClass>(-1),

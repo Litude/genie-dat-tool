@@ -8,12 +8,14 @@ import { clearDirectory } from "../files/file-utils";
 import { readFileSync, writeFileSync } from "fs";
 import { z } from "zod";
 
-// TODO: Is there a risk that we get some other value than what it was originally when reading back these values?
-// Need to read them back using Math.fround and probably check the data to see if errors accumulate..
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function jsonNumberCleanup(_key: string, value: any) {
+  // TODO: Is there a risk that we get some other value than what it was originally when reading back these values?
+  // Need to read them back using Math.fround and probably check the data to see if errors accumulate..
   return typeof value === "number" ? parseFloat(value.toFixed(6)) : value;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function createJson(value: any) {
   return JSON.stringify(value, jsonNumberCleanup, 4);
 }
@@ -76,6 +78,7 @@ type FromJsonMapping<ObjectType, JsonType> = {
     json: JsonType,
     obj: ObjectType,
     loadingContext: JsonLoadingContext,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ) => JsonType extends { [K in keyof JsonType]: any }
     ? FromJsonMapping<ObjectType, JsonType> extends { objectField: infer OF }
       ? OF extends keyof ObjectType
@@ -92,6 +95,7 @@ type ToJsonMapping<ObjectType, JsonType> = {
   toJson: (
     obj: ObjectType,
     savingContext: SavingContext,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ) => ObjectType extends { [K in keyof ObjectType]: any }
     ? ToJsonMapping<ObjectType, JsonType> extends { jsonField: infer JF }
       ? JF extends keyof JsonType
@@ -125,6 +129,7 @@ export function transformObjectToJson<
   mappings: JsonFieldMapping<ObjectType, JsonType>[],
   savingContext: SavingContext,
 ): JsonType {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const result: any = {};
   for (const fieldMapping of mappings) {
     if (
@@ -176,6 +181,7 @@ export function transformJsonToObject<
     ) {
       if (fieldMapping.field) {
         if (json[fieldMapping.field] !== undefined) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           result[fieldMapping.field] = (json as any)[fieldMapping.field];
         }
       } else if (fieldMapping.fromJson) {
@@ -212,6 +218,7 @@ export function applyJsonFieldsToObject<
     ) {
       if (fieldMapping.field) {
         if (json[fieldMapping.field] !== undefined) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           object[fieldMapping.field] = (json as any)[fieldMapping.field];
         }
       } else if (fieldMapping.fromJson) {

@@ -2,7 +2,8 @@ import { z } from "zod";
 import { asUInt8, UInt8, UInt8Schema } from "../../ts/base-types";
 
 export type ObjectType = UInt8 & { __type: "ObjectType" };
-export const ObjectTypeSchema: z.Schema<ObjectType> = UInt8Schema as any;
+export const ObjectTypeSchema: z.Schema<ObjectType> =
+  UInt8Schema as z.Schema<ObjectType>;
 
 // Note: In early versions, these values are divided by 10 as the middle types do not exist!
 export const ObjectTypes = {

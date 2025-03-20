@@ -8,6 +8,7 @@ import { asInt32 } from "../ts/base-types";
 import path from "path";
 import { clearDirectory } from "../files/file-utils";
 import { FileEntry } from "../files/FileEntry";
+import yargs from "yargs";
 
 export interface ParseDrsCommandArgs {
   filename: string;
@@ -15,7 +16,47 @@ export interface ParseDrsCommandArgs {
   resourceNamesFile?: string;
 }
 
-export function parseDrsFile(args: ParseDrsCommandArgs) {
+export function addCommands(yargs: yargs.Argv<unknown>) {
+  yargs.command<ParseDrsCommandArgs>(
+    "parse-drs <filename>",
+    "Process a DRS file and extract its contents",
+    (yargs) => {
+      return yargs
+        .positional("filename", {
+          type: "string",
+          describe: "Filename of DRS file that will be parsed",
+          demandOption: true,
+        })
+        .option("output-dir", {
+          type: "string",
+          describe: "Directory where output files will be written",
+          default: "output",
+        })
+        .option("resource-names-file", {
+          type: "string",
+          describe:
+            "Path to JSON file that contains filenames used for resources",
+        });
+    },
+  );
+}
+
+export function execute(
+  argv: ReturnType<typeof yargs.parseSync>,
+  showHelp: () => void,
+) {
+  const commandType = argv._[1];
+  switch (commandType) {
+    case "parse-drs":
+      parseDrsFile(argv as unknown as ParseDrsCommandArgs);
+      break;
+    default:
+      showHelp();
+      break;
+  }
+}
+
+function parseDrsFile(args: ParseDrsCommandArgs) {
   const { filename, outputDir, resourceNamesFile } = args;
   Logger.info(`Parsing DRS file ${filename}`);
 
@@ -57,6 +98,8 @@ export function parseDrsFile(args: ParseDrsCommandArgs) {
           );
         }
       });
+    } else {
+      Logger.error(`Error reading ${resourceNamesFile}`);
     }
   }
 
@@ -94,9 +137,6 @@ export function parseDrsFile(args: ParseDrsCommandArgs) {
         });
       }
     });
-  } else {
-    // Quit if there is an error reading the provided resource file
-    return;
   }
 
   result.files.forEach((file) => {

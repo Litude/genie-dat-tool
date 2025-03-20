@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { Percentage } from "../database/Types";
 
 // Size restricted numeric types
 export type Int8 = number & { __brand: "Int8" };
@@ -82,6 +81,7 @@ export function asBool32(value: boolean) {
 
 export type Pointer = number & { __brand: "Pointer" };
 export const NullPointer = 0 as Pointer;
+export type Percentage<T> = T;
 
 function createBrandedInteger<T extends string>(
   value: number,
@@ -95,21 +95,28 @@ function createBrandedInteger<T extends string>(
   return value as number & { __brand: T };
 }
 
-export const Bool8Schema: z.Schema<Bool8> = z.boolean() as any;
-export const Bool16Schema: z.Schema<Bool16> = z.boolean() as any;
-export const Bool32Schema: z.Schema<Bool32> = z.boolean() as any;
+export const Bool8Schema: z.Schema<Bool8> =
+  z.boolean() as unknown as z.Schema<Bool8>;
+export const Bool16Schema: z.Schema<Bool16> =
+  z.boolean() as unknown as z.Schema<Bool16>;
+export const Bool32Schema: z.Schema<Bool32> =
+  z.boolean() as unknown as z.Schema<Bool32>;
 
 export const UInt8Schema: z.Schema<UInt8> = z
   .number()
   .int()
   .min(0, { message: "Number must be positive (uint8)" })
-  .max(255, { message: "Number must be at most 255 (uint8)" }) as any;
+  .max(255, {
+    message: "Number must be at most 255 (uint8)",
+  }) as unknown as z.Schema<UInt8>;
 
 export const UInt16Schema: z.Schema<UInt16> = z
   .number()
   .int()
   .min(0, { message: "Number must be positive (uint16)" })
-  .max(65535, { message: "Number must be at most 65535 (uint16)" }) as any;
+  .max(65535, {
+    message: "Number must be at most 65535 (uint16)",
+  }) as unknown as z.Schema<UInt16>;
 
 export const UInt32Schema: z.Schema<UInt32> = z
   .number()
@@ -117,19 +124,23 @@ export const UInt32Schema: z.Schema<UInt32> = z
   .min(0, { message: "Number must be positive (uint32)" })
   .max(4294967295, {
     message: "Number must be at most 4294967295 (uint32)",
-  }) as any;
+  }) as unknown as z.Schema<UInt32>;
 
 export const Int8Schema: z.Schema<Int8> = z
   .number()
   .int()
   .min(-128, { message: "Number must be at least -128 (int8)" })
-  .max(127, { message: "Number must be at most 127 (int8)" }) as any;
+  .max(127, {
+    message: "Number must be at most 127 (int8)",
+  }) as unknown as z.Schema<Int8>;
 
 export const Int16Schema: z.Schema<Int16> = z
   .number()
   .int()
   .min(-32768, { message: "Number must be at least -32768 (int16)" })
-  .max(32767, { message: "Number must be at most 32767 (int16)" }) as any;
+  .max(32767, {
+    message: "Number must be at most 32767 (int16)",
+  }) as unknown as z.Schema<Int16>;
 
 export const Int32Schema: z.Schema<Int32> = z
   .number()
@@ -137,11 +148,11 @@ export const Int32Schema: z.Schema<Int32> = z
   .min(-2147483648, { message: "Number must be at least -2147483648 (int32)" })
   .max(2147483647, {
     message: "Number must be at most 2147483647 (int32)",
-  }) as any;
+  }) as unknown as z.Schema<Int32>;
 
 export const Float32Schema: z.Schema<Float32> = z
   .number()
-  .transform((value) => Math.fround(value)) as any;
+  .transform((value) => Math.fround(value)) as unknown as z.Schema<Float32>;
 
 export const PercentageSchema = <T extends number>(
   _schemaType: z.Schema<T>,
@@ -150,4 +161,6 @@ export const PercentageSchema = <T extends number>(
     .number()
     .int()
     .min(0, { message: "Number must be at least 0 (percentage)" })
-    .max(100, { message: "Number must be at most 100 (percentage)" }) as any;
+    .max(100, {
+      message: "Number must be at most 100 (percentage)",
+    }) as unknown as z.Schema<Percentage<T>>;

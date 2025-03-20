@@ -189,6 +189,7 @@ function mostCommonValue<T>(values: T[]): T {
   return [...freqMap.entries()].reduce((a, b) => (b[1] > a[1] ? b : a))[0];
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function reconstructInstances(obj: any): any {
   if (obj === null || obj === undefined) return obj;
 
@@ -219,6 +220,7 @@ export function createBaselineObjectPrototypes(
   const objectCount = objectPrototypes[0].length;
   const baselineObjects: Nullable<SceneryObjectPrototype>[] = [];
   for (let objectIndex = 0; objectIndex < objectCount; ++objectIndex) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const fieldValues: Record<string, any[]> = {};
     let objectInstance: SceneryObjectPrototype | null = null;
     for (
@@ -357,6 +359,7 @@ export function writeObjectPrototypesToJsonFiles(
                 }
                 return acc;
               },
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               {} as Record<number, any>,
             ),
           }

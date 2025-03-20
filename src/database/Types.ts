@@ -53,12 +53,14 @@ export function asTribeResourceId(resourceId: ResourceId): TribeResourceId {
   return asInt16<TribeResourceId>(resourceId === -1 ? 0 : resourceId);
 }
 
-export const PaletteIndexSchema: z.Schema<PaletteIndex> = UInt8Schema as any;
-export const ResourceIdSchema: z.Schema<ResourceId> = Int32Schema as any;
+export const PaletteIndexSchema: z.Schema<PaletteIndex> =
+  UInt8Schema as z.Schema<PaletteIndex>;
+export const ResourceIdSchema: z.Schema<ResourceId> =
+  Int32Schema as z.Schema<ResourceId>;
 export const ArchitectureStyleIdSchema: z.Schema<ArchitectureStyleId> =
-  UInt8Schema as any;
+  UInt8Schema as z.Schema<ArchitectureStyleId>;
 export const TechnologyTypeSchema: z.Schema<TechnologyType> =
-  Int16Schema as any;
+  Int16Schema as z.Schema<TechnologyType>;
 
 export const ReferenceStringSchema = z.union([
   z.string(),
@@ -69,5 +71,5 @@ export const ReferenceStringSchema = z.union([
 export const StringIdSchema = <T extends number>(
   schemaType: z.Schema<T>,
 ): z.Schema<StringId<T>> => {
-  return schemaType as any;
+  return schemaType as z.Schema<StringId<T>>;
 };
