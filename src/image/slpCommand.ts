@@ -1,38 +1,32 @@
 import yargs from "yargs";
 import BufferReader from "../BufferReader";
-import { parseShpImage } from "./shpImage";
+import { parseSlpImage } from "./slpImage";
 import { readPaletteFile } from "./palette";
 import { Logger } from "../Logger";
-import { readColormap } from "./colormap";
 import { writeRawImages } from "./RawImage";
 
-interface ConvertShpArgs {
+interface ConvertSlpArgs {
   filename: string;
   paletteFile: string;
-  colormapFile?: string;
   outputFormat: "bmp" | "gif";
   outputDir: string;
 }
 
 export function addCommands(yargs: yargs.Argv<unknown>) {
-  return yargs.command<ConvertShpArgs>(
+  return yargs.command<ConvertSlpArgs>(
     "convert <filename>",
-    "Convert an SHP file",
+    "Convert an SLP file",
     (yargs) => {
       return yargs
         .positional("filename", {
           type: "string",
-          describe: "Filename of SHP file that will be converted",
+          describe: "Filename of SLP file that will be converted",
           demandOption: true,
         })
         .option("palette-file", {
           type: "string",
           describe: "Palette file that will be used (JASC-PAL or BMP)",
           demandOption: true,
-        })
-        .option("colormap-file", {
-          type: "string",
-          describe: "Apply colormap file to graphic",
         })
         .option("output-format", {
           type: "string",
@@ -56,25 +50,19 @@ export function execute(
   const commandType = argv._[1];
 
   if (commandType === "convert") {
-    const { filename, outputDir, paletteFile, colormapFile, outputFormat } =
-      argv as unknown as ConvertShpArgs;
+    const { filename, outputDir, paletteFile, outputFormat } =
+      argv as unknown as ConvertSlpArgs;
 
     const palette = readPaletteFile(paletteFile);
 
     const buffer = new BufferReader(filename);
-    const shpImages = parseShpImage(buffer);
-    Logger.info(`SHP image parsed successfully`);
-    shpImages.forEach((image) => {
+    const slpImages = parseSlpImage(buffer);
+    Logger.info(`SLP image parsed successfully`);
+    slpImages.forEach((image) => {
       image.setPalette(palette);
     });
-    if (colormapFile) {
-      const colormap = readColormap(colormapFile);
-      shpImages.forEach((image) => {
-        image.applyColormap(colormap);
-      });
-    }
 
-    writeRawImages(outputFormat, shpImages, palette, filename, outputDir);
+    writeRawImages(outputFormat, slpImages, palette, filename, outputDir);
   } else {
     showHelp();
   }

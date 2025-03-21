@@ -6,7 +6,6 @@ import { Rectangle, RectangleSchema } from "../../geometry/Rectangle";
 import { JsonLoadingContext, LoadingContext } from "../LoadingContext";
 import { Nullable, Optional } from "../../ts/ts-utils";
 import {
-  Percentage,
   PlayerId,
   PrototypeId,
   ReferenceStringSchema,
@@ -23,6 +22,7 @@ import {
   Int32,
   Int32Schema,
   NullPointer,
+  Percentage,
   PercentageSchema,
   Pointer,
   UInt16,

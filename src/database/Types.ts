@@ -14,8 +14,6 @@ import {
   UInt8Schema,
 } from "../ts/base-types";
 
-export type Percentage<T> = T;
-
 // TODO: Move the stuff above and below to a separate file...
 
 // Special types (Many of these can't have size restricted types because the game is very inconsistent in what underlying type is used)

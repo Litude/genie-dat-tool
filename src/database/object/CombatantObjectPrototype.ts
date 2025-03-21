@@ -10,7 +10,6 @@ import {
 import { SavingContext } from "../SavingContext";
 import {
   HabitatId,
-  Percentage,
   PrototypeId,
   ReferenceStringSchema,
   SpriteId,
@@ -23,6 +22,7 @@ import {
   Float32Schema,
   Int16,
   Int16Schema,
+  Percentage,
   UInt8,
   UInt8Schema,
 } from "../../ts/base-types";

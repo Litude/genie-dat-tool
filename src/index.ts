@@ -3,6 +3,7 @@ import { hideBin } from "yargs/helpers";
 import * as DrsCommand from "./drs/drsCommand";
 import * as DatCommand from "./database/drsCommand";
 import * as ShpCommand from "./image/shpCommand";
+import * as SlpCommand from "./image/slpCommand";
 
 const yargsInstance = yargs(hideBin(process.argv))
   .scriptName("rge-multitool")
@@ -15,6 +16,9 @@ const yargsInstance = yargs(hideBin(process.argv))
   })
   .command("shp", "Handle SHP files", (yargs) => {
     ShpCommand.addCommands(yargs);
+  })
+  .command("slp", "Handle SLP files", (yargs) => {
+    SlpCommand.addCommands(yargs);
   })
   .help()
   .alias("help", "h");
@@ -33,6 +37,9 @@ function main() {
       break;
     case "shp":
       ShpCommand.execute(argv, showHelp);
+      break;
+    case "slp":
+      SlpCommand.execute(argv, showHelp);
       break;
     default:
       showHelp();

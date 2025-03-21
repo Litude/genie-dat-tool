@@ -8,13 +8,13 @@ import {
   asUInt32,
   Int16,
   Int16Schema,
+  Percentage,
   UInt32,
   UInt32Schema,
 } from "../ts/base-types";
 import {
   asResourceId,
   asTribeResourceId,
-  Percentage,
   ResourceId,
   ResourceIdSchema,
   TribeResourceId,

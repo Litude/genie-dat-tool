@@ -29,11 +29,20 @@
         //     "output/empires_ror"
         // ],
         "args": [
-            "parse-drs",
-            "graphics_970917.drs",
-            "--resource-names-file",
-            "output/reslists/empires_970917/graphics.json"
+            "slp",
+            "convert",
+            "a_archr1.slp",
+            "--palette-file",
+            "palette.bmp",
+            "--output-format",
+            "gif"
         ],
+        // "args": [
+        //     "parse-drs",
+        //     "graphics_970917.drs",
+        //     "--resource-names-file",
+        //     "output/reslists/empires_970917/graphics.json"
+        // ],
         // "args": [
         //     "parse-dat",
         //     "empires_ror.dat",
