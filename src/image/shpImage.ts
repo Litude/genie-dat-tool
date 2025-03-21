@@ -79,3 +79,30 @@ export function parseShpImage(buffer: BufferReader): RawImage[] {
 
   return frames;
 }
+
+export function detectShpFile(bufferReader: BufferReader) {
+  try {
+    bufferReader.seek(0);
+    const firstBytes = bufferReader.readFixedSizeString(4);
+    if (firstBytes === "1.10") {
+      const frameCount = bufferReader.readUInt32();
+      // If all frame offsets seem plausible, we assume that this is an SHP file
+      if (frameCount >= 1 && frameCount <= 1000) {
+        const headerSize = 8 + frameCount * 8;
+        const minimumFrameData = 4 * 2 + 4 * 4;
+        const maxFrameOffset = bufferReader.size() - minimumFrameData;
+        for (let i = 0; i < frameCount; ++i) {
+          const frameOffset = bufferReader.readUInt32();
+          const _paletteOffset = bufferReader.readUInt32();
+          if (frameOffset < headerSize || frameOffset > maxFrameOffset) {
+            return false;
+          }
+        }
+        return true;
+      }
+    }
+    return false;
+  } catch (_e: unknown) {
+    return false;
+  }
+}

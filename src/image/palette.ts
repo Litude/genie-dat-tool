@@ -1,6 +1,7 @@
 import { decode as bmpDecode } from "bmp-ts";
 import BufferReader from "../BufferReader";
 import { asUInt8, UInt8 } from "../ts/base-types";
+import { detectBitmapFile } from "./bitmap";
 
 export interface ColorRgb {
   red: UInt8;
@@ -10,7 +11,7 @@ export interface ColorRgb {
 
 export function readPaletteFile(path: string): ColorRgb[] {
   const buffer = new BufferReader(path);
-  if (checkIfPalFile(buffer)) {
+  if (detectJascPaletteFile(buffer)) {
     const [header, version, entryCount, ...entries] = buffer
       .toString("ascii")
       .replaceAll("\r\n", "\n")
@@ -45,8 +46,7 @@ export function readPaletteFile(path: string): ColorRgb[] {
       }
     });
     return colors;
-    return [];
-  } else if (checkIfBmpFile(buffer)) {
+  } else if (detectBitmapFile(buffer)) {
     const bmpFile = bmpDecode(buffer.data());
     const mappedPalette: ColorRgb[] = bmpFile.palette.map((entry) => ({
       red: asUInt8(entry.red),
@@ -66,25 +66,11 @@ export function readPaletteFile(path: string): ColorRgb[] {
   }
 }
 
-function checkIfPalFile(bufferReader: BufferReader) {
+export function detectJascPaletteFile(bufferReader: BufferReader) {
   try {
     if (bufferReader.isAscii()) {
       const contents = bufferReader.toString("ascii").trim();
       return contents.startsWith("JASC-PAL");
-    }
-    return false;
-  } catch (_e: unknown) {
-    return false;
-  }
-}
-
-function checkIfBmpFile(bufferReader: BufferReader) {
-  try {
-    bufferReader.seek(0);
-    const firstBytes = bufferReader.readFixedSizeString(2);
-    if (firstBytes === "BM") {
-      const fileSize = bufferReader.readUInt32();
-      return fileSize === bufferReader.size();
     }
     return false;
   } catch (_e: unknown) {

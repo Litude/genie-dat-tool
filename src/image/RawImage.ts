@@ -73,6 +73,7 @@ export class RawImage {
     return this.height;
   }
 
+  // These bounds are right, bottom inclusive!
   getBounds(): Rectangle<number> {
     return {
       left: -this.anchor.x,
@@ -95,6 +96,28 @@ export class RawImage {
         );
       }
     }
+  }
+
+  flippedHorizontally() {
+    const flippedImage = new RawImage(this.width, this.height);
+    flippedImage.palette = this.palette;
+    flippedImage.anchor = { ...this.anchor };
+    flippedImage.data = new Uint8Array(this.data);
+    flippedImage.flipHorizontally();
+    return flippedImage;
+  }
+
+  private flipHorizontally() {
+    const newAnchorX = this.width - this.anchor.x - 1;
+    for (let y = 0; y < this.height; ++y) {
+      for (let x = 0; x < Math.floor(this.width / 2); ++x) {
+        const leftPixel = this.getPixel(x, y);
+        const rightPixel = this.getPixel(this.width - 1 - x, y);
+        this.setPixel(x, y, rightPixel);
+        this.setPixel(this.width - 1 - x, y, leftPixel);
+      }
+    }
+    this.anchor.x = newAnchorX;
   }
 
   applyColormap(colormap: PaletteIndex[]) {

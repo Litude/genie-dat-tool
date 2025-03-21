@@ -8,6 +8,8 @@ import { writeRawImages } from "./RawImage";
 interface ConvertSlpArgs {
   filename: string;
   paletteFile: string;
+  playerColor: number;
+  shadowColor: number;
   outputFormat: "bmp" | "gif";
   outputDir: string;
 }
@@ -27,6 +29,16 @@ export function addCommands(yargs: yargs.Argv<unknown>) {
           type: "string",
           describe: "Palette file that will be used (JASC-PAL or BMP)",
           demandOption: true,
+        })
+        .option("player-color", {
+          type: "number",
+          describe: "Palette index to use as first player color",
+          default: 16,
+        })
+        .option("shadow-color", {
+          type: "number",
+          describe: "Palette index to use as shadow color",
+          default: 0,
         })
         .option("output-format", {
           type: "string",
@@ -50,13 +62,19 @@ export function execute(
   const commandType = argv._[1];
 
   if (commandType === "convert") {
-    const { filename, outputDir, paletteFile, outputFormat } =
-      argv as unknown as ConvertSlpArgs;
+    const {
+      filename,
+      outputDir,
+      paletteFile,
+      outputFormat,
+      playerColor,
+      shadowColor,
+    } = argv as unknown as ConvertSlpArgs;
 
     const palette = readPaletteFile(paletteFile);
 
     const buffer = new BufferReader(filename);
-    const slpImages = parseSlpImage(buffer);
+    const slpImages = parseSlpImage(buffer, { playerColor, shadowColor });
     Logger.info(`SLP image parsed successfully`);
     slpImages.forEach((image) => {
       image.setPalette(palette);

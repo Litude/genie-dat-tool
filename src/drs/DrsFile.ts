@@ -7,6 +7,11 @@ import { ResourceId } from "../database/Types";
 import { ParsingError } from "../database/Error";
 import { TextFileWriter } from "../textfile/TextFileWriter";
 import path from "path";
+import { detectColormapFile } from "../image/colormap";
+import { detectJascPaletteFile } from "../image/palette";
+import { detectSlpFile } from "../image/slpImage";
+import { detectShpFile } from "../image/shpImage";
+import { detectBitmapFile } from "../image/bitmap";
 
 interface ResourceTypeDirectory {
   resourceType: string;
@@ -479,7 +484,7 @@ function extractFilenamesFromScreenInformationResource(
   return result;
 }
 
-function checkIfWavFile(bufferReader: BufferReader) {
+function detectWavFile(bufferReader: BufferReader) {
   try {
     bufferReader.seek(0);
     const firstBytes = bufferReader.readFixedSizeString(4);
@@ -493,80 +498,7 @@ function checkIfWavFile(bufferReader: BufferReader) {
   }
 }
 
-function checkIfBmpFile(bufferReader: BufferReader) {
-  try {
-    bufferReader.seek(0);
-    const firstBytes = bufferReader.readFixedSizeString(2);
-    if (firstBytes === "BM") {
-      const fileSize = bufferReader.readUInt32();
-      return fileSize === bufferReader.size();
-    }
-    return false;
-  } catch (_e: unknown) {
-    return false;
-  }
-}
-
-function checkIfShpFile(bufferReader: BufferReader) {
-  try {
-    bufferReader.seek(0);
-    const firstBytes = bufferReader.readFixedSizeString(4);
-    if (firstBytes === "1.10") {
-      const frameCount = bufferReader.readUInt32();
-      // If all frame offsets seem plausible, we assume that this is an SHP file
-      if (frameCount >= 1 && frameCount <= 1000) {
-        const headerSize = 8 + frameCount * 8;
-        const minimumFrameData = 4 * 2 + 4 * 4;
-        const maxFrameOffset = bufferReader.size() - minimumFrameData;
-        for (let i = 0; i < frameCount; ++i) {
-          const frameOffset = bufferReader.readUInt32();
-          const _paletteOffset = bufferReader.readUInt32();
-          if (frameOffset < headerSize || frameOffset > maxFrameOffset) {
-            return false;
-          }
-        }
-        return true;
-      }
-    }
-    return false;
-  } catch (_e: unknown) {
-    return false;
-  }
-}
-
-function checkIfSlpFile(bufferReader: BufferReader) {
-  try {
-    bufferReader.seek(0);
-    const firstBytes = bufferReader.readFixedSizeString(4);
-    if (firstBytes === "2.0N") {
-      const frameCount = bufferReader.readUInt32();
-      if (frameCount >= 1 && frameCount <= 10000) {
-        const comment = bufferReader.readFixedSizeString(24);
-        return (
-          comment === "RGE RLE shape file" ||
-          comment === "ArtDesk 1.00 SLP Writer"
-        );
-      }
-    }
-    return false;
-  } catch (_e: unknown) {
-    return false;
-  }
-}
-
-function checkIfPalFile(bufferReader: BufferReader) {
-  try {
-    if (bufferReader.isAscii()) {
-      const contents = bufferReader.toString("ascii").trim();
-      return contents.startsWith("JASC-PAL");
-    }
-    return false;
-  } catch (_e: unknown) {
-    return false;
-  }
-}
-
-function checkIfSinFile(bufferReader: BufferReader) {
+function detectSinFile(bufferReader: BufferReader) {
   try {
     if (bufferReader.isAscii()) {
       const contents = bufferReader.toString("ascii").trim();
@@ -578,28 +510,7 @@ function checkIfSinFile(bufferReader: BufferReader) {
   }
 }
 
-function checkIfColFile(bufferReader: BufferReader) {
-  try {
-    if (bufferReader.isAscii()) {
-      const contents = bufferReader.toString("ascii").trim();
-      const validLines = contents.split("\r\n").filter((line) => line);
-      if (validLines.length === 256) {
-        return validLines.every((line) => {
-          const num = Number(line);
-          if (!Number.isInteger(num) || num < 0 || num > 255) {
-            return false;
-          }
-          return true;
-        });
-      }
-    }
-    return false;
-  } catch (_e: unknown) {
-    return false;
-  }
-}
-
-function checkIfDatFile(bufferReader: BufferReader) {
+function detectDatFile(bufferReader: BufferReader) {
   // Not really a good check at the moment...
   try {
     bufferReader.seek(0);
@@ -619,21 +530,21 @@ function checkIfDatFile(bufferReader: BufferReader) {
 function detectBinaryFileType(data: Buffer<ArrayBufferLike>): string {
   const bufferReader = new BufferReader(data);
   // 1996 DRS format files have bin for wav, shp and slp as well so need to detect these too...
-  if (checkIfWavFile(bufferReader)) {
+  if (detectWavFile(bufferReader)) {
     return "wav";
-  } else if (checkIfBmpFile(bufferReader)) {
+  } else if (detectBitmapFile(bufferReader)) {
     return "bmp";
-  } else if (checkIfShpFile(bufferReader)) {
+  } else if (detectShpFile(bufferReader)) {
     return "shp";
-  } else if (checkIfSlpFile(bufferReader)) {
+  } else if (detectSlpFile(bufferReader)) {
     return "slp";
-  } else if (checkIfPalFile(bufferReader)) {
+  } else if (detectJascPaletteFile(bufferReader)) {
     return "pal";
-  } else if (checkIfSinFile(bufferReader)) {
+  } else if (detectSinFile(bufferReader)) {
     return "sin";
-  } else if (checkIfColFile(bufferReader)) {
+  } else if (detectColormapFile(bufferReader)) {
     return "col";
-  } else if (checkIfDatFile(bufferReader)) {
+  } else if (detectDatFile(bufferReader)) {
     return "dat";
   } else {
     return "bin";

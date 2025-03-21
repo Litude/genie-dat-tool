@@ -15,7 +15,15 @@ interface SlpFrameInfo {
   anchor: Point<Int32>;
 }
 
-export function parseSlpImage(buffer: BufferReader): RawImage[] {
+interface SlpParsingOptions {
+  playerColor: number;
+  shadowColor: number;
+}
+
+export function parseSlpImage(
+  buffer: BufferReader,
+  options: SlpParsingOptions,
+): RawImage[] {
   const header = buffer.readFixedSizeString(4);
   if (header !== "2.0N") {
     throw new Error(`Invalid SLP file, header version ${header} not 2.0N!`);
@@ -129,7 +137,9 @@ export function parseSlpImage(buffer: BufferReader): RawImage[] {
             }
             for (let i = 0; i < length; ++i) {
               const colorOffset = buffer.readUInt8<PaletteIndex>();
-              const color = asUInt8<PaletteIndex>(colorOffset + 16);
+              const color = asUInt8<PaletteIndex>(
+                colorOffset + options.playerColor,
+              );
               image.setPixel(x++ + leftOffset, y, color);
             }
             break;
@@ -153,7 +163,9 @@ export function parseSlpImage(buffer: BufferReader): RawImage[] {
               length = buffer.readUInt8();
             }
             const colorOffset = buffer.readUInt8<PaletteIndex>();
-            const color = asUInt8<PaletteIndex>(colorOffset + 16);
+            const color = asUInt8<PaletteIndex>(
+              colorOffset + options.playerColor,
+            );
             for (let i = 0; i < length; ++i) {
               image.setPixel(x++ + leftOffset, y, color);
             }
@@ -165,7 +177,7 @@ export function parseSlpImage(buffer: BufferReader): RawImage[] {
             if (!length) {
               length = buffer.readUInt8();
             }
-            const color = asUInt8<PaletteIndex>(0);
+            const color = asUInt8<PaletteIndex>(options.shadowColor);
             for (let i = 0; i < length; ++i) {
               image.setPixel(x++ + leftOffset, y, color);
             }
@@ -191,4 +203,24 @@ export function parseSlpImage(buffer: BufferReader): RawImage[] {
   }
 
   return frames;
+}
+
+export function detectSlpFile(bufferReader: BufferReader) {
+  try {
+    bufferReader.seek(0);
+    const firstBytes = bufferReader.readFixedSizeString(4);
+    if (firstBytes === "2.0N") {
+      const frameCount = bufferReader.readUInt32();
+      if (frameCount >= 1 && frameCount <= 10000) {
+        const comment = bufferReader.readFixedSizeString(24);
+        return (
+          comment === "RGE RLE shape file" ||
+          comment === "ArtDesk 1.00 SLP Writer"
+        );
+      }
+    }
+    return false;
+  } catch (_e: unknown) {
+    return false;
+  }
 }
