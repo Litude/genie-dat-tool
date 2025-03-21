@@ -1,0 +1,44 @@
+diff --git a/node_modules/bmp-ts/dist/esm/encoder.js b/node_modules/bmp-ts/dist/esm/encoder.js
+index effd070..ff81948 100644
+--- a/node_modules/bmp-ts/dist/esm/encoder.js
++++ b/node_modules/bmp-ts/dist/esm/encoder.js
+@@ -44,7 +44,7 @@ export default class BmpEncoder {
+         this.hr = imgData.hr || 0;
+         this.vr = imgData.vr || 0;
+         this.importantColors = imgData.importantColors || 0;
+-        this.colors = Math.min(2 ** (this.bitPP - 1 || 1), imgData.colors || Infinity);
++        this.colors = Math.min(2 ** (this.bitPP || 1), imgData.colors || Infinity);
+         this.palette = imgData.palette || [];
+         if (this.colors && this.bitPP < 16) {
+             this.offset += this.colors * 4;
+@@ -181,16 +181,23 @@ export default class BmpEncoder {
+         });
+     }
+     bit8() {
++        const indexedImage = this.palette.length;
+         const colors = this.initColors(8);
+         this.writeImage((p, index) => {
+             let i = index;
+-            const colorInt = createColor({
+-                quad: this.buffer[i++],
+-                blue: this.buffer[i++],
+-                green: this.buffer[i++],
+-                red: this.buffer[i++],
+-            });
+-            const colorExists = colors.findIndex((c) => c === colorInt);
++            let colorExists = -1;
++            if (indexedImage) {
++                colorExists = this.buffer[i++]
++            }
++            else {
++                const colorInt = createColor({
++                    quad: this.buffer[i++],
++                    blue: this.buffer[i++],
++                    green: this.buffer[i++],
++                    red: this.buffer[i++],
++                });
++                colorExists = colors.findIndex((c) => c === colorInt);
++            }
+             if (colorExists !== -1) {
+                 this.data[p] = colorExists;
+             }

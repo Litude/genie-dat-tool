@@ -22,6 +22,7 @@ import {
   Int16Schema,
   Int32,
   NullPointer,
+  Percentage,
   Pointer,
   UInt16,
   UInt32,
@@ -30,7 +31,6 @@ import {
 } from "../ts/base-types";
 import {
   AgeId,
-  Percentage,
   PrototypeId,
   ReferenceStringSchema,
   TechnologyType,

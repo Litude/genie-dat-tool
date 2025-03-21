@@ -13,6 +13,7 @@ import {
   UInt32,
   UInt8,
 } from "./ts/base-types";
+import { readFileSync } from "fs";
 
 export const enum BufferReaderSeekWhence {
   Start = 0,
@@ -24,8 +25,14 @@ export default class BufferReader {
   private buffer: Buffer;
   private offset: number;
 
-  constructor(buffer: Buffer) {
-    this.buffer = buffer;
+  constructor(path: string);
+  constructor(buffer: Buffer);
+  constructor(input: Buffer | string) {
+    if (typeof input === "string") {
+      this.buffer = readFileSync(input);
+    } else {
+      this.buffer = input;
+    }
     this.offset = 0;
   }
 
@@ -174,5 +181,9 @@ export default class BufferReader {
 
   toString(encoding?: BufferEncoding) {
     return this.buffer.toString(encoding);
+  }
+
+  data() {
+    return this.buffer;
   }
 }

@@ -1,7 +1,8 @@
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
-import * as DrsCommand from "./drs/command";
-import * as DatCommand from "./database/command";
+import * as DrsCommand from "./drs/drsCommand";
+import * as DatCommand from "./database/drsCommand";
+import * as ShpCommand from "./image/shpCommand";
 
 const yargsInstance = yargs(hideBin(process.argv))
   .scriptName("rge-multitool")
@@ -12,6 +13,9 @@ const yargsInstance = yargs(hideBin(process.argv))
   .command("drs", "Handle DRS files", (yargs) => {
     DrsCommand.addCommands(yargs);
   })
+  .command("shp", "Handle SHP files", (yargs) => {
+    ShpCommand.addCommands(yargs);
+  })
   .help()
   .alias("help", "h");
 
@@ -19,15 +23,19 @@ const argv = yargsInstance.parseSync();
 
 function main() {
   const commandType = argv._[0];
+  const showHelp = () => yargsInstance.showHelp();
   switch (commandType) {
     case "dat":
-      DatCommand.execute(argv, () => yargsInstance.showHelp());
+      DatCommand.execute(argv, showHelp);
       break;
     case "drs":
-      DrsCommand.execute(argv, () => yargsInstance.showHelp());
+      DrsCommand.execute(argv, showHelp);
+      break;
+    case "shp":
+      ShpCommand.execute(argv, showHelp);
       break;
     default:
-      yargsInstance.showHelp();
+      showHelp();
       break;
   }
 }

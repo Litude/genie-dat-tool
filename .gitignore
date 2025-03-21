@@ -4,4 +4,11 @@ output/
 *.dat
 *.ucr
 *.drs
+*.slp
+*.scp
+*.shp
+*.bmp
+*.gif
+*.col
+*.pal
 tr_*.txt
