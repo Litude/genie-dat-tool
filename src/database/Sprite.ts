@@ -617,6 +617,10 @@ export class Sprite {
   }
 
   writeToGif(graphics: Graphic[], outputDirectory: string) {
+    // TODO: Make this a parameter, flying things need a Z offset to make the shadow visible. But building and projectile
+    // shadows will break with this
+    const shadowOffset = 0;
+
     const mainGraphic = graphics.find(
       (graphic) =>
         graphic.filename === this.resourceFilename ||
@@ -630,30 +634,51 @@ export class Sprite {
           sprite: this,
         }
       : null;
-    const overlayGraphics = this.overlays.map((overlay) => {
-      const overlaySprite = overlay.sprite;
-      if (overlaySprite) {
-        const overlayGraphic = graphics.find(
-          (graphic) =>
-            graphic.filename === overlaySprite.internalName ||
-            graphic.resourceId === overlaySprite.resourceId,
-        );
-        if (overlayGraphic) {
-          return {
-            graphic: overlayGraphic,
-            offset: overlay.offset,
-            angle: overlay.angle,
-            sprite: overlay.sprite,
-          };
-        }
-      }
-      return null;
-    });
-    const allGraphics = [backgroundGraphic, ...overlayGraphics]
+    // If any overlays are specified, the main graphic is only drawn in case
+    // there is an overlay specified with sprite id -1
+    const actualGraphics = this.overlays.length
+      ? this.overlays.map((overlay) => {
+          const overlaySprite = overlay.sprite;
+          if (overlaySprite) {
+            const overlayGraphic = graphics.find(
+              (graphic) =>
+                graphic.filename === overlaySprite.internalName ||
+                graphic.resourceId === overlaySprite.resourceId,
+            );
+            if (overlayGraphic) {
+              return {
+                graphic: overlayGraphic,
+                offset: overlay.offset,
+                angle: overlay.angle,
+                sprite: overlay.sprite,
+              };
+            }
+          } else if (overlay.spriteId === -1 && mainGraphic) {
+            return {
+              graphic: mainGraphic,
+              offset: overlay.offset,
+              angle: overlay.angle,
+              sprite: this,
+            };
+          }
+          return null;
+        })
+      : [backgroundGraphic];
+    const allGraphics = actualGraphics
       .filter(isDefined)
       .sort((a, b) => (a.sprite?.layer ?? 0) - (b.sprite?.layer ?? 0));
-    // TODO:
-    // - What if deltas have deltas? Need to make this recursive
+
+    allGraphics.forEach((graphic) => {
+      if ((graphic.sprite?.layer ?? 99) <= 10) {
+        graphic.offset = {
+          ...graphic.offset,
+          y: asInt16(graphic.offset.y + shadowOffset),
+        };
+      }
+    });
+
+    // AOE does not support recursive deltas, so we don't need to support that either
+
     if (allGraphics.length) {
       for (let i = 0; i < this.angleCount; ++i) {
         const combinedFrames: RawImage[] = [];
@@ -702,7 +727,7 @@ export class Sprite {
               y: -totalBounds.top,
             });
             angleGraphics.forEach((graphic) => {
-              const index = j % graphic.graphic.frames.length;
+              const index = j >= graphic.graphic.frames.length ? 0 : j;
               combinedFrame.overlayImage(
                 graphic.graphic.frames[index],
                 graphic.offset,
