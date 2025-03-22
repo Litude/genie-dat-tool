@@ -4,7 +4,7 @@ import { parseShpImage } from "./shpImage";
 import { readPaletteFile } from "./palette";
 import { Logger } from "../Logger";
 import { readColormap } from "./colormap";
-import { writeRawImages } from "./RawImage";
+import { Graphic, writeGraphic } from "./Graphic";
 
 interface ConvertShpArgs {
   filename: string;
@@ -62,19 +62,18 @@ export function execute(
     const palette = readPaletteFile(paletteFile);
 
     const buffer = new BufferReader(filename);
-    const shpImages = parseShpImage(buffer);
+    const shpFrames = parseShpImage(buffer);
+    const graphic = new Graphic(shpFrames);
+    graphic.palette = palette;
     Logger.info(`SHP image parsed successfully`);
-    shpImages.forEach((image) => {
-      image.setPalette(palette);
-    });
     if (colormapFile) {
       const colormap = readColormap(colormapFile);
-      shpImages.forEach((image) => {
+      shpFrames.forEach((image) => {
         image.applyColormap(colormap);
       });
     }
 
-    writeRawImages(outputFormat, shpImages, palette, filename, outputDir);
+    writeGraphic(outputFormat, graphic, filename, outputDir);
   } else {
     showHelp();
   }

@@ -59,6 +59,9 @@ import {
 } from "../json/json-serialization";
 import { z } from "zod";
 import { writeResourceList } from "../textfile/ResourceList";
+import { getCombinedGraphicBounds, Graphic } from "../image/Graphic";
+import { RawImage } from "../image/RawImage";
+import { Logger } from "../Logger";
 
 interface SpriteOverlay {
   spriteId: Int16;
@@ -151,7 +154,7 @@ const SpriteSchema = z.object({
   framesPerAngle: Int16Schema,
   angleCount: Int16Schema,
   objectSpeedMultiplier: Float32Schema,
-  animationDuration: Float32Schema,
+  frameDuration: Float32Schema,
   animationReplayDelay: Float32Schema,
   spriteType: UInt8Schema, // todo: split each flag into separate boolean?
   mirroringMode: z.union([UInt8Schema, z.boolean()]),
@@ -191,7 +194,7 @@ export const SpriteJsonMapping: JsonFieldMapping<Sprite, SpriteJson>[] = [
   { field: "framesPerAngle" },
   { field: "angleCount" },
   { field: "objectSpeedMultiplier" },
-  { field: "animationDuration" },
+  { field: "frameDuration" },
   { field: "animationReplayDelay" },
   { field: "spriteType" },
   {
@@ -367,10 +370,10 @@ export class Sprite {
   framesPerAngle: Int16 = asInt16(0);
   angleCount: Int16 = asInt16(0);
   objectSpeedMultiplier: Float32 = asFloat32(0);
-  animationDuration: Float32 = asFloat32(0); // seconds
+  frameDuration: Float32 = asFloat32(0); // seconds
   animationReplayDelay: Float32 = asFloat32(0); // seconds
   spriteType: UInt8 = asUInt8(0);
-  mirroringMode: UInt8 = asUInt8(0);
+  mirroringMode: UInt8 = asUInt8(0); // If set, is an integer that specifies the last angle that is NOT mirrored. The first angle that is not mirrored is always angleCount >> 2.
   overlays: SpriteOverlay[] = [];
   angleSoundEffects: SpriteAngleSoundEffect[] = [];
 
@@ -405,7 +408,7 @@ export class Sprite {
     this.framesPerAngle = buffer.readInt16();
     this.angleCount = buffer.readInt16();
     this.objectSpeedMultiplier = buffer.readFloat32();
-    this.animationDuration = buffer.readFloat32();
+    this.frameDuration = buffer.readFloat32();
     this.animationReplayDelay = buffer.readFloat32();
     this.spriteType = buffer.readUInt8();
     this.id = buffer.readInt16();
@@ -543,7 +546,7 @@ export class Sprite {
       .integer(this.boundingBox.right)
       .integer(this.boundingBox.bottom)
       .float(this.objectSpeedMultiplier)
-      .float(this.animationDuration)
+      .float(this.frameDuration)
       .float(this.animationReplayDelay)
       .integer(this.overlays.length)
       .integer(this.soundEffectId)
@@ -575,6 +578,150 @@ export class Sprite {
 
   writeToJsonFile(directory: string, savingContext: SavingContext) {
     writeDataEntryToJsonFile(directory, this, SpriteJsonMapping, savingContext);
+  }
+
+  private getActualAngleGraphicIndex(inputAngle: number) {
+    if (!this.mirroringMode) {
+      return {
+        angle: Math.min(inputAngle, this.angleCount - 1),
+        mirrored: false,
+      };
+    } else {
+      if (this.angleCount === 2) {
+        return {
+          angle: 0,
+          mirrored: inputAngle === 1,
+        };
+      } else {
+        if (
+          inputAngle <= this.mirroringMode &&
+          inputAngle >= this.angleCount >> 2
+        ) {
+          return {
+            angle: inputAngle - (this.angleCount >> 2),
+            mirrored: false,
+          };
+        } else {
+          const halfAngleCount = this.angleCount >> 1;
+          const midValue =
+            inputAngle <= halfAngleCount
+              ? halfAngleCount - inputAngle
+              : this.angleCount + halfAngleCount - inputAngle;
+          return {
+            angle: midValue - (this.angleCount >> 2),
+            mirrored: true,
+          };
+        }
+      }
+    }
+  }
+
+  writeToGif(graphics: Graphic[], outputDirectory: string) {
+    const mainGraphic = graphics.find(
+      (graphic) =>
+        graphic.filename === this.resourceFilename ||
+        graphic.resourceId === this.resourceId,
+    );
+    const backgroundGraphic = mainGraphic
+      ? {
+          graphic: mainGraphic,
+          offset: { x: asInt16(0), y: asInt16(0) },
+          angle: asInt16(-1),
+          sprite: this,
+        }
+      : null;
+    const overlayGraphics = this.overlays.map((overlay) => {
+      const overlaySprite = overlay.sprite;
+      if (overlaySprite) {
+        const overlayGraphic = graphics.find(
+          (graphic) =>
+            graphic.filename === overlaySprite.internalName ||
+            graphic.resourceId === overlaySprite.resourceId,
+        );
+        if (overlayGraphic) {
+          return {
+            graphic: overlayGraphic,
+            offset: overlay.offset,
+            angle: overlay.angle,
+            sprite: overlay.sprite,
+          };
+        }
+      }
+      return null;
+    });
+    const allGraphics = [backgroundGraphic, ...overlayGraphics]
+      .filter(isDefined)
+      .sort((a, b) => (a.sprite?.layer ?? 0) - (b.sprite?.layer ?? 0));
+    // TODO:
+    // - What if deltas have deltas? Need to make this recursive
+    if (allGraphics.length) {
+      for (let i = 0; i < this.angleCount; ++i) {
+        const combinedFrames: RawImage[] = [];
+        const { angle: mainAngle } = this.getActualAngleGraphicIndex(i);
+        const angleGraphics = allGraphics
+          .map((graphic) => {
+            const sprite = graphic.sprite;
+            if (!sprite) {
+              throw new Error("Sprite was null!?");
+            }
+            const multiplier = Math.floor(sprite.angleCount / this.angleCount);
+            const { angle, mirrored } =
+              graphic.sprite!.getActualAngleGraphicIndex(
+                Math.floor(i * multiplier),
+              );
+
+            return {
+              ...graphic,
+              graphic: mirrored
+                ? graphic.graphic
+                    .slice(
+                      angle * sprite.framesPerAngle,
+                      angle * sprite.framesPerAngle +
+                        Math.min(sprite.framesPerAngle, this.framesPerAngle),
+                    )
+                    .mirrored()
+                : graphic.graphic.slice(
+                    angle * sprite.framesPerAngle,
+                    angle * sprite.framesPerAngle +
+                      Math.min(sprite.framesPerAngle, this.framesPerAngle),
+                  ),
+            };
+          })
+          .filter(
+            (graphic) => graphic.angle === mainAngle || graphic.angle === -1,
+          );
+        const totalBounds = getCombinedGraphicBounds(angleGraphics);
+        if (totalBounds) {
+          for (let j = 0; j < this.framesPerAngle; ++j) {
+            const combinedFrame = new RawImage(
+              totalBounds.right - totalBounds.left + 1,
+              totalBounds.bottom - totalBounds.top + 1,
+            );
+            combinedFrame.setAnchor({
+              x: -totalBounds.left,
+              y: -totalBounds.top,
+            });
+            angleGraphics.forEach((graphic) => {
+              const index = j % graphic.graphic.frames.length;
+              combinedFrame.overlayImage(
+                graphic.graphic.frames[index],
+                graphic.offset,
+              );
+            });
+            combinedFrames.push(combinedFrame);
+          }
+          const finalGraphic = new Graphic(combinedFrames);
+          finalGraphic.palette = graphics[0].palette;
+          finalGraphic.filename = `${this.internalName}_${i}`;
+          finalGraphic.writeToGif(outputDirectory, {
+            delay: Math.round(this.frameDuration * 100),
+            replayDelay: Math.round(this.animationReplayDelay * 100),
+          });
+        }
+      }
+    } else {
+      Logger.info(`Skipping ${this.internalName} since no graphics exist`);
+    }
   }
 }
 

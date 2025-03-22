@@ -10,12 +10,16 @@ import { Version } from "./Version";
 import { isDefined } from "../ts/ts-utils";
 import BufferReader from "../BufferReader";
 import { decompressFile } from "../deflate";
+import { readPaletteFile } from "../image/palette";
+import { readGraphics } from "../image/Graphic";
 
 interface ParseDatArgs {
   filename: string;
   inputVersion: string;
   outputVersion: string;
-  outputFormat?: "textfile" | "json" | "dat" | "resource-list";
+  outputFormat?: "textfile" | "json" | "dat" | "resource-list" | "sprites";
+  paletteFile?: string;
+  graphics?: string;
   outputDir: string;
   attributesFile: string;
   habitatsFile: string;
@@ -55,7 +59,17 @@ export function addCommands(yargs: yargs.Argv<unknown>) {
           .option("output-format", {
             type: "string",
             describe: "Format that output file will be written in",
-            choices: ["textfile", "json", "resource-list"],
+            choices: ["textfile", "json", "resource-list", "sprites"],
+          })
+          .option("palette-file", {
+            type: "string",
+            describe:
+              "Palette file that will be used for graphics/sprites (JASC-PAL or BMP)",
+          })
+          .option("graphics", {
+            type: "string",
+            describe:
+              "Path to DRS file or directory or loose SLP files for graphics/sprites",
           })
           .option("output-dir", {
             type: "string",
@@ -159,7 +173,7 @@ function parseVersion(input: string) {
 
 const SupportedDatVersions = {
   "1.3": ["1.3.0", "1.3.1"], // There are actually two different revisions of 1.3
-  "1.4": ["1.4.0", "1.4.0-mickey", "1.4.1"], // There is a special Mickey flavor of 1.4
+  "1.4": ["1.4.0", "1.4.0-mickey", "1.4.1"], // There is a special Mickey flavor of 1.4. 1.4.0 and 1.4.1 only differ in textfile format
   "1.5": ["1.5.0"],
   "2.7": ["2.7.0"],
   "3.1": ["3.1.0", "3.1.1"], // There are actually two different revisions of 3.1
@@ -201,6 +215,8 @@ function parseDatFile(args: ParseDatArgs) {
     habitatsFile,
     attributesFile,
     effectNames,
+    paletteFile,
+    graphics,
   } = args;
   const dataBuffer = new BufferReader(decompressFile(filename));
   const headerString = dataBuffer.readFixedSizeString(8);
@@ -229,6 +245,14 @@ function parseDatFile(args: ParseDatArgs) {
         .flatMap((x) => x)
         .join("\n")}`,
     );
+    return;
+  }
+
+  if (outputFormat === "sprites" && (!paletteFile || !graphics)) {
+    Logger.error(
+      `Must specify --palette-file and --graphics when output format is graphics`,
+    );
+    return;
   }
 
   if (headerVersionNumber) {
@@ -273,14 +297,26 @@ function parseDatFile(args: ParseDatArgs) {
       }
 
       if (worldDatabase && inputVersion && outputFormat) {
-        writeWorldDatabaseOutput(
-          worldDatabase,
-          filename,
-          outputDir,
-          inputVersion,
-          outputFormat,
-          outputVersionParameter,
-        );
+        if (outputFormat === "sprites") {
+          if (paletteFile && graphics) {
+            writeWorldDatabaseSprites(
+              worldDatabase,
+              filename,
+              outputDir,
+              paletteFile,
+              graphics,
+            );
+          }
+        } else {
+          writeWorldDatabaseOutput(
+            worldDatabase,
+            filename,
+            outputDir,
+            inputVersion,
+            outputFormat,
+            outputVersionParameter,
+          );
+        }
       }
     }
   } else {
@@ -347,6 +383,29 @@ function writeWorldDatabaseOutput(
         Logger.error(`Unknown output format ${outputFormat}!`);
     }
   }
+}
+
+function writeWorldDatabaseSprites(
+  worldDatabase: WorldDatabase,
+  filename: string,
+  outputDirectory: string,
+  palettePath: string,
+  graphicsPath: string,
+) {
+  const paletteFile = readPaletteFile(palettePath);
+  const graphics = readGraphics(graphicsPath, paletteFile);
+  const spriteOutputDirectory = path.join(outputDirectory, "sprites");
+  mkdirSync(spriteOutputDirectory, { recursive: true });
+
+  const finalDirectory = path.join(
+    spriteOutputDirectory,
+    path.parse(filename).name,
+  );
+  clearDirectory(finalDirectory);
+  worldDatabase.sprites.forEach((sprite) => {
+    Logger.info(`Processing ${sprite?.internalName}`);
+    sprite?.writeToGif(graphics, finalDirectory);
+  });
 }
 
 const JsonVersionSchema = z.object({

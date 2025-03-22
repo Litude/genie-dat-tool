@@ -3,7 +3,7 @@ import BufferReader from "../BufferReader";
 import { parseSlpImage } from "./slpImage";
 import { readPaletteFile } from "./palette";
 import { Logger } from "../Logger";
-import { writeRawImages } from "./RawImage";
+import { Graphic, writeGraphic } from "./Graphic";
 
 interface ConvertSlpArgs {
   filename: string;
@@ -74,13 +74,12 @@ export function execute(
     const palette = readPaletteFile(paletteFile);
 
     const buffer = new BufferReader(filename);
-    const slpImages = parseSlpImage(buffer, { playerColor, shadowColor });
+    const slpFrames = parseSlpImage(buffer, { playerColor, shadowColor });
+    const graphic = new Graphic(slpFrames);
+    graphic.palette = palette;
     Logger.info(`SLP image parsed successfully`);
-    slpImages.forEach((image) => {
-      image.setPalette(palette);
-    });
 
-    writeRawImages(outputFormat, slpImages, palette, filename, outputDir);
+    writeGraphic(outputFormat, graphic, filename, outputDir);
   } else {
     showHelp();
   }

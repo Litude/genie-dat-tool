@@ -28,22 +28,35 @@
         //     "parse-json",
         //     "output/empires_ror"
         // ],
-        "args": [
-            "slp",
-            "convert",
-            "a_archr1.slp",
-            "--palette-file",
-            "palette.bmp",
-            "--output-format",
-            "gif"
-        ],
         // "args": [
+        //     "slp",
+        //     "convert",
+        //     "a_archr1.slp",
+        //     "--palette-file",
+        //     "palette.bmp",
+        //     "--output-format",
+        //     "gif"
+        // ],
+        // "args": [
+        //     "drs",
         //     "parse-drs",
         //     "graphics_970917.drs",
         //     "--resource-names-file",
         //     "output/reslists/empires_970917/graphics.json"
         // ],
+        "args": [
+            "dat",
+            "parse-dat",
+            "empires_970917.dat",
+            "--output-format",
+            "graphics",
+            "--palette-file",
+            "palette.bmp",
+            "--graphics",
+            "graphics_970917.drs"
+        ],
         // "args": [
+        //     "dat",
         //     "parse-dat",
         //     "empires_ror.dat",
         //     "--output-format",
@@ -52,6 +65,7 @@
         //     ".\\data\\habitats_970703.json5"
         // ],
         // "args": [
+        //     "dat",
         //     "parse-dat",
         //     "tr_game.dat",
         //     "--output-format",

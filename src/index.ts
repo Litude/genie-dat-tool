@@ -1,7 +1,7 @@
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import * as DrsCommand from "./drs/drsCommand";
-import * as DatCommand from "./database/drsCommand";
+import * as DatCommand from "./database/datCommand";
 import * as ShpCommand from "./image/shpCommand";
 import * as SlpCommand from "./image/slpCommand";
 
