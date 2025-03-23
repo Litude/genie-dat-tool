@@ -171,15 +171,23 @@ export class WorldDatabase {
   readFromBuffer(
     buffer: BufferReader,
     {
-      habitatsFile,
-      attributesFile,
-      effectNames,
-    }: { habitatsFile: string; attributesFile: string; effectNames?: string },
+      habitatNamesFile,
+      attributeNamesFile,
+      effectNamesFile,
+    }: {
+      habitatNamesFile?: string;
+      attributeNamesFile?: string;
+      effectNamesFile?: string;
+    },
     loadingContext: DatLoadingContext,
   ) {
     try {
-      this.attributes = readAttributesFromJsonFile(attributesFile);
-      const habitatNames = readHabitatNamesFromJsonFile(habitatsFile);
+      this.attributes = attributeNamesFile
+        ? readAttributesFromJsonFile(attributeNamesFile)
+        : [];
+      const habitatNames = habitatNamesFile
+        ? readHabitatNamesFromJsonFile(habitatNamesFile)
+        : [];
 
       this.habitats = readHabitatsFromDatFile(
         buffer,
@@ -228,8 +236,8 @@ export class WorldDatabase {
         loadingContext,
       );
 
-      const stateEffectNames = effectNames
-        ? readStateEffectNamesFromJsonFile(effectNames)
+      const stateEffectNames = effectNamesFile
+        ? readStateEffectNamesFromJsonFile(effectNamesFile)
         : [];
       this.stateEffects = readStateEffectsFromBuffer(
         buffer,

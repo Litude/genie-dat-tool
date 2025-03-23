@@ -17,9 +17,7 @@ interface ParseDatArgs {
   filename: string;
   inputVersion: string;
   outputVersion: string;
-  outputFormat?: "textfile" | "json" | "dat" | "resource-list" | "sprites";
-  paletteFile?: string;
-  graphics?: string;
+  outputFormat?: "textfile" | "json" | "dat" | "resource-list";
   outputDir: string;
   attributesFile: string;
   habitatsFile: string;
@@ -32,6 +30,14 @@ interface ParseJsonArgs {
   outputFormat?: "textfile" | "json" | "dat" | "resource-list";
   outputDir: string;
   attributesFile: string;
+}
+
+interface ExtractSpritesArgs {
+  filename: string;
+  inputVersion: string;
+  paletteFile: string;
+  graphics: string;
+  outputDir: string;
 }
 
 export function addCommands(yargs: yargs.Argv<unknown>) {
@@ -59,17 +65,7 @@ export function addCommands(yargs: yargs.Argv<unknown>) {
           .option("output-format", {
             type: "string",
             describe: "Format that output file will be written in",
-            choices: ["textfile", "json", "resource-list", "sprites"],
-          })
-          .option("palette-file", {
-            type: "string",
-            describe:
-              "Palette file that will be used for graphics/sprites (JASC-PAL or BMP)",
-          })
-          .option("graphics", {
-            type: "string",
-            describe:
-              "Path to DRS file or directory or loose SLP files for graphics/sprites",
+            choices: ["textfile", "json", "resource-list"],
           })
           .option("output-dir", {
             type: "string",
@@ -85,9 +81,8 @@ export function addCommands(yargs: yargs.Argv<unknown>) {
           .option("habitats-file", {
             type: "string",
             describe: "Path to JSON file that contains names used for habitats",
-            default: "data/habitats.json5",
           })
-          .option("effect-names", {
+          .option("effects-file", {
             type: "string",
             describe: "Path to JSON file that contains names used for effects",
           });
@@ -126,6 +121,40 @@ export function addCommands(yargs: yargs.Argv<unknown>) {
           });
       },
     )
+    .command<ExtractSpritesArgs>(
+      "extract-sprites <filename>",
+      "Extract sprites from a DAT file",
+      (yargs) => {
+        return yargs
+          .positional("filename", {
+            type: "string",
+            describe: "Filename of DAT file that will be parsed",
+            demandOption: true,
+          })
+          .option("input-version", {
+            type: "string",
+            describe: "Force DAT to be parsed as specified version",
+            default: "auto",
+          })
+          .option("palette-file", {
+            type: "string",
+            describe:
+              "Palette file that will be used for sprites (JASC-PAL or BMP)",
+            demandOption: true,
+          })
+          .option("graphics", {
+            type: "string",
+            describe:
+              "Path to DRS file or directory or loose SLP files for graphics",
+            demandOption: true,
+          })
+          .option("output-dir", {
+            type: "string",
+            describe: "Directory where output files will be written",
+            default: "output",
+          });
+      },
+    )
     .option("list-dat-versions", {
       type: "boolean",
       describe: "List supported DAT versions",
@@ -151,6 +180,9 @@ export function execute(
         break;
       case "parse-json":
         parseJsonFiles(argv as unknown as ParseJsonArgs);
+        break;
+      case "extract-sprites":
+        extractSprites(argv as unknown as ExtractSpritesArgs);
         break;
       default:
         showHelp();
@@ -205,19 +237,19 @@ function getPotentialParsingVersions(headerVersionNumber: string) {
   }
 }
 
-function parseDatFile(args: ParseDatArgs) {
-  const {
-    filename,
-    inputVersion: inputVersionParameter,
-    outputVersion: outputVersionParameter,
-    outputFormat,
-    outputDir,
-    habitatsFile,
-    attributesFile,
-    effectNames,
-    paletteFile,
-    graphics,
-  } = args;
+function readDatFile(
+  filename: string,
+  inputVersionParameter: string,
+  {
+    habitatNamesFile,
+    attributeNamesFile,
+    effectNamesFile,
+  }: {
+    habitatNamesFile?: string;
+    attributeNamesFile?: string;
+    effectNamesFile?: string;
+  } = {},
+) {
   const dataBuffer = new BufferReader(decompressFile(filename));
   const headerString = dataBuffer.readFixedSizeString(8);
   const headerVersionNumber = parseVersion(headerString);
@@ -232,27 +264,7 @@ function parseDatFile(args: ParseDatArgs) {
         .flatMap((x) => x)
         .join("\n")}`,
     );
-    return;
-  }
-  if (
-    outputVersionParameter !== "input-version" &&
-    !isSupportedParsingVersion(outputVersionParameter)
-  ) {
-    Logger.error(
-      `output-version must be one of:\ninput-version\n${Object.values(
-        SupportedDatVersions,
-      )
-        .flatMap((x) => x)
-        .join("\n")}`,
-    );
-    return;
-  }
-
-  if (outputFormat === "sprites" && (!paletteFile || !graphics)) {
-    Logger.error(
-      `Must specify --palette-file and --graphics when output format is graphics`,
-    );
-    return;
+    return null;
   }
 
   if (headerVersionNumber) {
@@ -279,7 +291,7 @@ function parseDatFile(args: ParseDatArgs) {
         if (
           worldDatabase.readFromBuffer(
             dataBuffer,
-            { habitatsFile, attributesFile, effectNames },
+            { habitatNamesFile, attributeNamesFile, effectNamesFile },
             {
               version: inputVersion,
               abortOnError: i !== potentialVersions.length - 1,
@@ -296,31 +308,87 @@ function parseDatFile(args: ParseDatArgs) {
         }
       }
 
-      if (worldDatabase && inputVersion && outputFormat) {
-        if (outputFormat === "sprites") {
-          if (paletteFile && graphics) {
-            writeWorldDatabaseSprites(
-              worldDatabase,
-              filename,
-              outputDir,
-              paletteFile,
-              graphics,
-            );
-          }
-        } else {
-          writeWorldDatabaseOutput(
-            worldDatabase,
-            filename,
-            outputDir,
-            inputVersion,
-            outputFormat,
-            outputVersionParameter,
-          );
-        }
+      if (worldDatabase && inputVersion) {
+        return { worldDatabase, version: inputVersion };
       }
     }
   } else {
     Logger.error(`Input does not seem to be a valid DAT file (No VER header)`);
+  }
+  return null;
+}
+
+function parseDatFile(args: ParseDatArgs) {
+  const {
+    filename,
+    inputVersion: inputVersionParameter,
+    outputVersion: outputVersionParameter,
+    outputFormat,
+    outputDir,
+    habitatsFile,
+    attributesFile,
+    effectNames,
+  } = args;
+
+  if (
+    outputVersionParameter !== "input-version" &&
+    !isSupportedParsingVersion(outputVersionParameter)
+  ) {
+    Logger.error(
+      `output-version must be one of:\ninput-version\n${Object.values(
+        SupportedDatVersions,
+      )
+        .flatMap((x) => x)
+        .join("\n")}`,
+    );
+    return;
+  }
+
+  const datResult = readDatFile(filename, inputVersionParameter, {
+    habitatNamesFile: habitatsFile,
+    attributeNamesFile: attributesFile,
+    effectNamesFile: effectNames,
+  });
+  if (datResult) {
+    if (outputFormat) {
+      const { worldDatabase, version: inputVersion } = datResult;
+      writeWorldDatabaseOutput(
+        worldDatabase,
+        filename,
+        outputDir,
+        inputVersion,
+        outputFormat,
+        outputVersionParameter,
+      );
+    } else {
+      // Support for not specifying output format so parsing of DAT files can be tested without writing anything
+      Logger.info(
+        "No output format specified, specify one with --output-format to write output",
+      );
+    }
+  } else {
+    Logger.error(`Input does not seem to be a valid DAT file (No VER header)`);
+  }
+}
+
+function extractSprites(args: ExtractSpritesArgs) {
+  const {
+    filename,
+    inputVersion: inputVersionParameter,
+    paletteFile,
+    graphics,
+    outputDir,
+  } = args;
+  const datResult = readDatFile(filename, inputVersionParameter);
+  if (datResult) {
+    const { worldDatabase } = datResult;
+    writeWorldDatabaseSprites(
+      worldDatabase,
+      filename,
+      outputDir,
+      paletteFile,
+      graphics,
+    );
   }
 }
 
