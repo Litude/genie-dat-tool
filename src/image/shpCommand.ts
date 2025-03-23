@@ -5,12 +5,15 @@ import { readPaletteFile } from "./palette";
 import { Logger } from "../Logger";
 import { readColormap } from "./colormap";
 import { Graphic, writeGraphic } from "./Graphic";
+import { asUInt8 } from "../ts/base-types";
 
 interface ConvertShpArgs {
   filename: string;
   paletteFile: string;
   colormapFile?: string;
   outputFormat: "bmp" | "gif";
+  transparentColor: number | undefined;
+  frameDelay: number;
   outputDir: string;
 }
 
@@ -34,6 +37,21 @@ export function addCommands(yargs: yargs.Argv<unknown>) {
           type: "string",
           describe: "Apply colormap file to graphic",
         })
+        .option("transparent-color", {
+          type: "string",
+          describe:
+            "Palette index to use as transparent color or 'none' for no transparent index",
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          coerce: (arg: any) =>
+            arg === "none" ? undefined : (asUInt8(Number(arg)) as number),
+          default: 255,
+        })
+        .option("frame-delay", {
+          type: "number",
+          describe:
+            "Frame delay used for animated gifs, in 1/100 of a second (centiseconds)",
+          default: 10,
+        })
         .option("output-format", {
           type: "string",
           describe: "Format that output file will be written in",
@@ -56,8 +74,17 @@ export function execute(
   const commandType = argv._[1];
 
   if (commandType === "convert") {
-    const { filename, outputDir, paletteFile, colormapFile, outputFormat } =
-      argv as unknown as ConvertShpArgs;
+    const {
+      filename,
+      outputDir,
+      paletteFile,
+      colormapFile,
+      outputFormat,
+      transparentColor,
+      frameDelay,
+    } = argv as unknown as ConvertShpArgs;
+
+    console.log(`Transparent color input is ${transparentColor}`);
 
     const palette = readPaletteFile(paletteFile);
 
@@ -73,7 +100,13 @@ export function execute(
       });
     }
 
-    writeGraphic(outputFormat, graphic, filename, outputDir);
+    writeGraphic(
+      outputFormat,
+      graphic,
+      { transparentIndex: transparentColor, delay: frameDelay },
+      filename,
+      outputDir,
+    );
   } else {
     showHelp();
   }

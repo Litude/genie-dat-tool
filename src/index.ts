@@ -23,7 +23,7 @@ const yargsInstance = yargs(hideBin(process.argv))
   .help()
   .alias("help", "h");
 
-const argv = yargsInstance.parseSync();
+const argv = yargsInstance.strict().parseSync();
 
 function main() {
   const commandType = argv._[0];

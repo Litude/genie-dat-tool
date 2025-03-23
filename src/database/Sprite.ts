@@ -616,10 +616,21 @@ export class Sprite {
     }
   }
 
-  writeToGif(graphics: Graphic[], outputDirectory: string) {
+  writeToGif(
+    graphics: Graphic[],
+    {
+      transparentIndex,
+      shadowOffset,
+      delayMultiplier,
+    }: {
+      transparentIndex: number;
+      shadowOffset: Point<number>;
+      delayMultiplier: number;
+    },
+    outputDirectory: string,
+  ) {
     // TODO: Make this a parameter, flying things need a Z offset to make the shadow visible. But building and projectile
     // shadows will break with this
-    const shadowOffset = 0;
 
     const mainGraphic = graphics.find(
       (graphic) =>
@@ -671,8 +682,8 @@ export class Sprite {
     allGraphics.forEach((graphic) => {
       if ((graphic.sprite?.layer ?? 99) <= 10) {
         graphic.offset = {
-          ...graphic.offset,
-          y: asInt16(graphic.offset.y + shadowOffset),
+          x: asInt16(graphic.offset.x + shadowOffset.x),
+          y: asInt16(graphic.offset.y + shadowOffset.y),
         };
       }
     });
@@ -739,8 +750,11 @@ export class Sprite {
           finalGraphic.palette = graphics[0].palette;
           finalGraphic.filename = `${this.internalName}_${i}`;
           finalGraphic.writeToGif(outputDirectory, {
-            delay: Math.round(this.frameDuration * 100),
-            replayDelay: Math.round(this.animationReplayDelay * 100),
+            delay: Math.round(this.frameDuration * 100 * delayMultiplier),
+            replayDelay: Math.round(
+              this.animationReplayDelay * 100 * delayMultiplier,
+            ),
+            transparentIndex,
           });
         }
       }

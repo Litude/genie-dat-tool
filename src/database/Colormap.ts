@@ -13,7 +13,7 @@ import {
   ResourceIdSchema,
   TribeResourceId,
 } from "./Types";
-import { asInt16, asInt32, asUInt8, Int16 } from "../ts/base-types";
+import { asInt16, asInt32, asUInt8, Int16, Int32 } from "../ts/base-types";
 import { TextFileWriter } from "../textfile/TextFileWriter";
 import { TextFileNames, textFileStringCompare } from "../textfile/TextFile";
 import { onParsingError } from "./Error";
@@ -61,6 +61,7 @@ export class Colormap {
   resourceId: ResourceId = asInt32<ResourceId>(-1);
   minimapColor: PaletteIndex = asUInt8<PaletteIndex>(0);
   type: ColormapType = ColormapType.Default;
+  playerColorBase: Int32 = asInt32(0);
 
   readFromBuffer(
     buffer: BufferReader,
@@ -82,6 +83,9 @@ export class Colormap {
     this.resourceId = asResourceId(buffer.readInt16<TribeResourceId>());
     this.minimapColor = buffer.readUInt8<PaletteIndex>();
     this.type = buffer.readUInt8();
+
+    this.playerColorBase =
+      id >= 0 && id <= 7 ? asInt32((id + 1) * 16) : asInt32(0);
   }
 
   readFromJsonFile(
@@ -98,6 +102,9 @@ export class Colormap {
       ColormapJsonMapping,
       loadingContext,
     );
+
+    this.playerColorBase =
+      id >= 0 && id <= 7 ? asInt32((id + 1) * 16) : asInt32(0);
   }
 
   appendToTextFile(

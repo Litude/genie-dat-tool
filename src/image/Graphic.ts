@@ -56,7 +56,15 @@ export class Graphic {
     }
   }
 
-  writeToBmp(outputDir: string, filename?: string) {
+  writeToBmp(
+    outputDir: string,
+    {
+      transparentIndex,
+    }: {
+      transparentIndex: number | undefined;
+    },
+    filename?: string,
+  ) {
     if (this.palette.length !== 256) {
       throw Error(
         `Attempted to convert RawImage to BMP but palette length was ${this.palette.length}`,
@@ -65,7 +73,21 @@ export class Graphic {
 
     const bmpData = this.frames.map((frame) => {
       return bmpEncode({
-        data: Buffer.from(frame.getRawData()),
+        data: Buffer.from(
+          frame.getRawData().map((entry) => {
+            if (entry === null) {
+              if (transparentIndex === undefined) {
+                throw new Error(
+                  `Tried writing image with transparency but no transparent index has been specified!`,
+                );
+              } else {
+                return transparentIndex;
+              }
+            } else {
+              return entry;
+            }
+          }),
+        ),
         bitPP: 8,
         width: frame.getWidth(),
         height: frame.getHeight(),
@@ -91,7 +113,15 @@ export class Graphic {
 
   writeToGif(
     outputDir: string,
-    { delay, replayDelay }: { delay: number; replayDelay: number },
+    {
+      delay,
+      replayDelay,
+      transparentIndex,
+    }: {
+      delay: number;
+      replayDelay: number;
+      transparentIndex: number | undefined;
+    },
     filename?: string,
   ) {
     if (this.palette.length !== 256) {
@@ -123,6 +153,7 @@ export class Graphic {
     this.frames.forEach((image, index) => {
       image.appendToGif(gifWriter, animationBounds, {
         delay: index === this.frames.length - 1 ? delay + replayDelay : delay,
+        transparentIndex,
       });
     });
     const gifData = gifBuffer.subarray(0, gifWriter.end());
@@ -189,47 +220,61 @@ export function getCombinedGraphicBounds(
   }
 }
 
-export function readGraphics(filePath: string, palette: ColorRgb[]): Graphic[] {
-  const stat = lstatSync(filePath);
-  if (stat.isDirectory()) {
-    // TODO: Loose slp files
-    throw new Error(`Reading loose SLP files not yet implemented!`);
-  } else if (stat.isFile()) {
-    const drsResult = DrsFile.readFromFile(filePath);
-    const graphics = drsResult.files
-      .map((file) => {
-        if (file.filename.endsWith(".slp")) {
-          const frames = parseSlpImage(new BufferReader(file.data), {
-            playerColor: 16,
-            shadowColor: 0,
-          });
-          const graphic = new Graphic(frames);
-          graphic.palette = palette;
-          graphic.filename = file.filename;
-          graphic.resourceId = file.resourceId;
-          return graphic;
-        } else {
-          return null;
-        }
-      })
-      .filter(isDefined);
-    return graphics;
-  } else {
-    throw new Error(
-      `Unable to read graphics at ${filePath}, is the path correct?`,
-    );
-  }
+export function readGraphics(
+  filePaths: string[],
+  palette: ColorRgb[],
+  playerColor: number,
+): Graphic[] {
+  const result = filePaths
+    .map((filePath) => {
+      const stat = lstatSync(filePath);
+      if (stat.isDirectory()) {
+        // TODO: Loose slp files
+        throw new Error(`Reading loose SLP files not yet implemented!`);
+      } else if (stat.isFile()) {
+        const drsResult = DrsFile.readFromFile(filePath);
+        const graphics = drsResult.files
+          .map((file) => {
+            if (file.filename.endsWith(".slp")) {
+              const frames = parseSlpImage(new BufferReader(file.data), {
+                playerColor,
+                shadowColor: 0,
+              });
+              const graphic = new Graphic(frames);
+              graphic.palette = palette;
+              graphic.filename = file.filename;
+              graphic.resourceId = file.resourceId;
+              return graphic;
+            } else {
+              return null;
+            }
+          })
+          .filter(isDefined);
+        return graphics;
+      } else {
+        throw new Error(
+          `Unable to read graphics at ${filePath}, is the path correct?`,
+        );
+      }
+    })
+    .flat()
+    .reverse(); // reverse so graphics added last are found first, giving later entries higher priority
+  return result;
 }
 
 export function writeGraphic(
   outputFormat: "gif" | "bmp",
   graphic: Graphic,
+  {
+    transparentIndex,
+    delay,
+  }: { transparentIndex: number | undefined; delay: number },
   filename: string,
   outputDir: string,
 ) {
   switch (outputFormat) {
     case "bmp": {
-      graphic.writeToBmp(outputDir, filename);
+      graphic.writeToBmp(outputDir, { transparentIndex }, filename);
       return true;
     }
     case "gif": {
@@ -251,7 +296,7 @@ export function writeGraphic(
       normalizedGraphic.palette = graphic.palette;
       normalizedGraphic.writeToGif(
         outputDir,
-        { delay: 10, replayDelay: 0 },
+        { delay, replayDelay: 0, transparentIndex },
         filename,
       );
       return true;

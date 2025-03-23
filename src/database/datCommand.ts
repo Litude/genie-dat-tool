@@ -12,6 +12,8 @@ import BufferReader from "../BufferReader";
 import { decompressFile } from "../deflate";
 import { readPaletteFile } from "../image/palette";
 import { readGraphics } from "../image/Graphic";
+import { asUInt8 } from "../ts/base-types";
+import { Point } from "../geometry/Point";
 
 interface ParseDatArgs {
   filename: string;
@@ -36,7 +38,11 @@ interface ExtractSpritesArgs {
   filename: string;
   inputVersion: string;
   paletteFile: string;
+  transparentColor: number;
+  shadowOffset: Point<number>;
+  animationDelayMultiplier: number;
   graphics: string;
+  player: number;
   outputDir: string;
 }
 
@@ -145,8 +151,48 @@ export function addCommands(yargs: yargs.Argv<unknown>) {
           .option("graphics", {
             type: "string",
             describe:
-              "Path to DRS file or directory or loose SLP files for graphics",
+              "Path to DRS file(s) or directory or loose SLP files for graphics. Multiple files can be specified separated by a comma, later files take priority.",
             demandOption: true,
+          })
+          .option("transparent-color", {
+            type: "number",
+            describe: "Palette index to use as transparent color",
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            coerce: (arg: any) => asUInt8(Number(arg)) as number,
+            default: 255,
+          })
+          .option("shadow-offset", {
+            type: "string",
+            describe:
+              "Additional x,y offset to apply for shadows (required for flying sprite shadows to be visible)",
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            coerce: (arg: any): Point<number> => {
+              console.log(arg);
+              const [x, y] = arg
+                .replace(",", " ")
+                .split(" ")
+                .map((x: string) => Number(x));
+              if (!Number.isFinite(x) || !Number.isFinite(y)) {
+                throw new Error("Invalid shadow-offset specified!");
+              }
+              return {
+                x,
+                y,
+              };
+            },
+            default: "0,0",
+          })
+          .option("animation-delay-multiplier", {
+            type: "number",
+            describe:
+              "Multiply delay specified in DAT with this value to adjust GIF animation delay",
+            default: 1,
+          })
+          .option("player", {
+            type: "number",
+            describe: "Player ID to use for player color (1-8)",
+            choices: [1, 2, 3, 4, 5, 6, 7, 8],
+            default: 1,
           })
           .option("output-dir", {
             type: "string",
@@ -378,6 +424,10 @@ function extractSprites(args: ExtractSpritesArgs) {
     paletteFile,
     graphics,
     outputDir,
+    transparentColor,
+    shadowOffset,
+    animationDelayMultiplier,
+    player,
   } = args;
   const datResult = readDatFile(filename, inputVersionParameter);
   if (datResult) {
@@ -388,6 +438,7 @@ function extractSprites(args: ExtractSpritesArgs) {
       outputDir,
       paletteFile,
       graphics,
+      { transparentColor, shadowOffset, animationDelayMultiplier, player },
     );
   }
 }
@@ -459,9 +510,27 @@ function writeWorldDatabaseSprites(
   outputDirectory: string,
   palettePath: string,
   graphicsPath: string,
+  {
+    transparentColor,
+    shadowOffset,
+    animationDelayMultiplier,
+    player,
+  }: {
+    transparentColor: number;
+    shadowOffset: Point<number>;
+    animationDelayMultiplier: number;
+    player: number;
+  },
 ) {
   const paletteFile = readPaletteFile(palettePath);
-  const graphics = readGraphics(graphicsPath, paletteFile);
+  const colormap = worldDatabase.colormaps.find(
+    (color) => color.id === player - 1,
+  );
+  const graphics = readGraphics(
+    graphicsPath.replaceAll(" ", ",").split(","),
+    paletteFile,
+    colormap?.playerColorBase ?? 16,
+  );
   const spriteOutputDirectory = path.join(outputDirectory, "sprites");
   mkdirSync(spriteOutputDirectory, { recursive: true });
 
@@ -472,7 +541,15 @@ function writeWorldDatabaseSprites(
   clearDirectory(finalDirectory);
   worldDatabase.sprites.forEach((sprite) => {
     Logger.info(`Processing ${sprite?.internalName}`);
-    sprite?.writeToGif(graphics, finalDirectory);
+    sprite?.writeToGif(
+      graphics,
+      {
+        transparentIndex: transparentColor,
+        shadowOffset,
+        delayMultiplier: animationDelayMultiplier,
+      },
+      finalDirectory,
+    );
   });
 }
 

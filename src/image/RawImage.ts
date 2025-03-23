@@ -2,47 +2,41 @@ import { PaletteIndex } from "../database/Types";
 import { Point } from "../geometry/Point";
 import { GifWriter } from "omggif";
 import { Rectangle } from "../geometry/Rectangle";
-import { Logger } from "../Logger";
 
 export class RawImage {
   private width: number;
   private height: number;
-  private data: Uint8Array;
+  private data: Array<PaletteIndex | null>;
   private anchor: Point<number>;
 
-  constructor(
-    width: number,
-    height: number,
-    defaultValue: PaletteIndex = 255 as PaletteIndex,
-  ) {
+  constructor(width: number, height: number) {
     this.width = width;
     this.height = height;
-    this.data = new Uint8Array(width * height);
+    this.data = Array(width * height).fill(null);
     this.anchor = { x: 0, y: 0 };
-    this.data.fill(defaultValue);
   }
 
   isValid() {
     return this.anchor.x > -32768 && this.anchor.y > -32768;
   }
 
-  setPixel(x: number, y: number, value: PaletteIndex): void {
+  setPixel(x: number, y: number, value: PaletteIndex | null): void {
     if (x < 0 || x >= this.width || y < 0 || y >= this.height) {
-      Logger.error("pixel coordinates out of bounds");
-      //throw new Error("Pixel coordinates out of bounds");
+      //Logger.error("pixel coordinates out of bounds");
+      throw new Error("Pixel coordinates out of bounds");
     } else {
       this.data[y * this.width + x] = value;
     }
   }
 
-  getPixel(x: number, y: number): PaletteIndex {
+  getPixel(x: number, y: number): PaletteIndex | null {
     if (x < 0 || x >= this.width || y < 0 || y >= this.height) {
       throw new Error("Pixel coordinates out of bounds");
     }
-    return this.data[y * this.width + x] as PaletteIndex;
+    return this.data[y * this.width + x];
   }
 
-  getRawData(): Uint8Array {
+  getRawData() {
     return this.data;
   }
 
@@ -80,7 +74,7 @@ export class RawImage {
       for (let y = 0; y < image.getHeight(); ++y) {
         for (let x = 0; x < image.getWidth(); ++x) {
           const value = image.getPixel(x, y);
-          if (value !== 255) {
+          if (value !== null) {
             this.setPixel(
               x + offset.x + imageOffsetX,
               y + offset.y + imageOffsetY,
@@ -95,7 +89,7 @@ export class RawImage {
   flippedHorizontally() {
     const flippedImage = new RawImage(this.width, this.height);
     flippedImage.anchor = { ...this.anchor };
-    flippedImage.data = new Uint8Array(this.data);
+    flippedImage.data = [...this.data];
     flippedImage.flipHorizontally();
     return flippedImage;
   }
@@ -114,26 +108,47 @@ export class RawImage {
   }
 
   applyColormap(colormap: PaletteIndex[]) {
-    this.data = this.data.map((entry) => colormap[entry]);
+    this.data = this.data.map((entry) =>
+      entry !== null ? colormap[entry] : entry,
+    );
   }
 
   appendToGif(
     gifWriter: GifWriter,
     bounds: Rectangle<number>,
-    options: { delay: number } = { delay: 10 },
+    {
+      delay,
+      transparentIndex,
+    }: { delay: number; transparentIndex: number | undefined } = {
+      delay: 10,
+      transparentIndex: undefined,
+    },
   ) {
     const offsetX = -this.anchor.x - bounds.left;
     const offsetY = -this.anchor.y - bounds.top;
+    const useTransparency = this.data.some((entry) => entry === null);
     gifWriter.addFrame(
       offsetX,
       offsetY,
       this.width,
       this.height,
-      Array.from(this.data),
+      this.data.map((entry) => {
+        if (entry === null) {
+          if (transparentIndex === undefined) {
+            throw new Error(
+              `Tried writing GIF but entry has transparent color and no index has been specified!`,
+            );
+          } else {
+            return transparentIndex;
+          }
+        } else {
+          return entry;
+        }
+      }),
       {
-        delay: options.delay,
+        delay,
         disposal: 2,
-        transparent: 255,
+        transparent: useTransparency ? transparentIndex : undefined,
       },
     );
   }

@@ -4,12 +4,15 @@ import { parseSlpImage } from "./slpImage";
 import { readPaletteFile } from "./palette";
 import { Logger } from "../Logger";
 import { Graphic, writeGraphic } from "./Graphic";
+import { asUInt8 } from "../ts/base-types";
 
 interface ConvertSlpArgs {
   filename: string;
   paletteFile: string;
   playerColor: number;
   shadowColor: number;
+  transparentColor: number | undefined;
+  frameDelay: number;
   outputFormat: "bmp" | "gif";
   outputDir: string;
 }
@@ -29,6 +32,21 @@ export function addCommands(yargs: yargs.Argv<unknown>) {
           type: "string",
           describe: "Palette file that will be used (JASC-PAL or BMP)",
           demandOption: true,
+        })
+        .option("transparent-color", {
+          type: "string",
+          describe:
+            "Palette index to use as transparent color or 'none' for no transparent index",
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          coerce: (arg: any) =>
+            arg === "none" ? undefined : (asUInt8(Number(arg)) as number),
+          default: 255,
+        })
+        .option("frame-delay", {
+          type: "number",
+          describe:
+            "Frame delay used for animated gifs, in 1/100 of a second (centiseconds)",
+          default: 10,
         })
         .option("player-color", {
           type: "number",
@@ -67,6 +85,8 @@ export function execute(
       outputDir,
       paletteFile,
       outputFormat,
+      transparentColor,
+      frameDelay,
       playerColor,
       shadowColor,
     } = argv as unknown as ConvertSlpArgs;
@@ -79,7 +99,13 @@ export function execute(
     graphic.palette = palette;
     Logger.info(`SLP image parsed successfully`);
 
-    writeGraphic(outputFormat, graphic, filename, outputDir);
+    writeGraphic(
+      outputFormat,
+      graphic,
+      { transparentIndex: transparentColor, delay: frameDelay },
+      filename,
+      outputDir,
+    );
   } else {
     showHelp();
   }
