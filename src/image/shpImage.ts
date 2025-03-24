@@ -42,39 +42,46 @@ export function parseShpImage(buffer: BufferReader): RawImage[] {
     const anchorX = -bounds.left;
     const anchorY = -bounds.top;
 
-    const image = new RawImage(width, height);
-    image.setAnchor({ x: anchorX, y: anchorY });
+    // SHP supports empty images where width < 0 and height < 0
+    if (width > 0 && height > 0) {
+      const image = new RawImage(width, height);
+      image.setAnchor({ x: anchorX, y: anchorY });
 
-    for (let y = 0; y < height; y++) {
-      let x = 0;
-      let rowEnded = false;
-      while (!rowEnded) {
-        const command = buffer.readUInt8();
-        const count = command >> 1;
+      for (let y = 0; y < height; y++) {
+        let x = 0;
+        let rowEnded = false;
+        while (!rowEnded) {
+          const command = buffer.readUInt8();
+          const count = command >> 1;
 
-        if (command === 1) {
-          // Skip
-          x += buffer.readUInt8();
-        } else if (command & 0x01) {
-          // Copy
-          for (let i = 0; i < count; ++i) {
-            image.setPixel(x++, y, buffer.readUInt8<PaletteIndex>());
+          if (command === 1) {
+            // Skip
+            x += buffer.readUInt8();
+          } else if (command & 0x01) {
+            // Copy
+            for (let i = 0; i < count; ++i) {
+              image.setPixel(x++, y, buffer.readUInt8<PaletteIndex>());
+            }
+          } else if (command) {
+            // RLE
+            const color = buffer.readUInt8<PaletteIndex>();
+            for (let i = 0; i < count; ++i) {
+              image.setPixel(x++, y, color);
+            }
+          } else {
+            // command === 0
+            // End of row
+            rowEnded = true;
           }
-        } else if (command) {
-          // RLE
-          const color = buffer.readUInt8<PaletteIndex>();
-          for (let i = 0; i < count; ++i) {
-            image.setPixel(x++, y, color);
-          }
-        } else {
-          // command === 0
-          // End of row
-          rowEnded = true;
         }
       }
+      frames.push(image);
+    } else {
+      // TODO: This is what Shape file Converter does, what should we really do...?
+      const image = new RawImage(3, 3);
+      image.setAnchor({ x: anchorX, y: anchorY });
+      frames.push(image);
     }
-
-    frames.push(image);
   }
 
   return frames;

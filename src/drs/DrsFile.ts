@@ -8,20 +8,18 @@ import { ParsingError } from "../database/Error";
 import { TextFileWriter } from "../textfile/TextFileWriter";
 import path from "path";
 import { detectColormapFile } from "../image/colormap";
-import { detectJascPaletteFile } from "../image/palette";
+import { detectJascPaletteFile, readPaletteFile } from "../image/palette";
 import { detectSlpFile } from "../image/slpImage";
 import { detectShpFile } from "../image/shpImage";
 import { detectBitmapFile } from "../image/bitmap";
+import { ResourceDescriptor } from "./ResourceDescriptor";
+import { ScreenInformation } from "./ScreenInformation";
+import { isDefined } from "../ts/ts-utils";
 
 interface ResourceTypeDirectory {
   resourceType: string;
   entryDirectoryOffset: UInt32;
   entryCount: UInt32;
-}
-
-interface ResourceLocator {
-  resourceId: ResourceId;
-  filename: string;
 }
 
 interface DrsParsingResult {
@@ -72,7 +70,7 @@ export function readFromBuffer(
   if (result.files.length) {
     Logger.info(`Finished parsing DRS, got ${result.files.length} files`);
 
-    const extractedFilenames: ResourceLocator[] = [];
+    const extractedFilenames: ResourceDescriptor[] = [];
 
     result.files.forEach((entry) => {
       if (entry.filename.slice(-4) === ".sin") {
@@ -98,8 +96,40 @@ export function detectBinaryFileTypes(entries: FileEntry[]) {
   });
 }
 
+export function extractScreenInformationResources(entries: FileEntry[]) {
+  return entries
+    .map((entry) => {
+      if (entry.filename.endsWith(".sin")) {
+        const { data, ...rest } = entry;
+        return {
+          ...rest,
+          screenInfo: ScreenInformation.readFromBuffer(new BufferReader(data)),
+        };
+      } else {
+        return null;
+      }
+    })
+    .filter(isDefined);
+}
+
+export function extractPaletteResources(entries: FileEntry[]) {
+  return entries
+    .map((entry) => {
+      if (entry.filename.endsWith(".pal")) {
+        const { data, ...rest } = entry;
+        return {
+          ...rest,
+          palette: readPaletteFile(new BufferReader(data)),
+        };
+      } else {
+        return null;
+      }
+    })
+    .filter(isDefined);
+}
+
 export function extractFilenamesFromResources(entries: FileEntry[]) {
-  const extractedFilenames: ResourceLocator[] = [];
+  const extractedFilenames: ResourceDescriptor[] = [];
 
   const defaultNames: Record<string, string> = {};
   const extraNames: Record<string, ResourceId> = {};
@@ -385,7 +415,7 @@ function extractFilenamesFromScreenInformationResource(
     .map((x) => x.trim())
     .filter((x) => x);
 
-  const result: ResourceLocator[] = [];
+  const result: ResourceDescriptor[] = [];
   fileLines.forEach((line) => {
     const backgroundMatch = line.match(
       /background\d+_files\s+(\S+)\s+(\S+)\s+(-?\d+)\s+(-?\d+)/,

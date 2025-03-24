@@ -5,6 +5,8 @@ import { readPaletteFile } from "./palette";
 import { Logger } from "../Logger";
 import { Graphic, writeGraphic } from "./Graphic";
 import { asUInt8 } from "../ts/base-types";
+import path from "path";
+import { mkdirSync } from "fs";
 
 interface ConvertSlpArgs {
   filename: string;
@@ -99,12 +101,15 @@ export function execute(
     graphic.palette = palette;
     Logger.info(`SLP image parsed successfully`);
 
+    const graphicsDirectory = path.join(outputDir, "graphics");
+    mkdirSync(graphicsDirectory, { recursive: true });
+
     writeGraphic(
       outputFormat,
       graphic,
       { transparentIndex: transparentColor, delay: frameDelay },
       filename,
-      outputDir,
+      graphicsDirectory,
     );
   } else {
     showHelp();

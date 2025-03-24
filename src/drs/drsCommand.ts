@@ -331,6 +331,28 @@ function extractDrsGraphics(args: ExtractDrsGraphicsCommandArgs) {
     })
     .filter(isDefined);
 
+  const screenInformations = DrsFile.extractScreenInformationResources(result);
+  const palettes = DrsFile.extractPaletteResources(result);
+
+  screenInformations.forEach((screenInfo) => {
+    const resources = screenInfo.screenInfo.getAllGraphicResources();
+    const palette = palettes.find(
+      (palette) =>
+        palette.resourceId === screenInfo.screenInfo.palette?.resourceId ||
+        palette.filename === screenInfo.screenInfo.palette?.filename,
+    );
+    if (palette) {
+      resources.forEach((resource) => {
+        const match = graphics.find(
+          (graphic) => graphic.resourceId === resource.resourceId,
+        );
+        if (match) {
+          match.palette = palette.palette;
+        }
+      });
+    }
+  });
+
   const { defaultNames: filenames, extraNames } =
     DrsFile.extractFilenamesFromResources(result);
   const orphanResourceIds: ResourceId[] = [];

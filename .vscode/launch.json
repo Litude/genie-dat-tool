@@ -45,16 +45,27 @@
         //     "output/reslists/empires_970917/graphics.json"
         // ],
         "args": [
-            "dat",
-            "parse-dat",
-            "empires_970917.dat",
-            "--output-format",
-            "graphics",
+            "drs",
+            "extract-graphics",
+            "Interfac_970424.drs",
             "--palette-file",
             "palette.bmp",
-            "--graphics",
-            "graphics_970917.drs"
+            "--resource-names-file",
+            "data/interface_970424.json5",
+            "--output-format",
+            "bmp"
         ],
+        // "args": [
+        //     "dat",
+        //     "parse-dat",
+        //     "empires_970917.dat",
+        //     "--output-format",
+        //     "graphics",
+        //     "--palette-file",
+        //     "palette.bmp",
+        //     "--graphics",
+        //     "graphics_970917.drs"
+        // ],
         // "args": [
         //     "dat",
         //     "parse-dat",

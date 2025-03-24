@@ -6,6 +6,8 @@ import { Logger } from "../Logger";
 import { readColormap } from "./colormap";
 import { Graphic, writeGraphic } from "./Graphic";
 import { asUInt8 } from "../ts/base-types";
+import { mkdirSync } from "fs";
+import path from "path";
 
 interface ConvertShpArgs {
   filename: string;
@@ -100,12 +102,15 @@ export function execute(
       });
     }
 
+    const graphicsDirectory = path.join(outputDir, "graphics");
+    mkdirSync(graphicsDirectory, { recursive: true });
+
     writeGraphic(
       outputFormat,
       graphic,
       { transparentIndex: transparentColor, delay: frameDelay },
       filename,
-      outputDir,
+      graphicsDirectory,
     );
   } else {
     showHelp();

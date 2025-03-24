@@ -700,7 +700,7 @@ export class Sprite {
             if (!sprite) {
               throw new Error("Sprite was null!?");
             }
-            const multiplier = Math.floor(sprite.angleCount / this.angleCount);
+            const multiplier = sprite.angleCount / this.angleCount;
             const { angle, mirrored } =
               graphic.sprite!.getActualAngleGraphicIndex(
                 Math.floor(i * multiplier),

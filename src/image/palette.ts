@@ -9,8 +9,8 @@ export interface ColorRgb {
   blue: UInt8;
 }
 
-export function readPaletteFile(path: string): ColorRgb[] {
-  const buffer = new BufferReader(path);
+export function readPaletteFile(input: string | BufferReader): ColorRgb[] {
+  const buffer = typeof input === "string" ? new BufferReader(input) : input;
   if (detectJascPaletteFile(buffer)) {
     const [header, version, entryCount, ...entries] = buffer
       .toString("ascii")
