@@ -10,7 +10,7 @@ import { Version } from "./Version";
 import { isDefined } from "../ts/ts-utils";
 import BufferReader from "../BufferReader";
 import { decompressFile } from "../deflate";
-import { readPaletteFile } from "../image/palette";
+import { applySystemColors, readPaletteFile } from "../image/palette";
 import { readGraphics } from "../image/Graphic";
 import { asUInt8 } from "../ts/base-types";
 import { Point } from "../geometry/Point";
@@ -38,6 +38,7 @@ interface ExtractSpritesArgs {
   filename: string;
   inputVersion: string;
   paletteFile: string;
+  forceSystemColors: boolean;
   transparentColor: number;
   shadowOffset: Point<number>;
   animationDelayMultiplier: number;
@@ -147,6 +148,12 @@ export function addCommands(yargs: yargs.Argv<unknown>) {
             describe:
               "Palette file that will be used for sprites (JASC-PAL or BMP)",
             demandOption: true,
+          })
+          .option("force-system-colors", {
+            type: "boolean",
+            describe:
+              "Forces the 20 reserved Windows system colors to appear in all palettes. AoE does not always have these properly set in all palettes but some graphics still use them. Use this to correct strange green pixels.",
+            default: false,
           })
           .option("graphics", {
             type: "string",
@@ -422,6 +429,7 @@ function extractSprites(args: ExtractSpritesArgs) {
     filename,
     inputVersion: inputVersionParameter,
     paletteFile,
+    forceSystemColors,
     graphics,
     outputDir,
     transparentColor,
@@ -438,7 +446,13 @@ function extractSprites(args: ExtractSpritesArgs) {
       outputDir,
       paletteFile,
       graphics,
-      { transparentColor, shadowOffset, animationDelayMultiplier, player },
+      {
+        transparentColor,
+        shadowOffset,
+        animationDelayMultiplier,
+        player,
+        forceSystemColors,
+      },
     );
   }
 }
@@ -515,14 +529,19 @@ function writeWorldDatabaseSprites(
     shadowOffset,
     animationDelayMultiplier,
     player,
+    forceSystemColors,
   }: {
     transparentColor: number;
     shadowOffset: Point<number>;
     animationDelayMultiplier: number;
     player: number;
+    forceSystemColors: boolean;
   },
 ) {
   const paletteFile = readPaletteFile(palettePath);
+  if (forceSystemColors) {
+    applySystemColors(paletteFile);
+  }
   const colormap = worldDatabase.colormaps.find(
     (color) => color.id === player - 1,
   );

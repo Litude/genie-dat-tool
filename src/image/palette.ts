@@ -2,6 +2,7 @@ import { decode as bmpDecode } from "bmp-ts";
 import BufferReader from "../BufferReader";
 import { asUInt8, UInt8 } from "../ts/base-types";
 import { detectBitmapFile } from "./bitmap";
+import { PaletteIndex } from "../database/Types";
 
 export interface ColorRgb {
   red: UInt8;
@@ -63,6 +64,42 @@ export function readPaletteFile(input: string | BufferReader): ColorRgb[] {
     throw new Error(
       `Invalid palette file, should be either BMP file or JASC-PAL`,
     );
+  }
+}
+
+export function applySystemColors(palette: ColorRgb[]) {
+  if (palette.length !== 256) {
+    throw new Error(`Palette length was ${palette.length}, expected 256!`);
+  } else {
+    const color = (red: number, green: number, blue: number) => {
+      return {
+        red: asUInt8<PaletteIndex>(red),
+        green: asUInt8<PaletteIndex>(green),
+        blue: asUInt8<PaletteIndex>(blue),
+      };
+    };
+
+    palette[0] = color(0, 0, 0);
+    palette[1] = color(128, 0, 0);
+    palette[2] = color(0, 128, 0);
+    palette[3] = color(128, 128, 0);
+    palette[4] = color(0, 0, 128);
+    palette[5] = color(128, 0, 128);
+    palette[6] = color(0, 128, 128);
+    palette[7] = color(192, 192, 192);
+    palette[8] = color(192, 220, 192);
+    palette[9] = color(166, 202, 240);
+
+    palette[246] = color(255, 251, 240);
+    palette[247] = color(160, 160, 164);
+    palette[248] = color(128, 128, 128);
+    palette[249] = color(255, 0, 0);
+    palette[250] = color(0, 255, 0);
+    palette[251] = color(255, 255, 0);
+    palette[252] = color(0, 0, 255);
+    palette[253] = color(255, 0, 255);
+    palette[254] = color(0, 255, 255);
+    palette[255] = color(255, 255, 255);
   }
 }
 

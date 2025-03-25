@@ -83,6 +83,32 @@ export class ScreenInformation {
     return result;
   }
 
+  getAllResourceDescriptors(): ResourceDescriptor[] {
+    const result: ResourceDescriptor[] = [];
+    result.push(
+      ...this.backgrounds
+        .map((bg) => [bg.primary, bg.shaded].filter(isDefined))
+        .filter(isDefined)
+        .flat(),
+    );
+    if (this.palette) {
+      result.push(this.palette);
+    }
+    if (this.cursor) {
+      result.push(this.cursor);
+    }
+    if (this.shadeColorMap) {
+      result.push(this.shadeColorMap);
+    }
+    if (this.buttons) {
+      result.push(this.buttons);
+    }
+    if (this.dialogInformation) {
+      result.push(this.dialogInformation);
+    }
+    return result;
+  }
+
   static readFromBuffer(buffer: BufferReader) {
     const fileLines = buffer
       .toString("utf8")
@@ -289,5 +315,17 @@ function parseTextColor(prefix: string, line: string) {
       asUInt8<PaletteIndex>(Number(string)),
     ) as [PaletteIndex, PaletteIndex, PaletteIndex];
     return colors;
+  }
+}
+
+export function detectSinFile(bufferReader: BufferReader) {
+  try {
+    if (bufferReader.isAscii()) {
+      const contents = bufferReader.toString("ascii").trim();
+      return contents.startsWith("background1_files ");
+    }
+    return false;
+  } catch (_e: unknown) {
+    return false;
   }
 }

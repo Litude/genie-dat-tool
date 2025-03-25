@@ -13,7 +13,7 @@ import { detectSlpFile } from "../image/slpImage";
 import { detectShpFile } from "../image/shpImage";
 import { detectBitmapFile } from "../image/bitmap";
 import { ResourceDescriptor } from "./ResourceDescriptor";
-import { ScreenInformation } from "./ScreenInformation";
+import { detectSinFile, ScreenInformation } from "./ScreenInformation";
 import { isDefined } from "../ts/ts-utils";
 
 interface ResourceTypeDirectory {
@@ -69,18 +69,6 @@ export function readFromBuffer(
   }
   if (result.files.length) {
     Logger.info(`Finished parsing DRS, got ${result.files.length} files`);
-
-    const extractedFilenames: ResourceDescriptor[] = [];
-
-    result.files.forEach((entry) => {
-      if (entry.filename.slice(-4) === ".sin") {
-        extractedFilenames.push(
-          ...extractFilenamesFromScreenInformationResource(
-            new BufferReader(entry.data),
-          ),
-        );
-      }
-    });
   }
   return result;
 }
@@ -129,20 +117,14 @@ export function extractPaletteResources(entries: FileEntry[]) {
 }
 
 export function extractFilenamesFromResources(entries: FileEntry[]) {
-  const extractedFilenames: ResourceDescriptor[] = [];
-
   const defaultNames: Record<string, string> = {};
   const extraNames: Record<string, ResourceId> = {};
 
-  entries.forEach((entry) => {
-    if (entry.filename.endsWith(".sin")) {
-      extractedFilenames.push(
-        ...extractFilenamesFromScreenInformationResource(
-          new BufferReader(entry.data),
-        ),
-      );
-    }
-  });
+  const screenInfoResources = extractScreenInformationResources(entries);
+  const extractedFilenames: ResourceDescriptor[] = screenInfoResources.flatMap(
+    (screenInfoResource) =>
+      screenInfoResource.screenInfo.getAllResourceDescriptors(),
+  );
 
   // Graphic files could be either slp or shp, but we can use the previously detected
   // extension to determine this
@@ -406,114 +388,6 @@ function detectFilenameFromResourceIds(
   }
 }
 
-function extractFilenamesFromScreenInformationResource(
-  bufferReader: BufferReader,
-) {
-  const fileLines = bufferReader
-    .toString("utf8")
-    .split("\r\n")
-    .map((x) => x.trim())
-    .filter((x) => x);
-
-  const result: ResourceDescriptor[] = [];
-  fileLines.forEach((line) => {
-    const backgroundMatch = line.match(
-      /background\d+_files\s+(\S+)\s+(\S+)\s+(-?\d+)\s+(-?\d+)/,
-    );
-    if (backgroundMatch) {
-      const [
-        ,
-        regularFilename,
-        darkenedFilename,
-        regularResourceIdStr,
-        darkenedResourceIdStr,
-      ] = backgroundMatch;
-      const regularResourceId = Number(regularResourceIdStr);
-      if (
-        regularResourceId >= 0 &&
-        regularFilename.toLocaleLowerCase() !== "none"
-      ) {
-        result.push({
-          resourceId: asInt32<ResourceId>(regularResourceId),
-          filename: `${regularFilename}.slp`, // graphic files could be either slp or shp, we assume slp and fix this later
-        });
-      }
-      const darkenedResourceId = Number(darkenedResourceIdStr);
-      if (
-        darkenedResourceId >= 0 &&
-        darkenedFilename.toLocaleLowerCase() !== "none"
-      ) {
-        result.push({
-          resourceId: asInt32<ResourceId>(darkenedResourceId),
-          filename: `${darkenedFilename}.slp`,
-        });
-      }
-      return;
-    }
-    const paletteMatch = line.match(/palette_file\s+(\S+)\s+(-?\d+)/);
-    if (paletteMatch) {
-      const [, filename, resourceIdStr] = paletteMatch;
-      const resourceId = Number(resourceIdStr);
-      if (resourceId >= 0 && filename.toLocaleLowerCase() !== "none") {
-        result.push({
-          resourceId: asInt32<ResourceId>(resourceId),
-          filename: `${filename}.pal`,
-        });
-      }
-      return;
-    }
-    const cursorMatch = line.match(/cursor_file\s+(\S+)\s+(-?\d+)/);
-    if (cursorMatch) {
-      const [, filename, resourceIdStr] = cursorMatch;
-      const resourceId = Number(resourceIdStr);
-      if (resourceId >= 0 && filename.toLocaleLowerCase() !== "none") {
-        result.push({
-          resourceId: asInt32<ResourceId>(resourceId),
-          filename: `${filename}.slp`,
-        });
-      }
-      return;
-    }
-    const shadeMatch = line.match(/shade_color_table\s+(\S+)\s+(-?\d+)/);
-    if (shadeMatch) {
-      const [, filename, resourceIdStr] = shadeMatch;
-      const resourceId = Number(resourceIdStr);
-      if (resourceId >= 0 && filename.toLocaleLowerCase() !== "none") {
-        result.push({
-          resourceId: asInt32<ResourceId>(resourceId),
-          filename: `${filename}.col`,
-        });
-      }
-      return;
-    }
-    const buttonMatch = line.match(/button_file\s+(\S+)\s+(-?\d+)/);
-    if (buttonMatch) {
-      const [, filename, resourceIdStr] = buttonMatch;
-      const resourceId = Number(resourceIdStr);
-      if (resourceId >= 0 && filename.toLocaleLowerCase() !== "none") {
-        result.push({
-          resourceId: asInt32<ResourceId>(resourceId),
-          filename: `${filename}.slp`,
-        });
-      }
-      return;
-    }
-    const dialogMatch = line.match(/popup_dialog_sin\s+(\S+)\s+(-?\d+)/);
-    if (dialogMatch) {
-      const [, filename, resourceIdStr] = dialogMatch;
-      const resourceId = Number(resourceIdStr);
-      if (resourceId >= 0 && filename.toLocaleLowerCase() !== "none") {
-        result.push({
-          resourceId: asInt32<ResourceId>(resourceId),
-          filename: `${filename}.sin`,
-        });
-      }
-      return;
-    }
-  });
-  return result;
-}
-
 function detectWavFile(bufferReader: BufferReader) {
   try {
     bufferReader.seek(0);
@@ -521,18 +395,6 @@ function detectWavFile(bufferReader: BufferReader) {
     if (firstBytes === "RIFF") {
       bufferReader.seek(8);
       return bufferReader.readFixedSizeString(8) === "WAVEfmt ";
-    }
-    return false;
-  } catch (_e: unknown) {
-    return false;
-  }
-}
-
-function detectSinFile(bufferReader: BufferReader) {
-  try {
-    if (bufferReader.isAscii()) {
-      const contents = bufferReader.toString("ascii").trim();
-      return contents.startsWith("background1_files ");
     }
     return false;
   } catch (_e: unknown) {

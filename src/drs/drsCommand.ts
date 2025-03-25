@@ -3,7 +3,7 @@ import { z } from "zod";
 import { Logger } from "../Logger";
 import * as DrsFile from "./DrsFile";
 import { mkdirSync, readFileSync } from "fs";
-import { ResourceId } from "../database/Types";
+import { ResourceId, ResourceIdSchema } from "../database/Types";
 import { asInt32, asUInt8 } from "../ts/base-types";
 import path from "path";
 import { clearDirectory } from "../files/file-utils";
@@ -14,7 +14,7 @@ import BufferReader from "../BufferReader";
 import { Graphic, writeGraphic } from "../image/Graphic";
 import { parseShpImage } from "../image/shpImage";
 import { isDefined } from "../ts/ts-utils";
-import { readPaletteFile } from "../image/palette";
+import { applySystemColors, readPaletteFile } from "../image/palette";
 
 export interface ExtractDrsFilesCommandArgs {
   filename: string;
@@ -26,7 +26,9 @@ export interface ExtractDrsGraphicsCommandArgs {
   filename: string;
   outputDir: string;
   resourceNamesFile?: string;
+  resourcePalettesFile?: string;
   outputFormat: "bmp" | "gif";
+  forceSystemColors: boolean;
   paletteFile: string;
   playerColor: number;
   shadowColor: number;
@@ -58,7 +60,7 @@ export function addCommands(yargs: yargs.Argv<unknown>) {
           });
       },
     )
-    .command<ExtractDrsFilesCommandArgs>(
+    .command<ExtractDrsGraphicsCommandArgs>(
       "extract-graphics <filename>",
       "Process a DRS file and extract its graphics",
       (yargs) => {
@@ -79,10 +81,21 @@ export function addCommands(yargs: yargs.Argv<unknown>) {
             describe:
               "Path to JSON file(s) that contains filenames used for graphics. Multiple files can be specified separated by a comma, later files take priority.",
           })
+          .option("resource-palettes-file", {
+            type: "string",
+            describe:
+              "Path to JSON file that contains resource id -> resource id entries that determines which palette to use for specific resources. The palette id must be in the DRS file (so this is useful for interfac.drs)",
+          })
           .option("palette-file", {
             type: "string",
             describe: "Palette file that will be used (JASC-PAL or BMP)",
             demandOption: true,
+          })
+          .option("force-system-colors", {
+            type: "boolean",
+            describe:
+              "Forces the 20 reserved Windows system colors to appear in all palettes. AoE does not always have these properly set in all palettes but some graphics still use them. Use this to correct strange green pixels.",
+            default: false,
           })
           .option("transparent-color", {
             type: "string",
@@ -276,12 +289,25 @@ function extractDrsGraphics(args: ExtractDrsGraphicsCommandArgs) {
     transparentColor,
     frameDelay,
     resourceNamesFile,
+    resourcePalettesFile,
+    forceSystemColors,
     paletteFile,
     playerColor,
     shadowColor,
   } = args;
 
   const palette = readPaletteFile(paletteFile);
+  if (forceSystemColors) {
+    applySystemColors(palette);
+  }
+
+  const resourcePalettes = resourcePalettesFile
+    ? z
+        .record(z.string().regex(/^\d+$/), ResourceIdSchema)
+        .parse(
+          JSON5.parse(readFileSync(resourcePalettesFile).toString("utf-8")),
+        )
+    : null;
 
   const rawResult = drsFilenames
     .replaceAll(" ", ",")
@@ -333,35 +359,34 @@ function extractDrsGraphics(args: ExtractDrsGraphicsCommandArgs) {
 
   const screenInformations = DrsFile.extractScreenInformationResources(result);
   const palettes = DrsFile.extractPaletteResources(result);
-
-  screenInformations.forEach((screenInfo) => {
-    const resources = screenInfo.screenInfo.getAllGraphicResources();
-    const palette = palettes.find(
-      (palette) =>
-        palette.resourceId === screenInfo.screenInfo.palette?.resourceId ||
-        palette.filename === screenInfo.screenInfo.palette?.filename,
-    );
-    if (palette) {
-      resources.forEach((resource) => {
-        const match = graphics.find(
-          (graphic) => graphic.resourceId === resource.resourceId,
-        );
-        if (match) {
-          match.palette = palette.palette;
-        }
-      });
-    }
-  });
-
+  if (forceSystemColors) {
+    palettes.forEach((palette) => {
+      applySystemColors(palette.palette);
+    });
+  }
   const { defaultNames: filenames, extraNames } =
     DrsFile.extractFilenamesFromResources(result);
+  screenInformations.forEach((screenInfoRes) => {
+    screenInfoRes.screenInfo
+      .getAllGraphicResources()
+      .forEach((filenameEntry) => {
+        if (filenameEntry.filename.endsWith(".slp")) {
+          const dataEntry = graphics.find(
+            (entry) => entry.resourceId === filenameEntry.resourceId,
+          );
+          if (dataEntry && dataEntry.filename?.endsWith(".shp")) {
+            filenameEntry.filename =
+              filenameEntry.filename.slice(0, -3) + "shp";
+          }
+        }
+      });
+  });
+
   const orphanResourceIds: ResourceId[] = [];
   const orphanFilenameEntries: {
     resourceId: ResourceId;
     filename: string;
   }[] = [];
-
-  console.log(resourceNamesFile);
 
   if (resourceNamesFile) {
     const providedFilenames = getResourceFilenames(resourceNamesFile);
@@ -423,6 +448,86 @@ function extractDrsGraphics(args: ExtractDrsGraphicsCommandArgs) {
       });
     }
   });
+
+  // Entries that share the same resource id but have different palettes and filenames need to be handled separately;
+
+  const existingExtraGraphics = new Set<string>();
+  const extraGraphics: Graphic[] = [];
+
+  Object.entries(extraNames).forEach(([filename, resourceId]) => {
+    const graphic = graphics.find((file) => file.resourceId === resourceId);
+    if (graphic) {
+      if (!existingExtraGraphics.has(graphic.filename ?? "")) {
+        extraGraphics.push(graphic);
+        existingExtraGraphics.add(graphic.filename ?? "");
+      }
+
+      const newGraphic = new Graphic(graphic.frames);
+      newGraphic.filename = filename;
+      newGraphic.resourceId = graphic.resourceId;
+      extraGraphics.push(newGraphic);
+      //newGraphic.writeToFile(outputDirectory);
+      Logger.info(
+        `Extra file written: ${newGraphic.resourceId} - ${newGraphic.filename}`,
+      );
+    } else {
+      Logger.error(
+        `Extra file NOT written: ${resourceId} - ${filename}, could not find referenced resource!`,
+      );
+    }
+  });
+  const extraIds = extraGraphics.map((graphic) => graphic.resourceId);
+  const mainGraphics = graphics.filter(
+    (graphic) => !extraIds.includes(graphic.resourceId),
+  );
+
+  screenInformations.forEach((screenInfo) => {
+    const resources = screenInfo.screenInfo.getAllGraphicResources();
+    const palette = palettes.find(
+      (palette) =>
+        palette.resourceId === screenInfo.screenInfo.palette?.resourceId ||
+        palette.filename === screenInfo.screenInfo.palette?.filename,
+    );
+    if (palette) {
+      resources.forEach((resource) => {
+        const mainMatch = mainGraphics.find(
+          (graphic) => graphic.resourceId === resource.resourceId,
+        );
+        if (mainMatch) {
+          mainMatch.palette = palette.palette;
+        }
+        const extraMatch = extraGraphics.find(
+          (graphic) => graphic.filename === resource.filename,
+        );
+        if (extraMatch) {
+          extraMatch.palette = palette.palette;
+        }
+      });
+    }
+  });
+
+  if (resourcePalettes) {
+    Object.entries(resourcePalettes).forEach(
+      ([resourceIdStr, paletteResourceId]) => {
+        const resourceId = asInt32<ResourceId>(Number(resourceIdStr));
+        const paletteResource = palettes.find(
+          (palette) => palette.resourceId === paletteResourceId,
+        );
+        if (paletteResource) {
+          [...mainGraphics, ...extraGraphics].forEach((graphic) => {
+            if (graphic.resourceId === resourceId) {
+              graphic.palette = paletteResource.palette;
+            }
+          });
+        } else {
+          Logger.warn(
+            `Palette override for resource ${resourceId} specified as palette ${paletteResourceId}, but no such palette was found!`,
+          );
+        }
+      },
+    );
+  }
+
   const subdirectory = path.parse(
     drsFilenames.replaceAll(" ", ",").split(",")[0],
   ).name;
@@ -431,7 +536,7 @@ function extractDrsGraphics(args: ExtractDrsGraphicsCommandArgs) {
   mkdirSync(graphicsDirectory, { recursive: true });
   clearDirectory(graphicsDirectory);
 
-  graphics.forEach((graphic) => {
+  [...mainGraphics, ...extraGraphics].forEach((graphic) => {
     writeGraphic(
       outputFormat,
       graphic,

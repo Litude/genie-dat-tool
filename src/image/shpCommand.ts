@@ -1,7 +1,7 @@
 import yargs from "yargs";
 import BufferReader from "../BufferReader";
 import { parseShpImage } from "./shpImage";
-import { readPaletteFile } from "./palette";
+import { applySystemColors, readPaletteFile } from "./palette";
 import { Logger } from "../Logger";
 import { readColormap } from "./colormap";
 import { Graphic, writeGraphic } from "./Graphic";
@@ -12,6 +12,7 @@ import path from "path";
 interface ConvertShpArgs {
   filename: string;
   paletteFile: string;
+  forceSystemColors: boolean;
   colormapFile?: string;
   outputFormat: "bmp" | "gif";
   transparentColor: number | undefined;
@@ -34,6 +35,12 @@ export function addCommands(yargs: yargs.Argv<unknown>) {
           type: "string",
           describe: "Palette file that will be used (JASC-PAL or BMP)",
           demandOption: true,
+        })
+        .option("force-system-colors", {
+          type: "boolean",
+          describe:
+            "Forces the 20 reserved Windows system colors to appear in all palettes. AoE does not always have these properly set in all palettes but some graphics still use them. Use this to correct strange green pixels.",
+          default: false,
         })
         .option("colormap-file", {
           type: "string",
@@ -80,15 +87,17 @@ export function execute(
       filename,
       outputDir,
       paletteFile,
+      forceSystemColors,
       colormapFile,
       outputFormat,
       transparentColor,
       frameDelay,
     } = argv as unknown as ConvertShpArgs;
 
-    console.log(`Transparent color input is ${transparentColor}`);
-
     const palette = readPaletteFile(paletteFile);
+    if (forceSystemColors) {
+      applySystemColors(palette);
+    }
 
     const buffer = new BufferReader(filename);
     const shpFrames = parseShpImage(buffer);

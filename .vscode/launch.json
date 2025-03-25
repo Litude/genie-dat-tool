@@ -47,11 +47,9 @@
         "args": [
             "drs",
             "extract-graphics",
-            "Interfac_970424.drs",
+            "Interfac_971002T.drs",
             "--palette-file",
             "palette.bmp",
-            "--resource-names-file",
-            "data/interface_970424.json5",
             "--output-format",
             "bmp"
         ],

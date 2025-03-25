@@ -1,7 +1,7 @@
 import yargs from "yargs";
 import BufferReader from "../BufferReader";
 import { parseSlpImage } from "./slpImage";
-import { readPaletteFile } from "./palette";
+import { applySystemColors, readPaletteFile } from "./palette";
 import { Logger } from "../Logger";
 import { Graphic, writeGraphic } from "./Graphic";
 import { asUInt8 } from "../ts/base-types";
@@ -11,6 +11,7 @@ import { mkdirSync } from "fs";
 interface ConvertSlpArgs {
   filename: string;
   paletteFile: string;
+  forceSystemColors: boolean;
   playerColor: number;
   shadowColor: number;
   transparentColor: number | undefined;
@@ -34,6 +35,12 @@ export function addCommands(yargs: yargs.Argv<unknown>) {
           type: "string",
           describe: "Palette file that will be used (JASC-PAL or BMP)",
           demandOption: true,
+        })
+        .option("force-system-colors", {
+          type: "boolean",
+          describe:
+            "Forces the 20 reserved Windows system colors to appear in all palettes. AoE does not always have these properly set in all palettes but some graphics still use them. Use this to correct strange green pixels.",
+          default: false,
         })
         .option("transparent-color", {
           type: "string",
@@ -86,6 +93,7 @@ export function execute(
       filename,
       outputDir,
       paletteFile,
+      forceSystemColors,
       outputFormat,
       transparentColor,
       frameDelay,
@@ -94,6 +102,9 @@ export function execute(
     } = argv as unknown as ConvertSlpArgs;
 
     const palette = readPaletteFile(paletteFile);
+    if (forceSystemColors) {
+      applySystemColors(palette);
+    }
 
     const buffer = new BufferReader(filename);
     const slpFrames = parseSlpImage(buffer, { playerColor, shadowColor });
