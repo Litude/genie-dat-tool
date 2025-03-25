@@ -10,6 +10,24 @@ export interface ColorRgb {
   blue: UInt8;
 }
 
+const color = (red: number, green: number, blue: number) => {
+  return {
+    red: asUInt8<PaletteIndex>(red),
+    green: asUInt8<PaletteIndex>(green),
+    blue: asUInt8<PaletteIndex>(blue),
+  };
+};
+
+const WaterColors: ColorRgb[] = [
+  color(23, 39, 124),
+  color(39, 63, 144),
+  color(63, 95, 159),
+  color(87, 123, 180),
+  color(63, 95, 160),
+  color(39, 63, 145),
+  color(23, 39, 123),
+];
+
 export function readPaletteFile(input: string | BufferReader): ColorRgb[] {
   const buffer = typeof input === "string" ? new BufferReader(input) : input;
   if (detectJascPaletteFile(buffer)) {
@@ -71,14 +89,6 @@ export function applySystemColors(palette: ColorRgb[]) {
   if (palette.length !== 256) {
     throw new Error(`Palette length was ${palette.length}, expected 256!`);
   } else {
-    const color = (red: number, green: number, blue: number) => {
-      return {
-        red: asUInt8<PaletteIndex>(red),
-        green: asUInt8<PaletteIndex>(green),
-        blue: asUInt8<PaletteIndex>(blue),
-      };
-    };
-
     palette[0] = color(0, 0, 0);
     palette[1] = color(128, 0, 0);
     palette[2] = color(0, 128, 0);
@@ -113,4 +123,27 @@ export function detectJascPaletteFile(bufferReader: BufferReader) {
   } catch (_e: unknown) {
     return false;
   }
+}
+
+export function getPaletteWithWaterColors(
+  palette: ColorRgb[],
+  waterAnimationState: number,
+) {
+  if (waterAnimationState < 0 || waterAnimationState > 6) {
+    throw new Error(
+      `Water animation state must be a number in the range 0-7, got ${waterAnimationState}`,
+    );
+  }
+
+  const adjustedAnimationState =
+    waterAnimationState === 0 ? 0 : 7 - waterAnimationState;
+
+  const clonedPalette = structuredClone(palette);
+  for (let i = 0; i < 7; ++i) {
+    const waterColor = structuredClone(
+      WaterColors[(i + adjustedAnimationState) % 7],
+    );
+    clonedPalette[248 + i] = waterColor;
+  }
+  return clonedPalette;
 }

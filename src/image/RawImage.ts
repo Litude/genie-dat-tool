@@ -2,12 +2,15 @@ import { PaletteIndex } from "../database/Types";
 import { Point } from "../geometry/Point";
 import { GifWriter } from "omggif";
 import { Rectangle } from "../geometry/Rectangle";
+import { ColorRgb } from "./palette";
 
 export class RawImage {
   private width: number;
   private height: number;
   private data: Array<PaletteIndex | null>;
   private anchor: Point<number>;
+  palette?: ColorRgb[]; // If a frame has a palette, it overrides the palette used by the graphic (needed for water animation)
+  delay?: number; // If specified, overrides default delay
 
   constructor(width: number, height: number) {
     this.width = width;
@@ -18,6 +21,12 @@ export class RawImage {
 
   isValid() {
     return this.anchor.x > -32768 && this.anchor.y > -32768;
+  }
+
+  hasWaterAnimation() {
+    return this.data.some(
+      (color) => color !== null && color >= 248 && color <= 254,
+    );
   }
 
   setPixel(x: number, y: number, value: PaletteIndex | null): void {
@@ -146,9 +155,15 @@ export class RawImage {
         }
       }),
       {
-        delay,
+        delay: this.delay ?? delay,
         disposal: 2,
         transparent: useTransparency ? transparentIndex : undefined,
+        palette: this.palette?.map((entry) => {
+          let value = +entry.blue;
+          value |= entry.green << 8;
+          value |= entry.red << 16;
+          return value;
+        }),
       },
     );
   }

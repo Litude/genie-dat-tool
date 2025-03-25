@@ -29,6 +29,10 @@ export class Graphic {
     return this.frames.some((frame) => frame.isValid());
   }
 
+  hasWaterAnimation() {
+    return this.frames.some((frame) => frame.hasWaterAnimation());
+  }
+
   getBounds(): Rectangle<number> {
     const validFrames = this.frames.filter((frame) => frame.isValid());
     if (!validFrames.length) {
@@ -142,17 +146,21 @@ export class Graphic {
       animationHeight,
       {
         loop: 0,
-        palette: this.palette.map((entry) => {
-          let value = +entry.blue;
-          value |= entry.green << 8;
-          value |= entry.red << 16;
-          return value;
-        }),
+        palette: this.frames.every((frame) => frame.palette)
+          ? undefined
+          : this.palette.map((entry) => {
+              let value = +entry.blue;
+              value |= entry.green << 8;
+              value |= entry.red << 16;
+              return value;
+            }),
       },
     );
     this.frames.forEach((image, index) => {
       image.appendToGif(gifWriter, animationBounds, {
-        delay: index === this.frames.length - 1 ? delay + replayDelay : delay,
+        delay:
+          image.delay ??
+          (index === this.frames.length - 1 ? delay + replayDelay : delay),
         transparentIndex,
       });
     });
@@ -162,7 +170,7 @@ export class Graphic {
       `${path.parse(filename ?? this.filename ?? "unnamed").name}.gif`,
     );
     writeFileSync(outputPath, gifData);
-    Logger.info(`Wrote ${outputPath}`);
+    //Logger.info(`Wrote ${outputPath}`);
   }
 
   slice(start?: number, end?: number) {

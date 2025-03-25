@@ -45,14 +45,25 @@
         //     "output/reslists/empires_970917/graphics.json"
         // ],
         "args": [
-            "drs",
-            "extract-graphics",
-            "Interfac_971002T.drs",
+            "dat",
+            "extract-sprites",
+            "empires_970204.dat",
             "--palette-file",
             "palette.bmp",
-            "--output-format",
-            "bmp"
+            "--graphics",
+            "graphics_970203.drs",
+            "--force-system-colors",
+            "--animate-water"
         ],
+        // "args": [
+        //     "drs",
+        //     "extract-graphics",
+        //     "Interfac_971002T.drs",
+        //     "--palette-file",
+        //     "palette.bmp",
+        //     "--output-format",
+        //     "bmp"
+        // ],
         // "args": [
         //     "dat",
         //     "parse-dat",

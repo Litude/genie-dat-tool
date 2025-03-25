@@ -38,7 +38,7 @@ import {
 import { TextFileWriter } from "../textfile/TextFileWriter";
 import { TextFileNames } from "../textfile/TextFile";
 import { SoundEffect } from "./SoundEffect";
-import { getDataEntry } from "../util";
+import { getDataEntry, lcm } from "../util";
 import { onParsingError } from "./Error";
 import path from "path";
 import { readFileSync } from "fs";
@@ -62,6 +62,7 @@ import { writeResourceList } from "../textfile/ResourceList";
 import { getCombinedGraphicBounds, Graphic } from "../image/Graphic";
 import { RawImage } from "../image/RawImage";
 import { Logger } from "../Logger";
+import { getPaletteWithWaterColors } from "../image/palette";
 
 interface SpriteOverlay {
   spriteId: Int16;
@@ -622,10 +623,12 @@ export class Sprite {
       transparentIndex,
       shadowOffset,
       delayMultiplier,
+      animateWater,
     }: {
       transparentIndex: number;
       shadowOffset: Point<number>;
       delayMultiplier: number;
+      animateWater: boolean;
     },
     outputDirectory: string,
   ) {
@@ -726,36 +729,154 @@ export class Sprite {
           .filter(
             (graphic) => graphic.angle === mainAngle || graphic.angle === -1,
           );
+
+        const shouldAnimateWater =
+          animateWater &&
+          angleGraphics.some((graphic) => graphic.graphic.hasWaterAnimation());
+
         const totalBounds = getCombinedGraphicBounds(angleGraphics);
         if (totalBounds) {
-          for (let j = 0; j < this.framesPerAngle; ++j) {
-            const combinedFrame = new RawImage(
-              totalBounds.right - totalBounds.left + 1,
-              totalBounds.bottom - totalBounds.top + 1,
+          if (shouldAnimateWater) {
+            Logger.info(`${this.internalName}_${i} has water animation`);
+            const waterAnimationLength = 20 * 7;
+            const animationFrameLength = Math.round(this.frameDuration * 100);
+            const finalFrameLength =
+              animationFrameLength +
+              Math.round(this.animationReplayDelay * 100);
+            const animationLength =
+              this.framesPerAngle * animationFrameLength +
+              Math.round(this.animationReplayDelay * 100);
+            const totalAnimationLength = lcm(
+              waterAnimationLength,
+              animationLength,
             );
-            combinedFrame.setAnchor({
-              x: -totalBounds.left,
-              y: -totalBounds.top,
-            });
-            angleGraphics.forEach((graphic) => {
-              const index = j >= graphic.graphic.frames.length ? 0 : j;
-              combinedFrame.overlayImage(
-                graphic.graphic.frames[index],
-                graphic.offset,
+            // If there is no regular animation we only need to animate the water pixels
+            if (animationLength === 0) {
+              for (let j = 0; j < 7; ++j) {
+                const combinedFrame = new RawImage(
+                  totalBounds.right - totalBounds.left + 1,
+                  totalBounds.bottom - totalBounds.top + 1,
+                );
+                combinedFrame.setAnchor({
+                  x: -totalBounds.left,
+                  y: -totalBounds.top,
+                });
+                angleGraphics.forEach((graphic) => {
+                  combinedFrame.overlayImage(
+                    graphic.graphic.frames[0],
+                    graphic.offset,
+                  );
+                });
+                combinedFrame.palette = getPaletteWithWaterColors(
+                  graphics[0].palette,
+                  j,
+                );
+                combinedFrames.push(combinedFrame);
+              }
+              const finalGraphic = new Graphic(combinedFrames);
+              finalGraphic.palette = graphics[0].palette;
+              finalGraphic.filename = `${this.internalName}_${i}`;
+              finalGraphic.writeToGif(outputDirectory, {
+                delay: 20 * delayMultiplier,
+                replayDelay: 0,
+                transparentIndex,
+              });
+            } else {
+              const totalLength = totalAnimationLength;
+              let waterFrame = 0;
+              let animationFrame = 0;
+              let waterFrameRemaining = 20;
+              let animationFrameRemaining =
+                this.framesPerAngle === animationFrame + 1
+                  ? finalFrameLength
+                  : animationFrameLength;
+              let length = 0;
+              while (length < totalLength) {
+                const combinedFrame = new RawImage(
+                  totalBounds.right - totalBounds.left + 1,
+                  totalBounds.bottom - totalBounds.top + 1,
+                );
+                combinedFrame.setAnchor({
+                  x: -totalBounds.left,
+                  y: -totalBounds.top,
+                });
+                combinedFrame.palette = getPaletteWithWaterColors(
+                  graphics[0].palette,
+                  waterFrame,
+                );
+                const frameLength = Math.min(
+                  waterFrameRemaining,
+                  animationFrameRemaining,
+                );
+                combinedFrame.delay = frameLength;
+                angleGraphics.forEach((graphic) => {
+                  const index =
+                    animationFrame >= graphic.graphic.frames.length
+                      ? 0
+                      : animationFrame;
+                  combinedFrame.overlayImage(
+                    graphic.graphic.frames[index],
+                    graphic.offset,
+                  );
+                });
+                combinedFrames.push(combinedFrame);
+
+                length += frameLength;
+                waterFrameRemaining -= frameLength;
+                animationFrameRemaining -= frameLength;
+                if (waterFrameRemaining === 0) {
+                  waterFrame = (waterFrame + 1) % 7;
+                  waterFrameRemaining = 20;
+                }
+                if (animationFrameRemaining === 0) {
+                  animationFrame = (animationFrame + 1) % this.framesPerAngle;
+                  animationFrameRemaining =
+                    this.framesPerAngle === animationFrame + 1
+                      ? finalFrameLength
+                      : animationFrameLength;
+                }
+              }
+
+              const finalGraphic = new Graphic(combinedFrames);
+              finalGraphic.palette = graphics[0].palette;
+              finalGraphic.filename = `${this.internalName}_${i}`;
+              finalGraphic.writeToGif(outputDirectory, {
+                // delays are specified in individual frames, these are ignored
+                delay: 0,
+                replayDelay: 0,
+                transparentIndex,
+              });
+            }
+          } else {
+            for (let j = 0; j < this.framesPerAngle; ++j) {
+              const combinedFrame = new RawImage(
+                totalBounds.right - totalBounds.left + 1,
+                totalBounds.bottom - totalBounds.top + 1,
               );
+              combinedFrame.setAnchor({
+                x: -totalBounds.left,
+                y: -totalBounds.top,
+              });
+              angleGraphics.forEach((graphic) => {
+                const index = j >= graphic.graphic.frames.length ? 0 : j;
+                combinedFrame.overlayImage(
+                  graphic.graphic.frames[index],
+                  graphic.offset,
+                );
+              });
+              combinedFrames.push(combinedFrame);
+            }
+            const finalGraphic = new Graphic(combinedFrames);
+            finalGraphic.palette = graphics[0].palette;
+            finalGraphic.filename = `${this.internalName}_${i}`;
+            finalGraphic.writeToGif(outputDirectory, {
+              delay: Math.round(this.frameDuration * 100 * delayMultiplier),
+              replayDelay: Math.round(
+                this.animationReplayDelay * 100 * delayMultiplier,
+              ),
+              transparentIndex,
             });
-            combinedFrames.push(combinedFrame);
           }
-          const finalGraphic = new Graphic(combinedFrames);
-          finalGraphic.palette = graphics[0].palette;
-          finalGraphic.filename = `${this.internalName}_${i}`;
-          finalGraphic.writeToGif(outputDirectory, {
-            delay: Math.round(this.frameDuration * 100 * delayMultiplier),
-            replayDelay: Math.round(
-              this.animationReplayDelay * 100 * delayMultiplier,
-            ),
-            transparentIndex,
-          });
         }
       }
     } else {

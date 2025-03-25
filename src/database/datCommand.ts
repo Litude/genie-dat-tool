@@ -10,7 +10,11 @@ import { Version } from "./Version";
 import { isDefined } from "../ts/ts-utils";
 import BufferReader from "../BufferReader";
 import { decompressFile } from "../deflate";
-import { applySystemColors, readPaletteFile } from "../image/palette";
+import {
+  applySystemColors,
+  getPaletteWithWaterColors,
+  readPaletteFile,
+} from "../image/palette";
 import { readGraphics } from "../image/Graphic";
 import { asUInt8 } from "../ts/base-types";
 import { Point } from "../geometry/Point";
@@ -39,6 +43,7 @@ interface ExtractSpritesArgs {
   inputVersion: string;
   paletteFile: string;
   forceSystemColors: boolean;
+  animateWater: boolean;
   transparentColor: number;
   shadowOffset: Point<number>;
   animationDelayMultiplier: number;
@@ -155,6 +160,12 @@ export function addCommands(yargs: yargs.Argv<unknown>) {
               "Forces the 20 reserved Windows system colors to appear in all palettes. AoE does not always have these properly set in all palettes but some graphics still use them. Use this to correct strange green pixels.",
             default: false,
           })
+          .option("animate-water", {
+            type: "boolean",
+            describe:
+              "Animates water colors in GIF animations. Can make the files significantly larger and processing much slower.",
+            default: false,
+          })
           .option("graphics", {
             type: "string",
             describe:
@@ -174,7 +185,6 @@ export function addCommands(yargs: yargs.Argv<unknown>) {
               "Additional x,y offset to apply for shadows (required for flying sprite shadows to be visible)",
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             coerce: (arg: any): Point<number> => {
-              console.log(arg);
               const [x, y] = arg
                 .replace(",", " ")
                 .split(" ")
@@ -430,6 +440,7 @@ function extractSprites(args: ExtractSpritesArgs) {
     inputVersion: inputVersionParameter,
     paletteFile,
     forceSystemColors,
+    animateWater,
     graphics,
     outputDir,
     transparentColor,
@@ -452,6 +463,7 @@ function extractSprites(args: ExtractSpritesArgs) {
         animationDelayMultiplier,
         player,
         forceSystemColors,
+        animateWater,
       },
     );
   }
@@ -530,17 +542,22 @@ function writeWorldDatabaseSprites(
     animationDelayMultiplier,
     player,
     forceSystemColors,
+    animateWater,
   }: {
     transparentColor: number;
     shadowOffset: Point<number>;
     animationDelayMultiplier: number;
     player: number;
     forceSystemColors: boolean;
+    animateWater: boolean;
   },
 ) {
-  const paletteFile = readPaletteFile(palettePath);
+  let paletteFile = readPaletteFile(palettePath);
   if (forceSystemColors) {
     applySystemColors(paletteFile);
+  }
+  if (animateWater) {
+    paletteFile = getPaletteWithWaterColors(paletteFile, 0);
   }
   const colormap = worldDatabase.colormaps.find(
     (color) => color.id === player - 1,
@@ -559,13 +576,14 @@ function writeWorldDatabaseSprites(
   );
   clearDirectory(finalDirectory);
   worldDatabase.sprites.forEach((sprite) => {
-    Logger.info(`Processing ${sprite?.internalName}`);
+    //Logger.info(`Processing ${sprite?.internalName}`);
     sprite?.writeToGif(
       graphics,
       {
         transparentIndex: transparentColor,
         shadowOffset,
         delayMultiplier: animationDelayMultiplier,
+        animateWater,
       },
       finalDirectory,
     );
