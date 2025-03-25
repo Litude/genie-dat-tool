@@ -288,7 +288,7 @@ function extractDrsGraphics(args: ExtractDrsGraphicsCommandArgs) {
     outputFormat,
     transparentColor,
     frameDelay,
-    resourceNamesFile,
+    resourceNamesFile: resourceNamesFiles,
     resourcePalettesFile,
     forceSystemColors,
     paletteFile,
@@ -388,9 +388,13 @@ function extractDrsGraphics(args: ExtractDrsGraphicsCommandArgs) {
     filename: string;
   }[] = [];
 
-  if (resourceNamesFile) {
-    const providedFilenames = getResourceFilenames(resourceNamesFile);
-    if (providedFilenames) {
+  if (resourceNamesFiles) {
+    const providedFilenames = resourceNamesFiles
+      .split(",")
+      .map((filepath) => getResourceFilenames(filepath))
+      .filter(isDefined)
+      .reduce((acc, cur) => Object.assign(acc, cur), {});
+    if (Object.keys(providedFilenames).length) {
       Object.entries(providedFilenames).forEach(([key, filename]) => {
         if (!filenames[key]) {
           filenames[key] = filename;
@@ -408,7 +412,7 @@ function extractDrsGraphics(args: ExtractDrsGraphicsCommandArgs) {
         }
       });
     } else {
-      Logger.error(`Error reading ${resourceNamesFile}`);
+      Logger.error(`Error reading ${resourceNamesFiles}`);
     }
   }
 
@@ -529,7 +533,7 @@ function extractDrsGraphics(args: ExtractDrsGraphicsCommandArgs) {
   }
 
   const subdirectory = path.parse(
-    drsFilenames.replaceAll(" ", ",").split(",")[0],
+    drsFilenames.replaceAll(" ", ",").split(",").at(-1) ?? "unnamed",
   ).name;
 
   const graphicsDirectory = path.join(outputDir, "graphics", subdirectory);
