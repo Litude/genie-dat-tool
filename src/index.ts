@@ -4,6 +4,7 @@ import * as DrsCommand from "./drs/drsCommand";
 import * as DatCommand from "./database/datCommand";
 import * as ShpCommand from "./image/shpCommand";
 import * as SlpCommand from "./image/slpCommand";
+import * as ScpCommand from "./image/scpCommand";
 
 const yargsInstance = yargs(hideBin(process.argv))
   .scriptName("rge-multitool")
@@ -19,6 +20,9 @@ const yargsInstance = yargs(hideBin(process.argv))
   })
   .command("slp", "Handle SLP files", (yargs) => {
     SlpCommand.addCommands(yargs);
+  })
+  .command("scp", "Handle SCP files", (yargs) => {
+    ScpCommand.addCommands(yargs);
   })
   .help()
   .alias("help", "h");
@@ -40,6 +44,9 @@ function main() {
       break;
     case "slp":
       SlpCommand.execute(argv, showHelp);
+      break;
+    case "scp":
+      ScpCommand.execute(argv, showHelp);
       break;
     default:
       showHelp();
