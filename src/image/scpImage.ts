@@ -69,10 +69,13 @@ export function parseScpImage(buffer: BufferReader): RawImage[] {
         } else {
           const alignedLeft = (leftOffset + 3) & ~0x3;
 
-          const leftRemaining = Math.min(
-            alignedLeft - leftOffset,
-            rowPixelCount,
-          );
+          const leftRemaining = alignedLeft - leftOffset;
+
+          if (leftRemaining > rowPixelCount) {
+            throw new Error(
+              `Invalid SCP file! Found line with ${rowPixelCount} pixel(s) starting at illegal position ${leftOffset}`,
+            );
+          }
 
           const temp = rowPixelCount - leftRemaining;
           const rightRemaining = temp % 4;
