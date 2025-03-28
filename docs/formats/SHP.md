@@ -2,6 +2,10 @@
 
 This document describes the .SHP file format as used by Age of Empires.
 
+The SHP format is the precursor of the common SLP format. This format is much simpler and does not support many of the more advanced game specific features that SLP supports. While this format was completely unused in AoK, AoE still uses this format for some menu graphics even in the final game.
+
+Only earliest known build of Age of Empires, v00.04.03.0113 from January 1997, still supports using SHP files even for game graphics, provided that the game is started with the SLOWDRAW parameter and SHP graphics are present. These make use of other obsolete features, such as the player color maps and information in the sprites on what kind of graphic a sprite is (to determine whether colormaps should be applied).
+
 ## Basic structure
 
 | Type                          | Name              | Description |
@@ -44,6 +48,8 @@ frameWidth = maxX - minY + 1<br>
 frameHeight = maxY - minY + 1<br>
 slpHotspotX = -minX<br>
 slpHotspotY = -minY<br>
+
+Unlike in SLP files, empty frames are valid in SHP files. A frame is empty if the calculated frameWidth and frameHeight is 0 or less. In such cases, there is no ShpCommandData for that frame.
 
 ### Frame command data (ShpCommandData)
 
