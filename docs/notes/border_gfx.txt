@@ -1,0 +1,27 @@
+For overlay borders only first 4 are used:
+0. NW
+1. NE
+2. SW
+3. SE
+
+For regular borders, all 12 are used:
+0. W, N, S
+1. W, N, E
+2. W, E, S
+3. N, E, S
+4. W
+5. N
+6. S
+7. E
+8. W, N
+9. E, S
+10. W, S
+11. N, E
+
+Borders are 4 bits (16 posibilities), but the following are disallowed so we end up with just 12 possibilities:
+- No need to consider case with no borders (removes 1 possibility)
+- No need to consider case with all borders (removes 1 possibility)... Perhaps MICKEY.DAT included this shape?
+- No need to consider case with opposite borders (removes 4 possibilities)
+
+
+Seems like overlays had support for all 16 possibilities

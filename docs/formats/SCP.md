@@ -34,7 +34,7 @@ While the game itself uses completely hardcoded functions for drawing the tiles,
 | Type                             | Name              | Description |
 | ---------                        | -------           | ----------- |
 | char[4]                          | scpVersion        | Always "2.0C". |
-| sint32                           | frameCount        | Number of frames in SHP file. |
+| sint32                           | frameCount        | Number of frames in SCP file. |
 | char[24]                         | comment           | Always "RGE Compiled shape file\0" (null terminated) |
 | FrameInfo[frameCount]            | frameInfo         | Offsets of each frame in the file, see below. |
 | *FrameOutline[frameCount*height] | frameOutlines     | Outline data for each frame, see below. |
@@ -66,9 +66,9 @@ This is very similar to what is in SLP files. However, these are 32-bit numbers 
 
 
 ### Frame data (FrameData)
-The actual frame data is just raw pixel data. However, it is not stored in a linear order from left to right. The SCP file format processed data in groups of 4 pixels and this also affects how the data is stored.
+The actual frame data is just raw pixel data. However, it is not stored in a linear order from left to right. The SCP file format processes data in groups of 4 pixels and this also affects how the data is stored.
 
-First, one can calculate the amount of actual pixel data on the current row as follows:
+First, one can calculate the amount of actual pixels on the current row as follows:
 
 rowPixelCount = frameWidth - (leftOutline + rightOutline);
 
@@ -78,9 +78,11 @@ rowBytes = (rowPixelCount + 3) & ~0x3;
 
 The data for each row follows the previous row. So once rowBytes of data have been processed, the data of the next row starts.
 
-But as previously mentioned, the data is not stored in completely linear order. Instead, the data first contains blocks of 4 pixels that are aligned at coordinates divisible by 4. These are stored in left to right order.
+As previously mentioned, the data is not stored in completely linear order. Instead, the data first contains blocks of 4 pixels that are aligned at coordinates divisible by 4. These are stored linearily in left to right order.
 
-The starting left offset for these pixels can be calculated by rounding up leftOutline to the nearest multiple of 4. This offset can then be used to calculate the total number of pixels that are stored consecutively by subtracting this amount from the total amount of row pixels and rounding this result down to the nearest multiple of 4.
+The starting left offset for these pixels can be calculated by rounding up leftOutline to the nearest multiple of 4. This offset can then be used to calculate the total number of pixels that are stored consecutively. Calculate the difference between the rounded outline and leftOutline and subtract this amount from the total amount of row pixels. Then round this result down to the nearest multiple of 4.
+
+linearPixels = (rowPixelCount - (((leftOutline + 3) & ~0x3) - leftOutline)) & ~0x3
 
 In case the row is short and/or not aligned at a coordinate divisible by 4, it is possible that there are no blocks like this.
 

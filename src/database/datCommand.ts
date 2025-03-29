@@ -52,6 +52,18 @@ interface ExtractSpritesArgs {
   outputDir: string;
 }
 
+interface ExtractTerrainsArgs {
+  filename: string;
+  inputVersion: string;
+  paletteFile: string;
+  forceSystemColors: boolean;
+  animateWater: boolean;
+  transparentColor: number;
+  animationDelayMultiplier: number;
+  graphics: string;
+  outputDir: string;
+}
+
 export function addCommands(yargs: yargs.Argv<unknown>) {
   return yargs
     .command<ParseDatArgs>(
@@ -218,6 +230,65 @@ export function addCommands(yargs: yargs.Argv<unknown>) {
           });
       },
     )
+    .command<ExtractTerrainsArgs>(
+      "extract-terrains <filename>",
+      "Extract terrains from a DAT file",
+      (yargs) => {
+        return yargs
+          .positional("filename", {
+            type: "string",
+            describe: "Filename of DAT file that will be parsed",
+            demandOption: true,
+          })
+          .option("input-version", {
+            type: "string",
+            describe: "Force DAT to be parsed as specified version",
+            default: "auto",
+          })
+          .option("palette-file", {
+            type: "string",
+            describe:
+              "Palette file that will be used for sprites (JASC-PAL or BMP)",
+            demandOption: true,
+          })
+          .option("force-system-colors", {
+            type: "boolean",
+            describe:
+              "Forces the 20 reserved Windows system colors to appear in all palettes. AoE does not always have these properly set in all palettes but some graphics still use them. Use this to correct strange green pixels.",
+            default: false,
+          })
+          .option("animate-water", {
+            type: "boolean",
+            describe:
+              "Animates water colors in GIF animations. Can make the files significantly larger and processing much slower.",
+            default: false,
+          })
+          .option("graphics", {
+            type: "string",
+            describe:
+              "Path to DRS file(s) or directory or loose SLP files for graphics. Multiple files can be specified separated by a comma, later files take priority.",
+            demandOption: true,
+          })
+          .option("transparent-color", {
+            type: "number",
+            describe: "Palette index to use as transparent color",
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            coerce: (arg: any) => asUInt8(Number(arg)) as number,
+            default: 255,
+          })
+          .option("animation-delay-multiplier", {
+            type: "number",
+            describe:
+              "Multiply delay specified in DAT with this value to adjust GIF animation delay",
+            default: 1,
+          })
+          .option("output-dir", {
+            type: "string",
+            describe: "Directory where output files will be written",
+            default: "output",
+          });
+      },
+    )
     .option("list-dat-versions", {
       type: "boolean",
       describe: "List supported DAT versions",
@@ -246,6 +317,9 @@ export function execute(
         break;
       case "extract-sprites":
         extractSprites(argv as unknown as ExtractSpritesArgs);
+        break;
+      case "extract-terrains":
+        extractTerrains(argv as unknown as ExtractTerrainsArgs);
         break;
       default:
         showHelp();
@@ -469,6 +543,37 @@ function extractSprites(args: ExtractSpritesArgs) {
   }
 }
 
+function extractTerrains(args: ExtractTerrainsArgs) {
+  const {
+    filename,
+    inputVersion: inputVersionParameter,
+    paletteFile,
+    forceSystemColors,
+    animateWater,
+    graphics,
+    outputDir,
+    transparentColor,
+    animationDelayMultiplier,
+  } = args;
+  const datResult = readDatFile(filename, inputVersionParameter);
+  if (datResult) {
+    const { worldDatabase } = datResult;
+    writeWorldDatabaseTerrains(
+      worldDatabase,
+      filename,
+      outputDir,
+      paletteFile,
+      graphics,
+      {
+        transparentColor,
+        animationDelayMultiplier,
+        forceSystemColors,
+        animateWater,
+      },
+    );
+  }
+}
+
 function writeWorldDatabaseOutput(
   worldDatabase: WorldDatabase,
   filename: string,
@@ -582,6 +687,62 @@ function writeWorldDatabaseSprites(
       {
         transparentIndex: transparentColor,
         shadowOffset,
+        delayMultiplier: animationDelayMultiplier,
+        animateWater,
+      },
+      finalDirectory,
+    );
+  });
+}
+
+function writeWorldDatabaseTerrains(
+  worldDatabase: WorldDatabase,
+  filename: string,
+  outputDirectory: string,
+  palettePath: string,
+  graphicsPath: string,
+  {
+    transparentColor,
+    animationDelayMultiplier,
+    forceSystemColors,
+    animateWater,
+  }: {
+    transparentColor: number;
+    animationDelayMultiplier: number;
+    forceSystemColors: boolean;
+    animateWater: boolean;
+  },
+) {
+  let paletteFile = readPaletteFile(palettePath);
+  if (forceSystemColors) {
+    applySystemColors(paletteFile);
+  }
+  if (animateWater) {
+    paletteFile = getPaletteWithWaterColors(paletteFile, 0);
+  }
+  const graphics = readGraphics(
+    graphicsPath.replaceAll(" ", ",").split(","),
+    paletteFile,
+    16,
+  );
+  const terrainOutputDirectory = path.join(outputDirectory, "terrains");
+  mkdirSync(terrainOutputDirectory, { recursive: true });
+
+  const finalDirectory = path.join(
+    terrainOutputDirectory,
+    path.parse(filename).name,
+  );
+  clearDirectory(finalDirectory);
+  worldDatabase.terrains.forEach((terrain) => {
+    terrain?.writeToGif(
+      graphics,
+      {
+        x: worldDatabase.mapProperties.tileWidthPx,
+        y: worldDatabase.mapProperties.tileHeightPx,
+      },
+      worldDatabase.mapProperties.elevationHeightPx,
+      {
+        transparentIndex: transparentColor,
         delayMultiplier: animationDelayMultiplier,
         animateWater,
       },

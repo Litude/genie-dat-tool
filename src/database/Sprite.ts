@@ -62,7 +62,11 @@ import { writeResourceList } from "../textfile/ResourceList";
 import { getCombinedGraphicBounds, Graphic } from "../image/Graphic";
 import { RawImage } from "../image/RawImage";
 import { Logger } from "../Logger";
-import { getPaletteWithWaterColors } from "../image/palette";
+import {
+  getPaletteWithWaterColors,
+  WaterAnimationDelay,
+  WaterAnimationFrameCount,
+} from "../image/palette";
 
 interface SpriteOverlay {
   spriteId: Int16;
@@ -738,7 +742,8 @@ export class Sprite {
         if (totalBounds) {
           if (shouldAnimateWater) {
             Logger.info(`${this.internalName}_${i} has water animation`);
-            const waterAnimationLength = 20 * 7;
+            const waterAnimationLength =
+              WaterAnimationDelay * WaterAnimationFrameCount;
             const animationFrameLength = Math.round(this.frameDuration * 100);
             const finalFrameLength =
               animationFrameLength +
@@ -752,7 +757,7 @@ export class Sprite {
             );
             // If there is no regular animation we only need to animate the water pixels
             if (animationLength === 0) {
-              for (let j = 0; j < 7; ++j) {
+              for (let j = 0; j < WaterAnimationFrameCount; ++j) {
                 const combinedFrame = new RawImage(
                   totalBounds.right - totalBounds.left + 1,
                   totalBounds.bottom - totalBounds.top + 1,
@@ -777,7 +782,7 @@ export class Sprite {
               finalGraphic.palette = graphics[0].palette;
               finalGraphic.filename = `${this.internalName}_${i}`;
               finalGraphic.writeToGif(outputDirectory, {
-                delay: 20 * delayMultiplier,
+                delay: WaterAnimationDelay * delayMultiplier,
                 replayDelay: 0,
                 transparentIndex,
               });
@@ -785,7 +790,7 @@ export class Sprite {
               const totalLength = totalAnimationLength;
               let waterFrame = 0;
               let animationFrame = 0;
-              let waterFrameRemaining = 20;
+              let waterFrameRemaining = WaterAnimationDelay;
               let animationFrameRemaining =
                 this.framesPerAngle === animationFrame + 1
                   ? finalFrameLength
@@ -825,8 +830,8 @@ export class Sprite {
                 waterFrameRemaining -= frameLength;
                 animationFrameRemaining -= frameLength;
                 if (waterFrameRemaining === 0) {
-                  waterFrame = (waterFrame + 1) % 7;
-                  waterFrameRemaining = 20;
+                  waterFrame = (waterFrame + 1) % WaterAnimationFrameCount;
+                  waterFrameRemaining = WaterAnimationDelay;
                 }
                 if (animationFrameRemaining === 0) {
                   animationFrame = (animationFrame + 1) % this.framesPerAngle;

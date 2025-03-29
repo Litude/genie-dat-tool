@@ -31,7 +31,7 @@ interface TileProperty {
   yDelta: Int16;
 }
 
-const deltaYMultiplier = [
+export const TileTypeDeltaYMultiplier = [
   0, -1, 1, -1, -1, -1, 1, -1, 1, -1, 1, -1, -1, -1, 1, 1, 1, 0, 0,
 ];
 
@@ -179,7 +179,7 @@ export class MapProperties {
       const baseDeltaValue = Math.floor(this.elevationHeightPx / 2);
       for (let i = 0; i < 19; ++i) {
         this.tileProperties[i].yDelta = asInt16(
-          deltaYMultiplier[i] * baseDeltaValue,
+          TileTypeDeltaYMultiplier[i] * baseDeltaValue,
         );
       }
     }
@@ -303,7 +303,7 @@ export class MapProperties {
     const baseDeltaValue = Math.floor(this.elevationHeightPx / 2);
     for (let i = 0; i < 19; ++i) {
       this.tileProperties[i].yDelta = asInt16(
-        deltaYMultiplier[i] * baseDeltaValue,
+        TileTypeDeltaYMultiplier[i] * baseDeltaValue,
       );
     }
   }

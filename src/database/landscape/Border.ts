@@ -20,6 +20,7 @@ import {
   Bool8,
   Bool8Schema,
   Int16,
+  Int16Schema,
   Int32,
   UInt16,
   UInt8,
@@ -65,7 +66,7 @@ const BorderSchema = BaseTerrainTileSchema.merge(
       .length(19),
     drawTerrain: Bool8Schema,
     passabilityTerrainId: ReferenceStringSchema,
-    overlayBorder: Bool16Schema,
+    borderStyle: Int16Schema,
   }),
 );
 
@@ -125,7 +126,7 @@ const BorderJsonMapping: JsonFieldMapping<Border, BorderJson>[] = [
         loadingContext.dataIds.terrainIds,
       ),
   },
-  { field: "overlayBorder" },
+  { field: "borderStyle" },
 ];
 
 export class Border extends BaseTerrainTile {
@@ -134,7 +135,7 @@ export class Border extends BaseTerrainTile {
   padding59B: UInt8 = asUInt8(0);
   passabilityTerrainId: TerrainId<Int16> = asInt16<TerrainId<Int16>>(-1);
   passabilityTerrain: Terrain | null = null;
-  overlayBorder: Bool16 = asBool16(false);
+  borderStyle: Int16 = asInt16(0);
   padding59E: UInt16 = asUInt16(0);
 
   readFromBuffer(
@@ -192,7 +193,7 @@ export class Border extends BaseTerrainTile {
     this.passabilityTerrainId = buffer.readInt16<TerrainId<Int16>>();
     this.passabilityTerrain = null;
     if (semver.gte(loadingContext.version.numbering, "2.0.0")) {
-      this.overlayBorder = buffer.readBool16();
+      this.borderStyle = buffer.readInt16();
     } else {
       if (loadingContext.version.flavor !== "mickey") {
         this.padding59E = buffer.readUInt16();
@@ -242,7 +243,7 @@ export class Border extends BaseTerrainTile {
       .integer(this.passabilityTerrainId)
       .dynamic((writer) => {
         if (semver.gte(savingContext.version.numbering, "2.0.0")) {
-          writer.integer(this.overlayBorder ? 1 : 0);
+          writer.integer(this.borderStyle ? 1 : 0);
         }
       });
 

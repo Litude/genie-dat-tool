@@ -56,9 +56,20 @@ import {
   applyJsonFieldsToObject,
   writeDataEntriesToJson,
 } from "../../json/json-serialization";
-import { readFileSync } from "fs";
+import { readFileSync, writeFileSync } from "fs";
 import { BaseObjectPrototype } from "../object/ObjectPrototypes";
 import { writeResourceList } from "../../textfile/ResourceList";
+import { Logger } from "../../Logger";
+import { Graphic } from "../../image/Graphic";
+import { Point } from "../../geometry/Point";
+import { RawImage } from "../../image/RawImage";
+import { GifWriter } from "omggif";
+import {
+  getPaletteWithWaterColors,
+  WaterAnimationDelay,
+  WaterAnimationFrameCount,
+} from "../../image/palette";
+import { TileTypeDeltaYMultiplier } from "./MapProperties";
 
 interface TerrainObjectPlacement {
   prototypeId: PrototypeId<Int16>;
@@ -512,6 +523,367 @@ export class Terrain extends BaseTerrainTile {
       ...super.toJson(savingContext),
       ...transformObjectToJson(this, TerrainJsonMapping, savingContext),
     };
+  }
+
+  private writeFlatPatternToGif(
+    graphic: Graphic,
+    tileSize: Point<number>,
+    outputDirectory: string,
+    transparentIndex: number,
+    animateWater: boolean,
+    delayMultiplier: number,
+  ) {
+    const frameIndex = this.frameMaps[0].frameIndex;
+    const frameCount = this.frameMaps[0].frameCount;
+
+    const widthPadding = graphic.frames[0].width - tileSize.x;
+    const heightPadding = graphic.frames[0].height - tileSize.y;
+
+    const tiles: {
+      frame: number;
+      coordinate: Point<number>;
+      draw: Point<number>;
+    }[] = [];
+
+    const frames: RawImage[] = [];
+
+    for (let y = 0; y < this.terrainPatternHeight; ++y) {
+      for (let x = 0; x < this.terrainPatternWidth; ++x) {
+        const yModifier = y ? y % this.terrainPatternHeight : 0;
+        const xModifier = x ? x % this.terrainPatternWidth : 0;
+        const frameNumber =
+          frameIndex +
+          Math.min(
+            xModifier + this.terrainPatternWidth * yModifier,
+            frameCount - 1,
+          );
+        tiles.push({
+          frame: frameNumber,
+          coordinate: {
+            x,
+            y,
+          },
+          draw: {
+            x: x + y,
+            y: y - x + (this.terrainPatternWidth - 1),
+          },
+        });
+      }
+    }
+    tiles.sort((a, b) => {
+      if (a.draw.y < b.draw.y) {
+        return -1;
+      } else if (b.draw.y < a.draw.y) {
+        return 1;
+      } else {
+        if (a.draw.x < b.draw.x) {
+          return -1;
+        } else if (b.draw.x < a.draw.x) {
+          return 1;
+        } else {
+          return 0;
+        }
+      }
+    });
+
+    const imageWidth =
+      tileSize.x * this.terrainPatternWidth + ((widthPadding + 1) & ~0x1);
+    const imageHeight =
+      tileSize.y * this.terrainPatternHeight + ((heightPadding + 1) & ~0x1);
+
+    const imageFrame = new RawImage(imageWidth, imageHeight);
+
+    tiles.forEach((tile) => {
+      const frame = graphic.frames[tile.frame];
+      imageFrame.overlayImage(frame, {
+        x: tile.draw.x * (tileSize.x >> 1) + Math.ceil(widthPadding / 2),
+        y: tile.draw.y * (tileSize.y >> 1) + Math.ceil(heightPadding / 2),
+      });
+    });
+
+    const palette = graphic.palette;
+    if (animateWater && graphic.hasWaterAnimation()) {
+      for (let i = 0; i < WaterAnimationFrameCount; ++i) {
+        const waterFrame = imageFrame.clone();
+        waterFrame.palette = getPaletteWithWaterColors(palette, i);
+        waterFrame.delay = Math.round(WaterAnimationDelay * delayMultiplier);
+        frames.push(waterFrame);
+      }
+    } else {
+      frames.push(imageFrame);
+    }
+
+    const image = new Graphic(frames);
+    image.palette = graphic.palette;
+
+    const gifBuffer = Buffer.alloc(1024 * 1024 + imageWidth * imageHeight);
+
+    const gifWriter = new GifWriter(gifBuffer, imageWidth, imageHeight, {
+      loop: 0,
+      palette: image.frames.every((frame) => frame.palette)
+        ? undefined
+        : image.palette.map((entry) => {
+            let value = +entry.blue;
+            value |= entry.green << 8;
+            value |= entry.red << 16;
+            return value;
+          }),
+    });
+    image.frames.forEach((image) => {
+      image.appendToGif(
+        gifWriter,
+        { left: 0, top: 0, right: imageWidth, bottom: imageHeight },
+        {
+          delay: 0,
+          transparentIndex,
+        },
+      );
+    });
+    const gifData = gifBuffer.subarray(0, gifWriter.end());
+    const outputPath = path.join(
+      outputDirectory,
+      `${path.parse(this.internalName ?? "unnamed").name}_Flat.gif`,
+    );
+    writeFileSync(outputPath, gifData);
+  }
+
+  private writeTilePatternToGif(
+    tilePattern: Nullable<number>[][],
+    patternName: string,
+    graphic: Graphic,
+    tileSize: Point<number>,
+    elevationHeight: number,
+    outputDirectory: string,
+    {
+      transparentIndex,
+      animateWater,
+      delayMultiplier,
+    }: {
+      transparentIndex: number;
+      animateWater: boolean;
+      delayMultiplier: number;
+    },
+  ) {
+    const tiles: {
+      tileType: number;
+      frame: number;
+      coordinate: Point<number>;
+      draw: Point<number>;
+    }[] = [];
+
+    for (let y = 0; y < tilePattern.length; ++y) {
+      for (let x = 0; x < tilePattern[y].length; ++x) {
+        const tileType = tilePattern[y][x];
+        if (tileType !== null) {
+          const frameNumber = this.frameMaps[tileType].frameIndex;
+          tiles.push({
+            tileType,
+            frame: frameNumber,
+            coordinate: {
+              x,
+              y,
+            },
+            draw: {
+              x: x + y,
+              y: y - x + (tilePattern[y].length - 1),
+            },
+          });
+        }
+      }
+    }
+
+    const frames: RawImage[] = [];
+
+    tiles.sort((a, b) => {
+      if (a.draw.y < b.draw.y) {
+        return -1;
+      } else if (b.draw.y < a.draw.y) {
+        return 1;
+      } else {
+        if (a.draw.x < b.draw.x) {
+          return -1;
+        } else if (b.draw.x < a.draw.x) {
+          return 1;
+        } else {
+          return 0;
+        }
+      }
+    });
+
+    const widthPadding = 1;
+    const heightPadding = 1;
+
+    const imageWidth =
+      tileSize.x * tilePattern[0].length + ((widthPadding + 1) & ~0x1);
+    const imageHeight =
+      tileSize.y * tilePattern.length + ((heightPadding + 1) & ~0x1);
+
+    const imageFrame = new RawImage(imageWidth, imageHeight);
+
+    tiles.forEach((tile) => {
+      const frame = graphic.frames[tile.frame];
+      const additionalYDelta =
+        tile.coordinate.y > tile.coordinate.x
+          ? TileTypeDeltaYMultiplier[tile.tileType] * -elevationHeight
+          : 0;
+      imageFrame.overlayImage(frame, {
+        x: tile.draw.x * (tileSize.x >> 1) + widthPadding,
+        y: tile.draw.y * (tileSize.y >> 1) + additionalYDelta + heightPadding,
+      });
+    });
+
+    const palette = graphic.palette;
+    if (animateWater && graphic.hasWaterAnimation()) {
+      for (let i = 0; i < WaterAnimationFrameCount; ++i) {
+        const waterFrame = imageFrame.clone();
+        waterFrame.palette = getPaletteWithWaterColors(palette, i);
+        waterFrame.delay = Math.round(WaterAnimationDelay * delayMultiplier);
+        frames.push(waterFrame);
+      }
+    } else {
+      frames.push(imageFrame);
+    }
+
+    const image = new Graphic(frames);
+    image.palette = graphic.palette;
+
+    const gifBuffer = Buffer.alloc(1024 * 1024 + imageWidth * imageHeight);
+
+    const gifWriter = new GifWriter(gifBuffer, imageWidth, imageHeight, {
+      loop: 0,
+      palette: image.frames.every((frame) => frame.palette)
+        ? undefined
+        : image.palette.map((entry) => {
+            let value = +entry.blue;
+            value |= entry.green << 8;
+            value |= entry.red << 16;
+            return value;
+          }),
+    });
+    image.frames.forEach((image) => {
+      image.appendToGif(
+        gifWriter,
+        { left: 0, top: 0, right: imageWidth, bottom: imageHeight },
+        {
+          delay: 0,
+          transparentIndex,
+        },
+      );
+    });
+    const gifData = gifBuffer.subarray(0, gifWriter.end());
+    const outputPath = path.join(
+      outputDirectory,
+      `${path.parse(this.internalName ?? "unnamed").name}_${patternName}.gif`,
+    );
+    writeFileSync(outputPath, gifData);
+  }
+
+  writeToGif(
+    graphics: Graphic[],
+    tileSize: Point<number>,
+    elevationHeight: number,
+    {
+      transparentIndex,
+      delayMultiplier,
+      animateWater,
+    }: {
+      transparentIndex: number;
+      delayMultiplier: number;
+      animateWater: boolean;
+    },
+    outputDirectory: string,
+  ) {
+    if (
+      this.resourceId !== -1 ||
+      this.resourceFilename.toLocaleLowerCase() !== "none"
+    ) {
+      const graphic = graphics.find(
+        (graphic) =>
+          graphic.resourceId === this.resourceId ||
+          graphic.filename === this.resourceFilename,
+      );
+      if (!graphic) {
+        Logger.error(
+          `Skipping ${this.internalName} because graphic ${this.resourceId} - ${this.resourceFilename} was not found!`,
+        );
+        return;
+      }
+      this.writeFlatPatternToGif(
+        graphic,
+        tileSize,
+        outputDirectory,
+        transparentIndex,
+        animateWater,
+        delayMultiplier,
+      );
+      this.writeTilePatternToGif(
+        [
+          [4, 7, 1],
+          [8, null, 5],
+          [2, 6, 3],
+        ],
+        "Hill-Large",
+        graphic,
+        tileSize,
+        elevationHeight,
+        outputDirectory,
+        {
+          transparentIndex,
+          animateWater,
+          delayMultiplier,
+        },
+      );
+      this.writeTilePatternToGif(
+        [
+          [12, 9],
+          [10, 11],
+        ],
+        "Hill-Small",
+        graphic,
+        tileSize,
+        elevationHeight,
+        outputDirectory,
+        {
+          transparentIndex,
+          animateWater,
+          delayMultiplier,
+        },
+      );
+      this.writeTilePatternToGif(
+        [
+          [16, 14],
+          [13, 15],
+        ],
+        "Valley-Small",
+        graphic,
+        tileSize,
+        elevationHeight,
+        outputDirectory,
+        {
+          transparentIndex,
+          animateWater,
+          delayMultiplier,
+        },
+      );
+
+      this.writeTilePatternToGif(
+        [
+          [16, 6, 14],
+          [5, null, 8],
+          [13, 7, 15],
+        ],
+        "Valley-Large",
+        graphic,
+        tileSize,
+        elevationHeight,
+        outputDirectory,
+        {
+          transparentIndex,
+          animateWater,
+          delayMultiplier,
+        },
+      );
+    }
   }
 }
 

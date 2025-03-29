@@ -3,10 +3,11 @@ import { Point } from "../geometry/Point";
 import { GifWriter } from "omggif";
 import { Rectangle } from "../geometry/Rectangle";
 import { ColorRgb } from "./palette";
+import { Logger } from "../Logger";
 
 export class RawImage {
-  private width: number;
-  private height: number;
+  width: number;
+  height: number;
   private data: Array<PaletteIndex | null>;
   private anchor: Point<number>;
   palette?: ColorRgb[]; // If a frame has a palette, it overrides the palette used by the graphic (needed for water animation)
@@ -31,8 +32,8 @@ export class RawImage {
 
   setPixel(x: number, y: number, value: PaletteIndex | null): void {
     if (x < 0 || x >= this.width || y < 0 || y >= this.height) {
-      //Logger.error("pixel coordinates out of bounds");
-      throw new Error("Pixel coordinates out of bounds");
+      Logger.error("pixel coordinates out of bounds");
+      //throw new Error("Pixel coordinates out of bounds");
     } else {
       this.data[y * this.width + x] = value;
     }
@@ -96,11 +97,18 @@ export class RawImage {
   }
 
   flippedHorizontally() {
-    const flippedImage = new RawImage(this.width, this.height);
-    flippedImage.anchor = { ...this.anchor };
-    flippedImage.data = [...this.data];
+    const flippedImage = this.clone();
     flippedImage.flipHorizontally();
     return flippedImage;
+  }
+
+  clone() {
+    const cloned = new RawImage(this.width, this.height);
+    cloned.anchor = structuredClone(this.anchor);
+    cloned.data = structuredClone(this.data);
+    cloned.palette = this.palette ? structuredClone(this.palette) : undefined;
+    cloned.delay = this.delay;
+    return cloned;
   }
 
   private flipHorizontally() {

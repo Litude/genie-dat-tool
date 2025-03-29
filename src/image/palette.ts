@@ -28,6 +28,9 @@ const WaterColors: ColorRgb[] = [
   color(23, 39, 123),
 ];
 
+export const WaterAnimationDelay = 20; // cs
+export const WaterAnimationFrameCount = 7;
+
 export function readPaletteFile(input: string | BufferReader): ColorRgb[] {
   const buffer = typeof input === "string" ? new BufferReader(input) : input;
   if (detectJascPaletteFile(buffer)) {
