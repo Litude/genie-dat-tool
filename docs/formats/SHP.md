@@ -87,4 +87,3 @@ If you want to match the encoding used in official files as closely as possible,
 
 ### Palette
 The game palette was reordered at the same time as the game was changed to use SLP files instead of SHP files. (Presumably the motivating factor was to get the player colors reordered so it would be faster to peform color mapping on SLP images.) This means that doing a 1-to-1 conversion from an SLP file to an SHP file for a game graphic and then using the colormappings of the game will result in weird mappings. To actually use the SHP graphics in the game with proper player color mapping, this palette remapping will also have to be reversed.
-

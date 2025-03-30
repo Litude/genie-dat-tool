@@ -674,7 +674,7 @@ export class Terrain extends BaseTerrainTile {
     for (let y = 0; y < tilePattern.length; ++y) {
       for (let x = 0; x < tilePattern[y].length; ++x) {
         const tileType = tilePattern[y][x];
-        if (tileType !== null) {
+        if (tileType !== null && this.frameMaps[tileType].frameCount > 0) {
           const frameNumber = this.frameMaps[tileType].frameIndex;
           tiles.push({
             tileType,
@@ -690,6 +690,10 @@ export class Terrain extends BaseTerrainTile {
           });
         }
       }
+    }
+
+    if (!tiles.length) {
+      return;
     }
 
     const frames: RawImage[] = [];

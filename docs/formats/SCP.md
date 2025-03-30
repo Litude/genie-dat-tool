@@ -111,7 +111,7 @@ L is missing number of pixels on left side, R on right side. Here 0 is the posit
 
 ### Drawing function (DrawFunction)
 
-This is a number between 1 and 13 that determines the shape of the terrain tile. 
+This is a number between 1 and 13 that determines the shape (dimensions and outline) of the terrain tile.
 
 1 = Tile type 0 (Flat tile)
 2 = Tile type 1, 9 (Hillside tile N / Pit pair tile N)

@@ -44,14 +44,25 @@
         //     "--resource-names-file",
         //     "output/reslists/empires_970917/graphics.json"
         // ],
+        // "args": [
+        //     "dat",
+        //     "extract-sprites",
+        //     "empires_970204.dat",
+        //     "--palette-file",
+        //     "palette.bmp",
+        //     "--graphics",
+        //     "graphics_970203.drs",
+        //     "--force-system-colors",
+        //     "--animate-water"
+        // ],
         "args": [
             "dat",
-            "extract-sprites",
-            "empires_970204.dat",
+            "extract-borders",
+            "empires_970917.dat",
             "--palette-file",
             "palette.bmp",
             "--graphics",
-            "graphics_970203.drs",
+            "Border_970917.drs",
             "--force-system-colors",
             "--animate-water"
         ],

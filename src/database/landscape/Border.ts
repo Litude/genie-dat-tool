@@ -9,14 +9,11 @@ import { JsonLoadingContext, LoadingContext } from "../LoadingContext";
 import { SavingContext } from "../SavingContext";
 import { SoundEffect } from "../SoundEffect";
 import {
-  asBool16,
   asBool8,
   asInt16,
   asInt32,
   asUInt16,
   asUInt8,
-  Bool16,
-  Bool16Schema,
   Bool8,
   Bool8Schema,
   Int16,
@@ -56,8 +53,240 @@ import {
   writeDataEntriesToJson,
   applyJsonFieldsToObject,
 } from "../../json/json-serialization";
-import { readFileSync } from "fs";
+import { readFileSync, writeFileSync } from "fs";
 import { writeResourceList } from "../../textfile/ResourceList";
+import { Logger } from "../../Logger";
+import { Graphic } from "../../image/Graphic";
+import { Point } from "../../geometry/Point";
+import { RawImage } from "../../image/RawImage";
+import {
+  getPaletteWithWaterColors,
+  WaterAnimationDelay,
+  WaterAnimationFrameCount,
+} from "../../image/palette";
+import { GifWriter } from "omggif";
+import { safeFilename } from "../../files/file-utils";
+import { TileTypeDeltaYMultiplier } from "./MapProperties";
+
+// When set, this means that the specified direction has a tile different than the current tile
+enum BorderNeighbour {
+  North = 1,
+  South = 2,
+  West = 4,
+  East = 8,
+  All = BorderNeighbour.North |
+    BorderNeighbour.South |
+    BorderNeighbour.West |
+    BorderNeighbour.East,
+}
+
+const BorderHillFlatPattern = Object.freeze([
+  [
+    {
+      tileType: 0,
+      neighbours:
+        BorderNeighbour.West | BorderNeighbour.North | BorderNeighbour.South,
+    },
+    {
+      tileType: 0,
+      neighbours: BorderNeighbour.West | BorderNeighbour.North,
+    },
+    {
+      tileType: 0,
+      neighbours: BorderNeighbour.West | BorderNeighbour.North,
+    },
+    {
+      tileType: 0,
+      neighbours:
+        BorderNeighbour.West | BorderNeighbour.North | BorderNeighbour.East,
+    },
+  ],
+  [
+    {
+      tileType: 0,
+      neighbours: BorderNeighbour.West | BorderNeighbour.South,
+    },
+    {
+      tileType: 0,
+      neighbours: BorderNeighbour.East,
+    },
+    {
+      tileType: 0,
+      neighbours: BorderNeighbour.South,
+    },
+    {
+      tileType: 0,
+      neighbours: BorderNeighbour.North | BorderNeighbour.East,
+    },
+  ],
+  [
+    {
+      tileType: 0,
+      neighbours: BorderNeighbour.West | BorderNeighbour.South,
+    },
+    {
+      tileType: 0,
+      neighbours: BorderNeighbour.North,
+    },
+    {
+      tileType: 0,
+      neighbours: BorderNeighbour.West,
+    },
+    {
+      tileType: 0,
+      neighbours: BorderNeighbour.North | BorderNeighbour.East,
+    },
+  ],
+  [
+    {
+      tileType: 0,
+      neighbours:
+        BorderNeighbour.West | BorderNeighbour.East | BorderNeighbour.South,
+    },
+    {
+      tileType: 0,
+      neighbours: BorderNeighbour.East | BorderNeighbour.South,
+    },
+    {
+      tileType: 0,
+      neighbours: BorderNeighbour.East | BorderNeighbour.South,
+    },
+    {
+      tileType: 0,
+      neighbours:
+        BorderNeighbour.North | BorderNeighbour.East | BorderNeighbour.South,
+    },
+  ],
+]);
+
+const BorderHillLargeOutsidePattern = Object.freeze([
+  [
+    {
+      tileType: 12,
+      neighbours:
+        BorderNeighbour.West | BorderNeighbour.North | BorderNeighbour.South,
+    },
+    {
+      tileType: 7,
+      neighbours: BorderNeighbour.West | BorderNeighbour.North,
+    },
+    {
+      tileType: 9,
+      neighbours:
+        BorderNeighbour.West | BorderNeighbour.North | BorderNeighbour.East,
+    },
+  ],
+  [
+    {
+      tileType: 8,
+      neighbours: BorderNeighbour.South | BorderNeighbour.West,
+    },
+    null,
+    {
+      tileType: 5,
+      neighbours: BorderNeighbour.North | BorderNeighbour.East,
+    },
+  ],
+  [
+    {
+      tileType: 10,
+      neighbours:
+        BorderNeighbour.West | BorderNeighbour.East | BorderNeighbour.South,
+    },
+    {
+      tileType: 6,
+      neighbours: BorderNeighbour.East | BorderNeighbour.South,
+    },
+    {
+      tileType: 11,
+      neighbours:
+        BorderNeighbour.North | BorderNeighbour.East | BorderNeighbour.South,
+    },
+  ],
+]);
+
+const BorderValleyLargeOutsidePattern = Object.freeze([
+  [
+    {
+      tileType: 16,
+      neighbours:
+        BorderNeighbour.West | BorderNeighbour.North | BorderNeighbour.South,
+    },
+    {
+      tileType: 6,
+      neighbours: BorderNeighbour.West | BorderNeighbour.North,
+    },
+    {
+      tileType: 14,
+      neighbours:
+        BorderNeighbour.West | BorderNeighbour.North | BorderNeighbour.East,
+    },
+  ],
+  [
+    {
+      tileType: 5,
+      neighbours: BorderNeighbour.South | BorderNeighbour.West,
+    },
+    null,
+    {
+      tileType: 8,
+      neighbours: BorderNeighbour.North | BorderNeighbour.East,
+    },
+  ],
+  [
+    {
+      tileType: 13,
+      neighbours:
+        BorderNeighbour.West | BorderNeighbour.East | BorderNeighbour.South,
+    },
+    {
+      tileType: 7,
+      neighbours: BorderNeighbour.East | BorderNeighbour.South,
+    },
+    {
+      tileType: 15,
+      neighbours:
+        BorderNeighbour.North | BorderNeighbour.East | BorderNeighbour.South,
+    },
+  ],
+]);
+
+function getInvertedNeighbours(input: BorderNeighbour) {
+  let result: BorderNeighbour = 0 as BorderNeighbour;
+  if ((input & BorderNeighbour.North) === 0) {
+    result |= BorderNeighbour.North;
+  }
+  if ((input & BorderNeighbour.South) === 0) {
+    result |= BorderNeighbour.South;
+  }
+  if ((input & BorderNeighbour.West) === 0) {
+    result |= BorderNeighbour.West;
+  }
+  if ((input & BorderNeighbour.East) === 0) {
+    result |= BorderNeighbour.East;
+  }
+  return result;
+}
+
+function getInvertedTilePattern(
+  input: readonly Nullable<{
+    tileType: number;
+    neighbours: BorderNeighbour;
+  }>[][],
+) {
+  return input.map((patternRow) => {
+    return patternRow.map((entry) => {
+      if (entry) {
+        return {
+          tileType: entry.tileType,
+          neighbours: getInvertedNeighbours(entry.neighbours),
+        };
+      } else {
+        return null;
+      }
+    });
+  });
+}
 
 const BorderSchema = BaseTerrainTileSchema.merge(
   z.object({
@@ -263,11 +492,282 @@ export class Border extends BaseTerrainTile {
     textFileWriter.raw(" ").eol();
   }
 
+  private writeRegularTilePatternToGif(
+    tilePattern: readonly Nullable<{
+      tileType: number;
+      neighbours: BorderNeighbour;
+    }>[][],
+    patternName: string,
+    graphic: Graphic,
+    tileSize: Point<number>,
+    elevationHeight: number,
+    outputDirectory: string,
+    {
+      transparentIndex,
+      animateWater,
+      delayMultiplier,
+    }: {
+      transparentIndex: number;
+      animateWater: boolean;
+      delayMultiplier: number;
+    },
+  ) {
+    const tiles: {
+      tileType: number;
+      frame: number;
+      coordinate: Point<number>;
+      draw: Point<number>;
+    }[] = [];
+
+    for (let y = 0; y < tilePattern.length; ++y) {
+      for (let x = 0; x < tilePattern[y].length; ++x) {
+        const tileEntry = tilePattern[y][x];
+        if (tileEntry !== null) {
+          const tileShape = Border.getRegularBorderShapeNumber(
+            tileEntry.neighbours,
+          );
+          if (tileShape !== -1) {
+            const tileFrame = this.frameMaps[tileEntry.tileType][tileShape];
+            if (tileFrame.frameCount > 0) {
+              const frameNumber = tileFrame.frameIndex;
+              tiles.push({
+                tileType: tileEntry.tileType,
+                frame: frameNumber,
+                coordinate: {
+                  x,
+                  y,
+                },
+                draw: {
+                  x: x + y,
+                  y: y - x + (tilePattern[y].length - 1),
+                },
+              });
+            }
+          }
+        }
+      }
+    }
+
+    if (!tiles.length) {
+      return;
+    }
+
+    const frames: RawImage[] = [];
+
+    tiles.sort((a, b) => {
+      if (a.draw.y < b.draw.y) {
+        return -1;
+      } else if (b.draw.y < a.draw.y) {
+        return 1;
+      } else {
+        if (a.draw.x < b.draw.x) {
+          return -1;
+        } else if (b.draw.x < a.draw.x) {
+          return 1;
+        } else {
+          return 0;
+        }
+      }
+    });
+
+    const widthPadding = 1;
+    const heightPadding = 1;
+
+    const imageWidth =
+      tileSize.x * tilePattern[0].length + ((widthPadding + 1) & ~0x1);
+    const imageHeight =
+      tileSize.y * tilePattern.length + ((heightPadding + 1) & ~0x1);
+
+    const imageFrame = new RawImage(imageWidth, imageHeight);
+
+    tiles.forEach((tile) => {
+      const frame = graphic.frames[tile.frame];
+      const additionalYDelta =
+        tile.coordinate.y > tile.coordinate.x
+          ? TileTypeDeltaYMultiplier[tile.tileType] * -elevationHeight
+          : 0;
+      imageFrame.overlayImage(frame, {
+        x: tile.draw.x * (tileSize.x >> 1) + widthPadding,
+        y: tile.draw.y * (tileSize.y >> 1) + additionalYDelta + heightPadding,
+      });
+    });
+
+    const palette = graphic.palette;
+    if (animateWater && graphic.hasWaterAnimation()) {
+      for (let i = 0; i < WaterAnimationFrameCount; ++i) {
+        const waterFrame = imageFrame.clone();
+        waterFrame.palette = getPaletteWithWaterColors(palette, i);
+        waterFrame.delay = Math.round(WaterAnimationDelay * delayMultiplier);
+        frames.push(waterFrame);
+      }
+    } else {
+      frames.push(imageFrame);
+    }
+
+    const image = new Graphic(frames);
+    image.palette = graphic.palette;
+
+    const gifBuffer = Buffer.alloc(1024 * 1024 + imageWidth * imageHeight);
+
+    const gifWriter = new GifWriter(gifBuffer, imageWidth, imageHeight, {
+      loop: 0,
+      palette: image.frames.every((frame) => frame.palette)
+        ? undefined
+        : image.palette.map((entry) => {
+            let value = +entry.blue;
+            value |= entry.green << 8;
+            value |= entry.red << 16;
+            return value;
+          }),
+    });
+    image.frames.forEach((image) => {
+      image.appendToGif(
+        gifWriter,
+        { left: 0, top: 0, right: imageWidth, bottom: imageHeight },
+        {
+          delay: 0,
+          transparentIndex,
+        },
+      );
+    });
+    const gifData = gifBuffer.subarray(0, gifWriter.end());
+    const outputPath = path.join(
+      outputDirectory,
+      `${safeFilename(this.internalName ?? "unnamed", true)}_${patternName}.gif`,
+    );
+    writeFileSync(outputPath, gifData);
+  }
+
+  writeToGif(
+    graphics: Graphic[],
+    tileSize: Point<number>,
+    elevationHeight: number,
+    {
+      transparentIndex,
+      delayMultiplier,
+      animateWater,
+    }: {
+      transparentIndex: number;
+      delayMultiplier: number;
+      animateWater: boolean;
+    },
+    outputDirectory: string,
+  ) {
+    if (this.borderStyle === 1) {
+      Logger.error(
+        `Writing overlay borders not yet supported, skipping ${this.internalName}`,
+      );
+      return;
+    }
+    if (
+      this.resourceId !== -1 ||
+      this.resourceFilename.toLocaleLowerCase() !== "none"
+    ) {
+      const graphic = graphics.find(
+        (graphic) =>
+          graphic.resourceId === this.resourceId ||
+          graphic.filename === this.resourceFilename,
+      );
+      if (!graphic) {
+        Logger.error(
+          `Skipping ${this.internalName} because graphic ${this.resourceId} - ${this.resourceFilename} was not found!`,
+        );
+        return;
+      }
+
+      this.writeRegularTilePatternToGif(
+        BorderHillFlatPattern,
+        "Flat",
+        graphic,
+        tileSize,
+        elevationHeight,
+        outputDirectory,
+        { transparentIndex, animateWater, delayMultiplier },
+      );
+
+      this.writeRegularTilePatternToGif(
+        BorderHillLargeOutsidePattern,
+        "Hill-Outside",
+        graphic,
+        tileSize,
+        elevationHeight,
+        outputDirectory,
+        { transparentIndex, animateWater, delayMultiplier },
+      );
+      this.writeRegularTilePatternToGif(
+        getInvertedTilePattern(BorderHillLargeOutsidePattern),
+        "Hill-Inside",
+        graphic,
+        tileSize,
+        elevationHeight,
+        outputDirectory,
+        { transparentIndex, animateWater, delayMultiplier },
+      );
+
+      this.writeRegularTilePatternToGif(
+        BorderValleyLargeOutsidePattern,
+        "Valley-Outside",
+        graphic,
+        tileSize,
+        elevationHeight,
+        outputDirectory,
+        { transparentIndex, animateWater, delayMultiplier },
+      );
+      this.writeRegularTilePatternToGif(
+        getInvertedTilePattern(BorderValleyLargeOutsidePattern),
+        "Valley-Inside",
+        graphic,
+        tileSize,
+        elevationHeight,
+        outputDirectory,
+        { transparentIndex, animateWater, delayMultiplier },
+      );
+    }
+  }
+
   toJson(savingContext: SavingContext) {
     return {
       ...super.toJson(savingContext),
       ...transformObjectToJson(this, BorderJsonMapping, savingContext),
     };
+  }
+
+  static getRegularBorderShapeNumber(neighbours: number) {
+    switch (neighbours) {
+      // Shapes with all neighbours, no neighbours or only opposite neighbours are not supported
+      // and will return -1
+      case 0:
+      case BorderNeighbour.All:
+      case BorderNeighbour.North | BorderNeighbour.South:
+      case BorderNeighbour.West | BorderNeighbour.East:
+        return -1;
+      case BorderNeighbour.West | BorderNeighbour.North | BorderNeighbour.South:
+        return 0;
+      case BorderNeighbour.West | BorderNeighbour.North | BorderNeighbour.East:
+        return 1;
+      case BorderNeighbour.West | BorderNeighbour.East | BorderNeighbour.South:
+        return 2;
+      case BorderNeighbour.North | BorderNeighbour.East | BorderNeighbour.South:
+        return 3;
+      case BorderNeighbour.West:
+        return 4;
+      case BorderNeighbour.North:
+        return 5;
+      case BorderNeighbour.South:
+        return 6;
+      case BorderNeighbour.East:
+        return 7;
+      case BorderNeighbour.West | BorderNeighbour.North:
+        return 8;
+      case BorderNeighbour.East | BorderNeighbour.South:
+        return 9;
+      case BorderNeighbour.West | BorderNeighbour.South:
+        return 10;
+      case BorderNeighbour.North | BorderNeighbour.East:
+        return 11;
+      default:
+        throw new Error(`Invalid border neighbour value ${neighbours}`);
+    }
   }
 }
 
