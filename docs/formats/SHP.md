@@ -1,4 +1,4 @@
-# Shape (SHP) File Format
+# Shape File (SHP) Format Reference
 
 This document describes the .SHP file format as used by Age of Empires.
 

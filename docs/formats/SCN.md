@@ -1,4 +1,4 @@
-# Scenario (SCN) File Format
+# Scenario File (SCN) Format Reference
 
 The following variations exist:
 * Age of Empires

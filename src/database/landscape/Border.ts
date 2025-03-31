@@ -67,10 +67,15 @@ import {
 import { GifWriter } from "omggif";
 import { safeFilename } from "../../files/file-utils";
 import { TileTypeDeltaYMultiplier } from "./MapProperties";
-import { movedRectangle, unionRectangle } from "../../geometry/Rectangle";
+import {
+  movedRectangle,
+  Rectangle,
+  unionRectangle,
+} from "../../geometry/Rectangle";
 
 // When set, this means that the specified direction has a tile different than the current tile
 enum BorderNeighbour {
+  None = 0,
   North = 1,
   South = 2,
   West = 4,
@@ -81,7 +86,7 @@ enum BorderNeighbour {
     BorderNeighbour.East,
 }
 
-const BorderHillFlatPattern = Object.freeze([
+const BorderFlatPattern = Object.freeze([
   [
     {
       tileType: 0,
@@ -249,6 +254,36 @@ const BorderValleyLargeOutsidePattern = Object.freeze([
       neighbours:
         BorderNeighbour.North | BorderNeighbour.East | BorderNeighbour.South,
     },
+  ],
+]);
+
+const BorderOverlayFlatPattern = Object.freeze([
+  [
+    null,
+    {
+      tileType: 0,
+      neighbours: BorderNeighbour.South | BorderNeighbour.East,
+    },
+    null,
+  ],
+  [
+    {
+      tileType: 0,
+      neighbours: BorderNeighbour.North | BorderNeighbour.East,
+    },
+    null,
+    {
+      tileType: 0,
+      neighbours: BorderNeighbour.South | BorderNeighbour.West,
+    },
+  ],
+  [
+    null,
+    {
+      tileType: 0,
+      neighbours: BorderNeighbour.North | BorderNeighbour.West,
+    },
+    null,
   ],
 ]);
 
@@ -493,12 +528,13 @@ export class Border extends BaseTerrainTile {
     textFileWriter.raw(" ").eol();
   }
 
-  private writeRegularTilePatternToGif(
+  private writeTilePatternToGif(
     tilePattern: readonly Nullable<{
       tileType: number;
       neighbours: BorderNeighbour;
     }>[][],
     patternName: string,
+    getShapeNumber: (neighbour: BorderNeighbour) => number,
     graphic: Graphic,
     tileSize: Point<number>,
     elevationHeight: number,
@@ -524,9 +560,7 @@ export class Border extends BaseTerrainTile {
       for (let x = 0; x < tilePattern[y].length; ++x) {
         const tileEntry = tilePattern[y][x];
         if (tileEntry !== null) {
-          const tileShape = Border.getRegularBorderShapeNumber(
-            tileEntry.neighbours,
-          );
+          const tileShape = getShapeNumber(tileEntry.neighbours);
           if (tileShape !== -1) {
             const tileFrame = this.frameMaps[tileEntry.tileType][tileShape];
             if (tileFrame.frameCount > 0) {
@@ -549,10 +583,6 @@ export class Border extends BaseTerrainTile {
       }
     }
 
-    if (!tiles.length) {
-      return;
-    }
-
     const frames: RawImage[] = [];
 
     tiles.sort((a, b) => {
@@ -571,7 +601,7 @@ export class Border extends BaseTerrainTile {
       }
     });
 
-    const totalBounds = tiles.slice(1).reduce((acc, tile) => {
+    const totalBounds = tiles.reduce((acc: Rectangle<number> | null, tile) => {
       const regularBounds = graphic.frames[tile.frame].getBounds();
       const additionalYDelta =
         tile.coordinate.y > tile.coordinate.x
@@ -581,8 +611,12 @@ export class Border extends BaseTerrainTile {
         x: tile.draw.x * (tileSize.x >> 1),
         y: tile.draw.y * (tileSize.y >> 1) + additionalYDelta,
       });
-      return unionRectangle(acc, movedBounds);
-    }, graphic.frames[tiles[0].frame].getBounds());
+      return acc ? unionRectangle(acc, movedBounds) : movedBounds;
+    }, null);
+
+    if (!totalBounds) {
+      return;
+    }
 
     const imageWidth = totalBounds.right - totalBounds.left + 1;
     const imageHeight = totalBounds.bottom - totalBounds.top + 1;
@@ -669,12 +703,6 @@ export class Border extends BaseTerrainTile {
     },
     outputDirectory: string,
   ) {
-    if (this.borderStyle === 1) {
-      Logger.error(
-        `Writing overlay borders not yet supported, skipping ${this.internalName}`,
-      );
-      return;
-    }
     if (
       this.resourceId !== -1 ||
       this.resourceFilename.toLocaleLowerCase() !== "none"
@@ -691,53 +719,71 @@ export class Border extends BaseTerrainTile {
         return;
       }
 
-      this.writeRegularTilePatternToGif(
-        BorderHillFlatPattern,
-        "Flat",
-        graphic,
-        tileSize,
-        elevationHeight,
-        outputDirectory,
-        { transparentIndex, animateWater, delayMultiplier },
-      );
+      if (this.borderStyle === 0) {
+        this.writeTilePatternToGif(
+          BorderFlatPattern,
+          "Flat",
+          Border.getRegularBorderShapeNumber,
+          graphic,
+          tileSize,
+          elevationHeight,
+          outputDirectory,
+          { transparentIndex, animateWater, delayMultiplier },
+        );
 
-      this.writeRegularTilePatternToGif(
-        BorderHillLargeOutsidePattern,
-        "Hill-Outside",
-        graphic,
-        tileSize,
-        elevationHeight,
-        outputDirectory,
-        { transparentIndex, animateWater, delayMultiplier },
-      );
-      this.writeRegularTilePatternToGif(
-        getInvertedTilePattern(BorderHillLargeOutsidePattern),
-        "Hill-Inside",
-        graphic,
-        tileSize,
-        elevationHeight,
-        outputDirectory,
-        { transparentIndex, animateWater, delayMultiplier },
-      );
+        this.writeTilePatternToGif(
+          BorderHillLargeOutsidePattern,
+          "Hill-Outside",
+          Border.getRegularBorderShapeNumber,
+          graphic,
+          tileSize,
+          elevationHeight,
+          outputDirectory,
+          { transparentIndex, animateWater, delayMultiplier },
+        );
+        this.writeTilePatternToGif(
+          getInvertedTilePattern(BorderHillLargeOutsidePattern),
+          "Hill-Inside",
+          Border.getRegularBorderShapeNumber,
+          graphic,
+          tileSize,
+          elevationHeight,
+          outputDirectory,
+          { transparentIndex, animateWater, delayMultiplier },
+        );
 
-      this.writeRegularTilePatternToGif(
-        BorderValleyLargeOutsidePattern,
-        "Valley-Outside",
-        graphic,
-        tileSize,
-        elevationHeight,
-        outputDirectory,
-        { transparentIndex, animateWater, delayMultiplier },
-      );
-      this.writeRegularTilePatternToGif(
-        getInvertedTilePattern(BorderValleyLargeOutsidePattern),
-        "Valley-Inside",
-        graphic,
-        tileSize,
-        elevationHeight,
-        outputDirectory,
-        { transparentIndex, animateWater, delayMultiplier },
-      );
+        this.writeTilePatternToGif(
+          BorderValleyLargeOutsidePattern,
+          "Valley-Outside",
+          Border.getRegularBorderShapeNumber,
+          graphic,
+          tileSize,
+          elevationHeight,
+          outputDirectory,
+          { transparentIndex, animateWater, delayMultiplier },
+        );
+        this.writeTilePatternToGif(
+          getInvertedTilePattern(BorderValleyLargeOutsidePattern),
+          "Valley-Inside",
+          Border.getRegularBorderShapeNumber,
+          graphic,
+          tileSize,
+          elevationHeight,
+          outputDirectory,
+          { transparentIndex, animateWater, delayMultiplier },
+        );
+      } else if (this.borderStyle === 1) {
+        this.writeTilePatternToGif(
+          BorderOverlayFlatPattern,
+          "Flat",
+          Border.getOverlayBorderShapeNumber,
+          graphic,
+          tileSize,
+          elevationHeight,
+          outputDirectory,
+          { transparentIndex, animateWater, delayMultiplier },
+        );
+      }
     }
   }
 
@@ -748,11 +794,11 @@ export class Border extends BaseTerrainTile {
     };
   }
 
-  static getRegularBorderShapeNumber(neighbours: number) {
+  static getRegularBorderShapeNumber(neighbours: BorderNeighbour) {
     switch (neighbours) {
       // Shapes with all neighbours, no neighbours or only opposite neighbours are not supported
       // and will return -1
-      case 0:
+      case BorderNeighbour.None:
       case BorderNeighbour.All:
       case BorderNeighbour.North | BorderNeighbour.South:
       case BorderNeighbour.West | BorderNeighbour.East:
@@ -783,6 +829,21 @@ export class Border extends BaseTerrainTile {
         return 11;
       default:
         throw new Error(`Invalid border neighbour value ${neighbours}`);
+    }
+  }
+
+  static getOverlayBorderShapeNumber(neighbours: BorderNeighbour) {
+    switch (neighbours) {
+      case BorderNeighbour.North | BorderNeighbour.West:
+        return 0;
+      case BorderNeighbour.North | BorderNeighbour.East:
+        return 1;
+      case BorderNeighbour.South | BorderNeighbour.West:
+        return 2;
+      case BorderNeighbour.South | BorderNeighbour.East:
+        return 3;
+      default:
+        return -1;
     }
   }
 }

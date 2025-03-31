@@ -1,4 +1,4 @@
-# Compiled Shape File (SCP) File Format
+# Compiled Shape File (SCP) Format Reference
 
 This document describes the .SCP file format as used by Age of Empires.
 
@@ -25,7 +25,7 @@ OOXX OOOO OOOO
 
 Only earliest known build of Age of Empires, v00.04.03.0113 from January 1997, still supports using SCP files for terrain graphics, provided that the game is started with the COMPILEDTERRAIN and SLOWDRAW parameters and both SCP and SHP graphics are present for terrain. SCP files can also be created from SHP files by ```shapescn```. It does not validate the two rules specified above and instead creates corrupt graphics so they must be validated manually (all regular terrain tiles conform to these rules)
 
-The reason why they are called compiled shape files is because the game code that draws these files is completely hardcoded to assume certain graphic dimensions and outline. When a file is converted to SCP with ```shapescn```, it also outputs source code that will draw the graphics without analyzing the actual graphic content but by directly performing copying of the raw data from hardcoded positions. This means that if a terrain tile has a slighlty different shape, a different function is used for drawing them. Converting for example the grass tiles or another regular terrain tile (water or desert), will generate 13 different functions for drawing an SCP file. This is because there are 13 different kinds of combinations of graphic dimensions and outlines in a regular terrain graphic. The final SCP files stores information on which function number should be used for drawing the tile. v00.04.03.0113 only includes the 13 functions needed for drawing regular terrain tiles.
+The reason why they are called compiled shape files is because the game code that draws these files is completely hardcoded to assume certain graphic dimensions and outline. When a file is converted to SCP with ```shapescn```, it also outputs source code that will draw the graphics without analyzing the actual graphic content but by directly performing copying of the raw data from hardcoded positions. This means that if a terrain tile has a slighlty different shape, a different function is used for drawing them. Converting for example the grass tiles or another regular terrain tile (water or desert), will generate 13 different functions for drawing an SCP file. This is because there are 13 different kinds of combinations of graphic dimensions and outlines in a regular terrain graphic. The final SCP file stores information on which function number should be used for drawing the tile. v00.04.03.0113 only includes the 13 functions needed for drawing regular terrain tiles.
 
 While the game itself uses completely hardcoded functions for drawing the tiles, it is possible to parse them correctly by analyzing the data and ignoring the function number information.
 

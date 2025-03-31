@@ -55,28 +55,28 @@
         //     "--force-system-colors",
         //     "--animate-water"
         // ],
-        "args": [
-            "dat",
-            "extract-terrains",
-            "empires_970204.dat",
-            "--palette-file",
-            "palette.bmp",
-            "--graphics",
-            "input/terrain_970204",
-            "--force-system-colors",
-            "--animate-water"
-        ],
         // "args": [
         //     "dat",
-        //     "extract-borders",
-        //     "empires_970917.dat",
+        //     "extract-terrains",
+        //     "empires_970204.dat",
         //     "--palette-file",
         //     "palette.bmp",
         //     "--graphics",
-        //     "Border_970917.drs",
+        //     "input/terrain_970204",
         //     "--force-system-colors",
         //     "--animate-water"
         // ],
+        "args": [
+            "dat",
+            "extract-borders",
+            "empires_970917.dat",
+            "--palette-file",
+            "palette.bmp",
+            "--graphics",
+            "Border_970917.drs",
+            "--force-system-colors",
+            "--animate-water"
+        ],
         // "args": [
         //     "drs",
         //     "extract-graphics",

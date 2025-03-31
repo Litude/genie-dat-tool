@@ -24,7 +24,7 @@ interface ResourceTypeDirectory {
 
 interface DrsParsingResult {
   files: FileEntry[];
-  filename: string;
+  filename: string | null;
   password: string;
 }
 
@@ -328,7 +328,11 @@ function readDrs1997(
     smallestResourceId,
     largestResourceId,
   );
-  Logger.info(`DRS internal filename detected as ${filename}`);
+  if (filename !== null) {
+    Logger.info(
+      `DRS internal filename detected as ${filename} based on contained files`,
+    );
+  }
 
   return {
     files: results,
@@ -384,7 +388,7 @@ function detectFilenameFromResourceIds(
   ) {
     return "gamedata.drs";
   } else {
-    return "file.drs";
+    return null;
   }
 }
 

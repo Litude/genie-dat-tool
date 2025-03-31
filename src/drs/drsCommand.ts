@@ -255,7 +255,7 @@ function extractDrsFiles(args: ExtractDrsFilesCommandArgs) {
   });
 
   DrsFile.writeResourceList(
-    result.filename,
+    result.filename ?? `${path.parse(filename).name}.drs`,
     result.password,
     outputDirectory,
     result.files,

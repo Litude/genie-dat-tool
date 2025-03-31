@@ -70,7 +70,11 @@ import {
   WaterAnimationFrameCount,
 } from "../../image/palette";
 import { TileTypeDeltaYMultiplier } from "./MapProperties";
-import { movedRectangle, unionRectangle } from "../../geometry/Rectangle";
+import {
+  movedRectangle,
+  Rectangle,
+  unionRectangle,
+} from "../../geometry/Rectangle";
 
 interface TerrainObjectPlacement {
   prototypeId: PrototypeId<Int16>;
@@ -584,18 +588,18 @@ export class Terrain extends BaseTerrainTile {
       }
     });
 
-    if (!tiles.length) {
-      return;
-    }
-
-    const totalBounds = tiles.slice(1).reduce((acc, tile) => {
+    const totalBounds = tiles.reduce((acc: Rectangle<number> | null, tile) => {
       const regularBounds = graphic.frames[tile.frame].getBounds();
       const movedBounds = movedRectangle(regularBounds, {
         x: tile.draw.x * (tileSize.x >> 1),
         y: tile.draw.y * (tileSize.y >> 1),
       });
-      return unionRectangle(acc, movedBounds);
-    }, graphic.frames[tiles[0].frame].getBounds());
+      return acc ? unionRectangle(acc, movedBounds) : movedBounds;
+    }, null);
+
+    if (!totalBounds) {
+      return;
+    }
 
     const imageWidth = totalBounds.right - totalBounds.left + 1;
     const imageHeight = totalBounds.bottom - totalBounds.top + 1;
@@ -708,10 +712,6 @@ export class Terrain extends BaseTerrainTile {
       }
     }
 
-    if (!tiles.length) {
-      return;
-    }
-
     const frames: RawImage[] = [];
 
     tiles.sort((a, b) => {
@@ -730,18 +730,18 @@ export class Terrain extends BaseTerrainTile {
       }
     });
 
-    const totalBounds = tiles.slice(1).reduce((acc, tile) => {
+    const totalBounds = tiles.reduce((acc: Rectangle<number> | null, tile) => {
       const regularBounds = graphic.frames[tile.frame].getBounds();
-      const additionalYDelta =
-        tile.coordinate.y > tile.coordinate.x
-          ? TileTypeDeltaYMultiplier[tile.tileType] * -elevationHeight
-          : 0;
       const movedBounds = movedRectangle(regularBounds, {
         x: tile.draw.x * (tileSize.x >> 1),
-        y: tile.draw.y * (tileSize.y >> 1) + additionalYDelta,
+        y: tile.draw.y * (tileSize.y >> 1),
       });
-      return unionRectangle(acc, movedBounds);
-    }, graphic.frames[tiles[0].frame].getBounds());
+      return acc ? unionRectangle(acc, movedBounds) : movedBounds;
+    }, null);
+
+    if (!totalBounds) {
+      return;
+    }
 
     const imageWidth = totalBounds.right - totalBounds.left + 1;
     const imageHeight = totalBounds.bottom - totalBounds.top + 1;
