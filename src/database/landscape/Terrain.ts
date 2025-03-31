@@ -732,9 +732,13 @@ export class Terrain extends BaseTerrainTile {
 
     const totalBounds = tiles.reduce((acc: Rectangle<number> | null, tile) => {
       const regularBounds = graphic.frames[tile.frame].getBounds();
+      const additionalYDelta =
+        tile.coordinate.y > tile.coordinate.x
+          ? TileTypeDeltaYMultiplier[tile.tileType] * -elevationHeight
+          : 0;
       const movedBounds = movedRectangle(regularBounds, {
         x: tile.draw.x * (tileSize.x >> 1),
-        y: tile.draw.y * (tileSize.y >> 1),
+        y: tile.draw.y * (tileSize.y >> 1) + additionalYDelta,
       });
       return acc ? unionRectangle(acc, movedBounds) : movedBounds;
     }, null);

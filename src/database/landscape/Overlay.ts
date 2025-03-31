@@ -39,8 +39,25 @@ import {
   writeDataEntriesToJson,
 } from "../../json/json-serialization";
 import { z } from "zod";
-import { readFileSync } from "fs";
+import { readFileSync, writeFileSync } from "fs";
 import { writeResourceList } from "../../textfile/ResourceList";
+import { Logger } from "../../Logger";
+import { Graphic } from "../../image/Graphic";
+import { Point } from "../../geometry/Point";
+import { RawImage } from "../../image/RawImage";
+import {
+  movedRectangle,
+  Rectangle,
+  unionRectangle,
+} from "../../geometry/Rectangle";
+import {
+  getPaletteWithWaterColors,
+  WaterAnimationDelay,
+  WaterAnimationFrameCount,
+} from "../../image/palette";
+import { GifWriter } from "omggif";
+import { safeFilename } from "../../files/file-utils";
+import { TileTypeDeltaYMultiplier } from "./MapProperties";
 
 const OverlaySchema = BaseTerrainTileSchema.merge(
   z.object({
@@ -181,6 +198,409 @@ export class Overlay extends BaseTerrainTile {
     }
     textFileWriter.eol();
     textFileWriter.raw(" ").eol();
+  }
+
+  private writeFlatPatternToGif(
+    graphic: Graphic,
+    tileSize: Point<number>,
+    outputDirectory: string,
+    transparentIndex: number,
+    animateWater: boolean,
+    delayMultiplier: number,
+  ) {
+    const frameIndex = this.frameMaps[0][0].frameIndex;
+    const frameCount = this.frameMaps[0][0].frameCount;
+
+    const tiles: {
+      frame: number;
+      coordinate: Point<number>;
+      draw: Point<number>;
+    }[] = [];
+
+    const frames: RawImage[] = [];
+
+    const patternHeight = Math.round(frameCount ** 0.5);
+    const patternWidth = patternHeight;
+
+    for (let y = 0; y < patternHeight; ++y) {
+      for (let x = 0; x < patternWidth; ++x) {
+        const yModifier = y ? y % patternHeight : 0;
+        const xModifier = x ? x % patternWidth : 0;
+        const frameNumber =
+          frameIndex +
+          Math.min(xModifier + patternWidth * yModifier, frameCount - 1);
+        tiles.push({
+          frame: frameNumber,
+          coordinate: {
+            x,
+            y,
+          },
+          draw: {
+            x: x + y,
+            y: y - x + (patternWidth - 1),
+          },
+        });
+      }
+    }
+    tiles.sort((a, b) => {
+      if (a.draw.y < b.draw.y) {
+        return -1;
+      } else if (b.draw.y < a.draw.y) {
+        return 1;
+      } else {
+        if (a.draw.x < b.draw.x) {
+          return -1;
+        } else if (b.draw.x < a.draw.x) {
+          return 1;
+        } else {
+          return 0;
+        }
+      }
+    });
+
+    const totalBounds = tiles.reduce((acc: Rectangle<number> | null, tile) => {
+      const regularBounds = graphic.frames[tile.frame].getBounds();
+      const movedBounds = movedRectangle(regularBounds, {
+        x: tile.draw.x * (tileSize.x >> 1),
+        y: tile.draw.y * (tileSize.y >> 1),
+      });
+      return acc ? unionRectangle(acc, movedBounds) : movedBounds;
+    }, null);
+
+    if (!totalBounds) {
+      return;
+    }
+
+    const imageWidth = totalBounds.right - totalBounds.left + 1;
+    const imageHeight = totalBounds.bottom - totalBounds.top + 1;
+
+    const imageFrame = new RawImage(imageWidth, imageHeight);
+    imageFrame.anchor.x = -totalBounds.left;
+    imageFrame.anchor.y = -totalBounds.top;
+
+    tiles.forEach((tile) => {
+      const frame = graphic.frames[tile.frame];
+      imageFrame.overlayImage(frame, {
+        x: tile.draw.x * (tileSize.x >> 1),
+        y: tile.draw.y * (tileSize.y >> 1),
+      });
+    });
+
+    const palette = graphic.palette;
+    if (animateWater && graphic.hasWaterAnimation()) {
+      for (let i = 0; i < WaterAnimationFrameCount; ++i) {
+        const waterFrame = imageFrame.clone();
+        waterFrame.palette = getPaletteWithWaterColors(palette, i);
+        waterFrame.delay = Math.round(WaterAnimationDelay * delayMultiplier);
+        frames.push(waterFrame);
+      }
+    } else {
+      frames.push(imageFrame);
+    }
+
+    const image = new Graphic(frames);
+    image.palette = graphic.palette;
+
+    const gifBuffer = Buffer.alloc(1024 * 1024 + imageWidth * imageHeight);
+
+    const gifWriter = new GifWriter(gifBuffer, imageWidth, imageHeight, {
+      loop: 0,
+      palette: image.frames.every((frame) => frame.palette)
+        ? undefined
+        : image.palette.map((entry) => {
+            let value = +entry.blue;
+            value |= entry.green << 8;
+            value |= entry.red << 16;
+            return value;
+          }),
+    });
+    image.frames.forEach((image) => {
+      image.appendToGif(
+        gifWriter,
+        {
+          left: totalBounds.left,
+          top: totalBounds.top,
+          right: imageWidth,
+          bottom: imageHeight,
+        },
+        {
+          delay: 0,
+          transparentIndex,
+        },
+      );
+    });
+    const gifData = gifBuffer.subarray(0, gifWriter.end());
+    const outputPath = path.join(
+      outputDirectory,
+      `${safeFilename(this.internalName ?? "unnamed", true)}_Flat.gif`,
+    );
+    writeFileSync(outputPath, gifData);
+  }
+
+  private writeTilePatternToGif(
+    tilePattern: Nullable<number>[][],
+    patternName: string,
+    graphic: Graphic,
+    tileSize: Point<number>,
+    elevationHeight: number,
+    outputDirectory: string,
+    {
+      transparentIndex,
+      animateWater,
+      delayMultiplier,
+    }: {
+      transparentIndex: number;
+      animateWater: boolean;
+      delayMultiplier: number;
+    },
+  ) {
+    const tiles: {
+      tileType: number;
+      frame: number;
+      coordinate: Point<number>;
+      draw: Point<number>;
+    }[] = [];
+
+    for (let y = 0; y < tilePattern.length; ++y) {
+      for (let x = 0; x < tilePattern[y].length; ++x) {
+        const tileType = tilePattern[y][x];
+        if (tileType !== null && this.frameMaps[tileType][0].frameCount > 0) {
+          const frameNumber = this.frameMaps[tileType][0].frameIndex;
+          tiles.push({
+            tileType,
+            frame: frameNumber,
+            coordinate: {
+              x,
+              y,
+            },
+            draw: {
+              x: x + y,
+              y: y - x + (tilePattern[y].length - 1),
+            },
+          });
+        }
+      }
+    }
+
+    const frames: RawImage[] = [];
+
+    tiles.sort((a, b) => {
+      if (a.draw.y < b.draw.y) {
+        return -1;
+      } else if (b.draw.y < a.draw.y) {
+        return 1;
+      } else {
+        if (a.draw.x < b.draw.x) {
+          return -1;
+        } else if (b.draw.x < a.draw.x) {
+          return 1;
+        } else {
+          return 0;
+        }
+      }
+    });
+
+    const totalBounds = tiles.reduce((acc: Rectangle<number> | null, tile) => {
+      const regularBounds = graphic.frames[tile.frame].getBounds();
+      const additionalYDelta =
+        tile.coordinate.y > tile.coordinate.x
+          ? TileTypeDeltaYMultiplier[tile.tileType] * -elevationHeight
+          : 0;
+      const movedBounds = movedRectangle(regularBounds, {
+        x: tile.draw.x * (tileSize.x >> 1),
+        y: tile.draw.y * (tileSize.y >> 1) + additionalYDelta,
+      });
+      return acc ? unionRectangle(acc, movedBounds) : movedBounds;
+    }, null);
+
+    if (!totalBounds) {
+      return;
+    }
+
+    const imageWidth = totalBounds.right - totalBounds.left + 1;
+    const imageHeight = totalBounds.bottom - totalBounds.top + 1;
+
+    const imageFrame = new RawImage(imageWidth, imageHeight);
+    imageFrame.anchor.x = -totalBounds.left;
+    imageFrame.anchor.y = -totalBounds.top;
+
+    tiles.forEach((tile) => {
+      const frame = graphic.frames[tile.frame];
+      const additionalYDelta =
+        tile.coordinate.y > tile.coordinate.x
+          ? TileTypeDeltaYMultiplier[tile.tileType] * -elevationHeight
+          : 0;
+      imageFrame.overlayImage(frame, {
+        x: tile.draw.x * (tileSize.x >> 1),
+        y: tile.draw.y * (tileSize.y >> 1) + additionalYDelta,
+      });
+    });
+
+    const palette = graphic.palette;
+    if (animateWater && graphic.hasWaterAnimation()) {
+      for (let i = 0; i < WaterAnimationFrameCount; ++i) {
+        const waterFrame = imageFrame.clone();
+        waterFrame.palette = getPaletteWithWaterColors(palette, i);
+        waterFrame.delay = Math.round(WaterAnimationDelay * delayMultiplier);
+        frames.push(waterFrame);
+      }
+    } else {
+      frames.push(imageFrame);
+    }
+
+    const image = new Graphic(frames);
+    image.palette = graphic.palette;
+
+    const gifBuffer = Buffer.alloc(1024 * 1024 + imageWidth * imageHeight);
+
+    const gifWriter = new GifWriter(gifBuffer, imageWidth, imageHeight, {
+      loop: 0,
+      palette: image.frames.every((frame) => frame.palette)
+        ? undefined
+        : image.palette.map((entry) => {
+            let value = +entry.blue;
+            value |= entry.green << 8;
+            value |= entry.red << 16;
+            return value;
+          }),
+    });
+    image.frames.forEach((image) => {
+      image.appendToGif(
+        gifWriter,
+        {
+          left: totalBounds.left,
+          top: totalBounds.top,
+          right: imageWidth,
+          bottom: imageHeight,
+        },
+        {
+          delay: 0,
+          transparentIndex,
+        },
+      );
+    });
+    const gifData = gifBuffer.subarray(0, gifWriter.end());
+    const outputPath = path.join(
+      outputDirectory,
+      `${safeFilename(this.internalName ?? "unnamed", true)}_${patternName}.gif`,
+    );
+    writeFileSync(outputPath, gifData);
+  }
+
+  writeToGif(
+    graphics: Graphic[],
+    tileSize: Point<number>,
+    elevationHeight: number,
+    {
+      transparentIndex,
+      delayMultiplier,
+      animateWater,
+    }: {
+      transparentIndex: number;
+      delayMultiplier: number;
+      animateWater: boolean;
+    },
+    outputDirectory: string,
+  ) {
+    if (
+      this.resourceId !== -1 ||
+      this.resourceFilename.toLocaleLowerCase() !== "none"
+    ) {
+      const graphic = graphics.find(
+        (graphic) =>
+          graphic.resourceId === this.resourceId ||
+          graphic.filename?.toLocaleLowerCase() === this.resourceFilename,
+      );
+      if (!graphic) {
+        Logger.error(
+          `Skipping ${this.internalName} because graphic ${this.resourceId} - ${this.resourceFilename} was not found!`,
+        );
+        return;
+      }
+      if (this.drawTerrain === false) {
+        this.writeFlatPatternToGif(
+          graphic,
+          tileSize,
+          outputDirectory,
+          transparentIndex,
+          animateWater,
+          delayMultiplier,
+        );
+
+        this.writeTilePatternToGif(
+          [
+            [4, 7, 1],
+            [8, null, 5],
+            [2, 6, 3],
+          ],
+          "Hill-Large",
+          graphic,
+          tileSize,
+          elevationHeight,
+          outputDirectory,
+          {
+            transparentIndex,
+            animateWater,
+            delayMultiplier,
+          },
+        );
+        this.writeTilePatternToGif(
+          [
+            [12, 9],
+            [10, 11],
+          ],
+          "Hill-Small",
+          graphic,
+          tileSize,
+          elevationHeight,
+          outputDirectory,
+          {
+            transparentIndex,
+            animateWater,
+            delayMultiplier,
+          },
+        );
+        this.writeTilePatternToGif(
+          [
+            [16, 14],
+            [13, 15],
+          ],
+          "Valley-Small",
+          graphic,
+          tileSize,
+          elevationHeight,
+          outputDirectory,
+          {
+            transparentIndex,
+            animateWater,
+            delayMultiplier,
+          },
+        );
+
+        this.writeTilePatternToGif(
+          [
+            [16, 6, 14],
+            [5, null, 8],
+            [13, 7, 15],
+          ],
+          "Valley-Large",
+          graphic,
+          tileSize,
+          elevationHeight,
+          outputDirectory,
+          {
+            transparentIndex,
+            animateWater,
+            delayMultiplier,
+          },
+        );
+      } else {
+        // No known graphics for these types of overlays --> No way of supporting them
+        Logger.error(
+          `Skipping ${this.internalName} because semi-transparent overlays are not supported`,
+        );
+      }
+    }
   }
 
   toJson(savingContext: SavingContext) {

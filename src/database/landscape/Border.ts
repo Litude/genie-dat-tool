@@ -508,7 +508,7 @@ export class Border extends BaseTerrainTile {
       .integer(this.passabilityTerrainId)
       .dynamic((writer) => {
         if (semver.gte(savingContext.version.numbering, "2.0.0")) {
-          writer.integer(this.borderStyle ? 1 : 0);
+          writer.integer(this.borderStyle);
         }
       });
 
@@ -719,6 +719,7 @@ export class Border extends BaseTerrainTile {
         return;
       }
 
+      // TODO: Move all these patterns to JSON for easier updating and making the code much more readable...
       if (this.borderStyle === 0) {
         this.writeTilePatternToGif(
           BorderFlatPattern,
@@ -782,6 +783,11 @@ export class Border extends BaseTerrainTile {
           elevationHeight,
           outputDirectory,
           { transparentIndex, animateWater, delayMultiplier },
+        );
+      } else {
+        // There should only be types 0 and 1
+        Logger.error(
+          `Skipping ${this.internalName} due to unsupported border style ${this.borderStyle}`,
         );
       }
     }
