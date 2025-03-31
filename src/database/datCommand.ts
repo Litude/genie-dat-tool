@@ -183,7 +183,7 @@ export function addCommands(yargs: yargs.Argv<unknown>) {
           .option("graphics", {
             type: "string",
             describe:
-              "Path to DRS file(s) or directory or loose SLP files for graphics. Multiple files can be specified separated by a comma, later files take priority.",
+              "Path to DRS file(s) or directory or loose SLP files for graphics. Multiple files can be specified separated by a semicolon, later files take priority.",
             demandOption: true,
           })
           .option("transparent-color", {
@@ -268,7 +268,7 @@ export function addCommands(yargs: yargs.Argv<unknown>) {
           .option("graphics", {
             type: "string",
             describe:
-              "Path to DRS file(s) or directory or loose SLP files for graphics. Multiple files can be specified separated by a comma, later files take priority.",
+              "Path to DRS file(s) or directory or loose SLP files for graphics. Multiple files can be specified separated by a semicolon, later files take priority.",
             demandOption: true,
           })
           .option("transparent-color", {
@@ -327,7 +327,7 @@ export function addCommands(yargs: yargs.Argv<unknown>) {
           .option("graphics", {
             type: "string",
             describe:
-              "Path to DRS file(s) or directory or loose SLP files for graphics. Multiple files can be specified separated by a comma, later files take priority.",
+              "Path to DRS file(s) or directory or loose SLP files for graphics. Multiple files can be specified separated by a semicolon, later files take priority.",
             demandOption: true,
           })
           .option("transparent-color", {
@@ -763,7 +763,7 @@ function writeWorldDatabaseSprites(
     (color) => color.id === player - 1,
   );
   const graphics = readGraphics(
-    graphicsPath.replaceAll(" ", ",").split(","),
+    graphicsPath.split(";"),
     paletteFile,
     colormap?.playerColorBase ?? 16,
   );
@@ -815,11 +815,7 @@ function writeWorldDatabaseTerrains(
   if (animateWater) {
     paletteFile = getPaletteWithWaterColors(paletteFile, 0);
   }
-  const graphics = readGraphics(
-    graphicsPath.replaceAll(" ", ",").split(","),
-    paletteFile,
-    16,
-  );
+  const graphics = readGraphics(graphicsPath.split(";"), paletteFile, 16);
   const terrainOutputDirectory = path.join(outputDirectory, "terrains");
   mkdirSync(terrainOutputDirectory, { recursive: true });
 
@@ -871,11 +867,7 @@ function writeWorldDatabaseBorders(
   if (animateWater) {
     paletteFile = getPaletteWithWaterColors(paletteFile, 0);
   }
-  const graphics = readGraphics(
-    graphicsPath.replaceAll(" ", ",").split(","),
-    paletteFile,
-    16,
-  );
+  const graphics = readGraphics(graphicsPath.split(";"), paletteFile, 16);
   const terrainOutputDirectory = path.join(outputDirectory, "borders");
   mkdirSync(terrainOutputDirectory, { recursive: true });
 

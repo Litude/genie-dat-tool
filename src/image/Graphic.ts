@@ -2,7 +2,7 @@ import BufferReader from "../BufferReader";
 import { ResourceId } from "../database/Types";
 import { movedRectangle, Rectangle } from "../geometry/Rectangle";
 import { RawImage } from "./RawImage";
-import { lstatSync, writeFileSync } from "fs";
+import { lstatSync, readdirSync, readFileSync, writeFileSync } from "fs";
 import * as DrsFile from "../drs/DrsFile";
 import { parseSlpImage } from "./slpImage";
 import { isDefined } from "../ts/ts-utils";
@@ -12,7 +12,8 @@ import path from "path";
 import { Logger } from "../Logger";
 import { encode as bmpEncode } from "bmp-ts";
 import { Point } from "../geometry/Point";
-import { Int16 } from "../ts/base-types";
+import { asInt32, Int16 } from "../ts/base-types";
+import { parseShpImage } from "./shpImage";
 
 export class Graphic {
   frames: RawImage[];
@@ -237,8 +238,45 @@ export function readGraphics(
     .map((filePath) => {
       const stat = lstatSync(filePath);
       if (stat.isDirectory()) {
-        // TODO: Loose slp files
-        throw new Error(`Reading loose SLP files not yet implemented!`);
+        const filenames = readdirSync(filePath).map((entry) =>
+          entry.toLocaleLowerCase(),
+        );
+        return filenames
+          .map((filename) => {
+            if (filename.endsWith(".slp")) {
+              const buffer = new BufferReader(
+                readFileSync(path.join(filePath, filename)),
+              );
+              const frames = parseSlpImage(buffer, {
+                playerColor,
+                shadowColor: 0,
+              });
+              const graphic = new Graphic(frames);
+              graphic.palette = palette;
+              graphic.filename = filename.slice(0, -4);
+              const [, resourceIdStr] = filename.match(/^(\d+)\.slp$/) ?? [];
+              if (resourceIdStr) {
+                graphic.resourceId = asInt32<ResourceId>(+resourceIdStr);
+              }
+              return graphic;
+            } else if (filename.endsWith(".shp")) {
+              const buffer = new BufferReader(
+                readFileSync(path.join(filePath, filename)),
+              );
+              const frames = parseShpImage(buffer);
+              const graphic = new Graphic(frames);
+              graphic.palette = palette;
+              graphic.filename = filename.slice(0, -4);
+              const [, resourceIdStr] = filename.match(/^(\d+)\.shp$/) ?? [];
+              if (resourceIdStr) {
+                graphic.resourceId = asInt32<ResourceId>(+resourceIdStr);
+              }
+              return graphic;
+            } else {
+              return null;
+            }
+          })
+          .filter(isDefined);
       } else if (stat.isFile()) {
         const drsResult = DrsFile.readFromFile(filePath);
         const graphics = drsResult.files

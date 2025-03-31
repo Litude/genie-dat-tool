@@ -70,6 +70,7 @@ import {
   WaterAnimationFrameCount,
 } from "../../image/palette";
 import { TileTypeDeltaYMultiplier } from "./MapProperties";
+import { movedRectangle, unionRectangle } from "../../geometry/Rectangle";
 
 interface TerrainObjectPlacement {
   prototypeId: PrototypeId<Int16>;
@@ -536,9 +537,6 @@ export class Terrain extends BaseTerrainTile {
     const frameIndex = this.frameMaps[0].frameIndex;
     const frameCount = this.frameMaps[0].frameCount;
 
-    const widthPadding = graphic.frames[0].width - tileSize.x;
-    const heightPadding = graphic.frames[0].height - tileSize.y;
-
     const tiles: {
       frame: number;
       coordinate: Point<number>;
@@ -586,18 +584,31 @@ export class Terrain extends BaseTerrainTile {
       }
     });
 
-    const imageWidth =
-      tileSize.x * this.terrainPatternWidth + ((widthPadding + 1) & ~0x1);
-    const imageHeight =
-      tileSize.y * this.terrainPatternHeight + ((heightPadding + 1) & ~0x1);
+    if (!tiles.length) {
+      return;
+    }
+
+    const totalBounds = tiles.slice(1).reduce((acc, tile) => {
+      const regularBounds = graphic.frames[tile.frame].getBounds();
+      const movedBounds = movedRectangle(regularBounds, {
+        x: tile.draw.x * (tileSize.x >> 1),
+        y: tile.draw.y * (tileSize.y >> 1),
+      });
+      return unionRectangle(acc, movedBounds);
+    }, graphic.frames[tiles[0].frame].getBounds());
+
+    const imageWidth = totalBounds.right - totalBounds.left + 1;
+    const imageHeight = totalBounds.bottom - totalBounds.top + 1;
 
     const imageFrame = new RawImage(imageWidth, imageHeight);
+    imageFrame.anchor.x = -totalBounds.left;
+    imageFrame.anchor.y = -totalBounds.top;
 
     tiles.forEach((tile) => {
       const frame = graphic.frames[tile.frame];
       imageFrame.overlayImage(frame, {
-        x: tile.draw.x * (tileSize.x >> 1) + Math.ceil(widthPadding / 2),
-        y: tile.draw.y * (tileSize.y >> 1) + Math.ceil(heightPadding / 2),
+        x: tile.draw.x * (tileSize.x >> 1),
+        y: tile.draw.y * (tileSize.y >> 1),
       });
     });
 
@@ -632,7 +643,12 @@ export class Terrain extends BaseTerrainTile {
     image.frames.forEach((image) => {
       image.appendToGif(
         gifWriter,
-        { left: 0, top: 0, right: imageWidth, bottom: imageHeight },
+        {
+          left: totalBounds.left,
+          top: totalBounds.top,
+          right: imageWidth,
+          bottom: imageHeight,
+        },
         {
           delay: 0,
           transparentIndex,
@@ -714,15 +730,25 @@ export class Terrain extends BaseTerrainTile {
       }
     });
 
-    const widthPadding = 1;
-    const heightPadding = 1;
+    const totalBounds = tiles.slice(1).reduce((acc, tile) => {
+      const regularBounds = graphic.frames[tile.frame].getBounds();
+      const additionalYDelta =
+        tile.coordinate.y > tile.coordinate.x
+          ? TileTypeDeltaYMultiplier[tile.tileType] * -elevationHeight
+          : 0;
+      const movedBounds = movedRectangle(regularBounds, {
+        x: tile.draw.x * (tileSize.x >> 1),
+        y: tile.draw.y * (tileSize.y >> 1) + additionalYDelta,
+      });
+      return unionRectangle(acc, movedBounds);
+    }, graphic.frames[tiles[0].frame].getBounds());
 
-    const imageWidth =
-      tileSize.x * tilePattern[0].length + ((widthPadding + 1) & ~0x1);
-    const imageHeight =
-      tileSize.y * tilePattern.length + ((heightPadding + 1) & ~0x1);
+    const imageWidth = totalBounds.right - totalBounds.left + 1;
+    const imageHeight = totalBounds.bottom - totalBounds.top + 1;
 
     const imageFrame = new RawImage(imageWidth, imageHeight);
+    imageFrame.anchor.x = -totalBounds.left;
+    imageFrame.anchor.y = -totalBounds.top;
 
     tiles.forEach((tile) => {
       const frame = graphic.frames[tile.frame];
@@ -731,8 +757,8 @@ export class Terrain extends BaseTerrainTile {
           ? TileTypeDeltaYMultiplier[tile.tileType] * -elevationHeight
           : 0;
       imageFrame.overlayImage(frame, {
-        x: tile.draw.x * (tileSize.x >> 1) + widthPadding,
-        y: tile.draw.y * (tileSize.y >> 1) + additionalYDelta + heightPadding,
+        x: tile.draw.x * (tileSize.x >> 1),
+        y: tile.draw.y * (tileSize.y >> 1) + additionalYDelta,
       });
     });
 
@@ -767,7 +793,12 @@ export class Terrain extends BaseTerrainTile {
     image.frames.forEach((image) => {
       image.appendToGif(
         gifWriter,
-        { left: 0, top: 0, right: imageWidth, bottom: imageHeight },
+        {
+          left: totalBounds.left,
+          top: totalBounds.top,
+          right: imageWidth,
+          bottom: imageHeight,
+        },
         {
           delay: 0,
           transparentIndex,
@@ -804,7 +835,7 @@ export class Terrain extends BaseTerrainTile {
       const graphic = graphics.find(
         (graphic) =>
           graphic.resourceId === this.resourceId ||
-          graphic.filename === this.resourceFilename,
+          graphic.filename?.toLocaleLowerCase() === this.resourceFilename,
       );
       if (!graphic) {
         Logger.error(

@@ -67,6 +67,7 @@ import {
 import { GifWriter } from "omggif";
 import { safeFilename } from "../../files/file-utils";
 import { TileTypeDeltaYMultiplier } from "./MapProperties";
+import { movedRectangle, unionRectangle } from "../../geometry/Rectangle";
 
 // When set, this means that the specified direction has a tile different than the current tile
 enum BorderNeighbour {
@@ -570,15 +571,25 @@ export class Border extends BaseTerrainTile {
       }
     });
 
-    const widthPadding = 1;
-    const heightPadding = 1;
+    const totalBounds = tiles.slice(1).reduce((acc, tile) => {
+      const regularBounds = graphic.frames[tile.frame].getBounds();
+      const additionalYDelta =
+        tile.coordinate.y > tile.coordinate.x
+          ? TileTypeDeltaYMultiplier[tile.tileType] * -elevationHeight
+          : 0;
+      const movedBounds = movedRectangle(regularBounds, {
+        x: tile.draw.x * (tileSize.x >> 1),
+        y: tile.draw.y * (tileSize.y >> 1) + additionalYDelta,
+      });
+      return unionRectangle(acc, movedBounds);
+    }, graphic.frames[tiles[0].frame].getBounds());
 
-    const imageWidth =
-      tileSize.x * tilePattern[0].length + ((widthPadding + 1) & ~0x1);
-    const imageHeight =
-      tileSize.y * tilePattern.length + ((heightPadding + 1) & ~0x1);
+    const imageWidth = totalBounds.right - totalBounds.left + 1;
+    const imageHeight = totalBounds.bottom - totalBounds.top + 1;
 
     const imageFrame = new RawImage(imageWidth, imageHeight);
+    imageFrame.anchor.x = -totalBounds.left;
+    imageFrame.anchor.y = -totalBounds.top;
 
     tiles.forEach((tile) => {
       const frame = graphic.frames[tile.frame];
@@ -587,8 +598,8 @@ export class Border extends BaseTerrainTile {
           ? TileTypeDeltaYMultiplier[tile.tileType] * -elevationHeight
           : 0;
       imageFrame.overlayImage(frame, {
-        x: tile.draw.x * (tileSize.x >> 1) + widthPadding,
-        y: tile.draw.y * (tileSize.y >> 1) + additionalYDelta + heightPadding,
+        x: tile.draw.x * (tileSize.x >> 1),
+        y: tile.draw.y * (tileSize.y >> 1) + additionalYDelta,
       });
     });
 
@@ -623,7 +634,12 @@ export class Border extends BaseTerrainTile {
     image.frames.forEach((image) => {
       image.appendToGif(
         gifWriter,
-        { left: 0, top: 0, right: imageWidth, bottom: imageHeight },
+        {
+          left: totalBounds.left,
+          top: totalBounds.top,
+          right: imageWidth,
+          bottom: imageHeight,
+        },
         {
           delay: 0,
           transparentIndex,
@@ -666,7 +682,7 @@ export class Border extends BaseTerrainTile {
       const graphic = graphics.find(
         (graphic) =>
           graphic.resourceId === this.resourceId ||
-          graphic.filename === this.resourceFilename,
+          graphic.filename?.toLocaleLowerCase() === this.resourceFilename,
       );
       if (!graphic) {
         Logger.error(

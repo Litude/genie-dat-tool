@@ -641,7 +641,7 @@ export class Sprite {
 
     const mainGraphic = graphics.find(
       (graphic) =>
-        graphic.filename === this.resourceFilename ||
+        graphic.filename?.toLocaleLowerCase() === this.resourceFilename ||
         graphic.resourceId === this.resourceId,
     );
     const backgroundGraphic = mainGraphic

@@ -20,6 +20,18 @@ export function movedRectangle<T extends number, Y extends number>(
   };
 }
 
+export function unionRectangle<T extends number>(
+  first: Rectangle<T>,
+  second: Rectangle<T>,
+) {
+  return {
+    left: Math.min(first.left, second.left),
+    right: Math.max(first.right, second.right),
+    top: Math.min(first.top, second.top),
+    bottom: Math.max(first.bottom, second.bottom),
+  };
+}
+
 export const RectangleSchema = <T extends number>(schemaType: z.Schema<T>) => {
   return z.object({
     left: schemaType,

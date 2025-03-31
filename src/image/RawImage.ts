@@ -8,8 +8,8 @@ import { Logger } from "../Logger";
 export class RawImage {
   width: number;
   height: number;
-  private data: Array<PaletteIndex | null>;
-  private anchor: Point<number>;
+  data: Array<PaletteIndex | null>;
+  anchor: Point<number>;
   palette?: ColorRgb[]; // If a frame has a palette, it overrides the palette used by the graphic (needed for water animation)
   delay?: number; // If specified, overrides default delay
 

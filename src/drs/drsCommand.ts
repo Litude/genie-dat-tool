@@ -68,7 +68,7 @@ export function addCommands(yargs: yargs.Argv<unknown>) {
           .positional("filename", {
             type: "string",
             describe:
-              "Filename(s) of DRS file that will be parsed. Multiple files can be specified separated by a comma, later files take priority.",
+              "Filename(s) of DRS file that will be parsed. Multiple files can be specified separated by a semicolon, later files take priority.",
             demandOption: true,
           })
           .option("output-dir", {
@@ -79,7 +79,7 @@ export function addCommands(yargs: yargs.Argv<unknown>) {
           .option("resource-names-file", {
             type: "string",
             describe:
-              "Path to JSON file(s) that contains filenames used for graphics. Multiple files can be specified separated by a comma, later files take priority.",
+              "Path to JSON file(s) that contains filenames used for graphics. Multiple files can be specified separated by a semicolon, later files take priority.",
           })
           .option("resource-palettes-file", {
             type: "string",
@@ -310,8 +310,7 @@ function extractDrsGraphics(args: ExtractDrsGraphicsCommandArgs) {
     : null;
 
   const rawResult = drsFilenames
-    .replaceAll(" ", ",")
-    .split(",")
+    .split(";")
     .reverse()
     .map((filename) => DrsFile.readFromFile(filename).files);
 
@@ -390,7 +389,7 @@ function extractDrsGraphics(args: ExtractDrsGraphicsCommandArgs) {
 
   if (resourceNamesFiles) {
     const providedFilenames = resourceNamesFiles
-      .split(",")
+      .split(";")
       .map((filepath) => getResourceFilenames(filepath))
       .filter(isDefined)
       .reduce((acc, cur) => Object.assign(acc, cur), {});
@@ -533,7 +532,7 @@ function extractDrsGraphics(args: ExtractDrsGraphicsCommandArgs) {
   }
 
   const subdirectory = path.parse(
-    drsFilenames.replaceAll(" ", ",").split(",").at(-1) ?? "unnamed",
+    drsFilenames.split(";").at(-1) ?? "unnamed",
   ).name;
 
   const graphicsDirectory = path.join(outputDir, "graphics", subdirectory);
