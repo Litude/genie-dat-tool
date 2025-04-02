@@ -1,4 +1,4 @@
-# Scenario File (SCN) Format Reference
+# Scenario (SCN) File Format
 
 The following variations exist:
 * Age of Empires
@@ -27,9 +27,9 @@ char = Single letter (see information about string encoding below)
 char[256] = 256 consecutive single letter elements that belong to the same field
 
 # String encodings
-Strings are generally encoded using the active legacy codepage of the system, i.e. they are not UTF8. Only the HD edition and Definitive Editions use UTF8 encoded strings.  Strings are generally null terminated, but not always! Thus ons should always assume input is not null termianted but write null terminated strings!
+Strings are generally encoded using the active legacy codepage of the system, i.e. they are not UTF8. Only the HD edition and Definitive Editions use UTF8 encoded strings.  Strings are generally null terminated, but not always! Thus one should always assume input is not null termianted but write null terminated strings!
 
-...What about string line breaks...? \r\n seems to be used mostly?
+TODO: ...What about string line breaks...? \r\n seems to be used mostly?
 
 # Basics
 
@@ -37,7 +37,7 @@ There are various different version numbers contained within an SCN file. Essent
 
 # Basic structure
 
-The container version is uncompressed in container version 1.03, but in continer version 1.02 and 1.01 even the version is compressed. The header (SCN header) is also uncompressed. All other data is compressed.
+The container version is uncompressed in container version 1.03 and later, but in continer version 1.02 and 1.01 even the container version number is compressed. The header (SCN header) is also uncompressed. All other data is compressed.
 
 Since there are no real identifiers for a compressed/uncompressed file, the only way to support both versions is either to try reading the version number as uncompressed and checking if it is a valid version and then falling back to trying to read it as compressed.
 
@@ -47,13 +47,13 @@ Since there are no real identifiers for a compressed/uncompressed file, the only
 | ScnHeader                     | scenarioHeader    | 1.03->            | Header, see section below. Uncompressed. |
 | sint32 (ObjectId)             | nextObjectId      | 1.01->            | The object id that should be used for the next placed object.  |
 | float32 (ScnDataVersion)      | scnDataVersion    | 1.01->            | Scenario data version. |
-| ScnData                       | scenarioData      | 1.01->            | Scenario data, see section below |
-| TerrainData                   | terrainData       | 1.01->            | Terrain data, see section below |
-| sint32                        | playerCount       | 1.01->            | Main player count number. This is always 9, but the game probably parses files correctly if there are fewer sections. |
+| ScnData                       | scenarioData      | 1.01->            | Scenario data, see section below. |
+| TerrainData                   | terrainData       | 1.01->            | Terrain data, see section below. |
+| sint32                        | playerCount       | 1.01->            | Main player count number. This is always 9 (8 players plus gaia) regardless of how many players are actually enabled, but the game probably parses files correctly if there are fewer sections. |
 | PlayerSuppData[playerCount]   | playerSuppData    | 1.01-1.04         | Additional player data, see section below. |
 | PlayerSuppData[playerCount-1] | playerSuppData    | 1.07->            | Additional player data, see section below. (No entry for Gaia anymore in never version!) |
 | PlayerData[playerCount-1]     | playerData        | 1.05              | For this container version only, this data has been moved over here. |
-| PlayerObjects[playerCount]    | mapObjects        | 1.01->            | Player object data, see section below |
+| PlayerObjects[playerCount]    | mapObjects        | 1.01->            | Player object data, see section below. |
 | char[13]                      | developerTag      | 1.01-1.04         | Tag left by a developer, always "timothy deen\0" (null terminated) |
 | sint32                        | playerCount       | 1.06->            | Later versions have the player count a second time and use this later count for the later data. Nevertheless it is also always 9 and should match the previous count or the scenario is seriously broken. |
 | PlayerData[playerCount-1]     | playerData        | 1.01-1.04, 1.06-> | Main player data section, see section below. |
@@ -65,13 +65,13 @@ The header only exists for container version 1.03 and later! This is not compres
 | ---------              | -------            | -----------      | -----------    |
 | uint32                 | headerSize         | 1->              | Size of header, excluding this field. Always 0 in header version 6? |
 | sint32 (HeaderVersion) | headerVersion      | 1->              | Header version (known values are 1, 2, 3 and 6). |
-| uint32                 | checksum           | 2->              | Checksum used to ensure scenarios match for multiplayer |
-| str32                  | description        | 1->              | Description of scenario, shown in scenario selection preview |
-| bool32                 | individualVicConds | 1->              | Whether the scenario has individual victory conditions |
-| sint32                 | playerCount        | 1->              | Number of non-gaia players |
-| uint32[9]              | dlcInformation     | 3->              | Information about DLC(?) |
-| str32                  | authorName         | 3->              | Author name, usually null terminated |
-| uint32                 | triggerCount       | 2->              | Trigger count in scenario |
+| uint32                 | checksum           | 2->              | Checksum used to ensure scenarios match for multiplayer. In maps saved by the game scenario editor, this is always the current timestamp as Unix time. |
+| str32                  | description        | 1->              | Description of scenario, shown in scenario selection preview. |
+| bool32                 | individualVicConds | 1->              | Whether the scenario has individual victory conditions. |
+| sint32                 | playerCount        | 1->              | Number of non-gaia players. |
+| uint32[9]              | dlcInformation     | 3->              | Information about DLC(?). |
+| str32                  | authorName         | 3->              | Author name, usually null terminated. |
+| uint32                 | triggerCount       | 3->              | Trigger count in scenario. |
 
 ## Scenario Data (ScnData)
 The scenario data usually has slots for up to 16 players, but only 9 (or 8) of these are really used. Slot 0-7 are used by players 1-8. Gaia data is generally only stored starting in AoK and there Gaia data is stored in slot 8. Thus slots 9-15 are unused.
@@ -79,37 +79,34 @@ The scenario data usually has slots for up to 16 players, but only 9 (or 8) of t
 | Type                       | Name                     | ScnDataVersion    | Description |
 | ---------                  | -------                  | -----------       | -----------    |
 | char[16][256]              | playerNames              | 1.14->            | Player names. |
-| int32[16] (StringId)       | playerNameStringIds      | 1.16->            | Localized player name string ids |
-| bool32[16]                 | playersEnabled           | 1.14->            | Boolean whether player slot is enabled. Setting the max player count in the scenario editor modified these fields. Having non-consecutive enabled fields can cause bugs but also allows for interesting effects (allow later player colors without enabling all players in AoE) |
-| sint32[16] (ScnPlayerType) | playerTypes              | 1.14->            | Which player types may use slot in single player, see Appendix. |
-| int32[16] (CivilizationId) | playerCivilizations      | 1.14->            | 0 is Gaia, 1 is Egyptian (order as stored in .DAT) |
-| int32[16] (AiEmotion)      | aiEmotionalStates        | 1.14->            | Deprecated, does nothing in any known version. See Appendix. |
-| bool8                      | conquestVictory          | 1.07->            | Global conquest victory is enabled |
-| ScnEvents                  | scenarioEvents           | 1.00->            | Scenario event data, see section below |
-| ScnPresentationData        | presentationData         | 1.00->            | Scenario presentation data, see section below |
+| int32[16] (StringId)       | playerNameStringIds      | 1.16->            | Localized player name string ids. |
+| ScnPlayerInfo[16]          | playerData               | 1.14->            | Player specific data, see section below. |
+| bool8                      | conquestVictory          | 1.07->            | Global conquest victory is enabled. |
+| ScnEvents                  | scenarioEvents           | 1.00->            | Scenario event data, see section below. |
+| ScnPresentationData        | presentationData         | 1.00->            | Scenario presentation data, see section below. |
 | ScnAiFiles                 | aiFiles                  | 1.00->            | AI file information, see section below. |
-| uint32 (Verify)            | checkpoint1              | 1.03->            | Skipped by the game but can be used to validate reading since this is always 0xFFFFFF9D |
+| uint32 (Verify)            | checkpoint1              | 1.03->            | Skipped by the game but can be used to validate reading since this is always 0xFFFFFF9D. |
 | char[16][256]              | playerNames              | 1.00-1.13         | Player names. Later versions have them further up. |
-| ScnPlayerInfo[16]          | playerData               | 1.00->            | Player specific data, see section below. |
-| uint32 (Verify)            | checkpoint2              | 1.03->            | Skipped by the game but can be used to validate reading since this is always 0xFFFFFF9D |
+| ScnPlayerStartInfo[16]     | playerStartData          | 1.00->            | Player specific data, see section below. |
+| uint32 (Verify)            | checkpoint2              | 1.03->            | Skipped by the game but can be used to validate reading since this is always 0xFFFFFF9D. |
 | ScnGlobalVic               | globalVictoryData        | 1.00->            | Global victory condition information, see section below. |
 | sint32[16][16] (Diplomacy) | playerDiplomacyStances   | 1.00->            | Diplomacy stances for each player to each player.<br>0 = Ally<br>1 = Neutral<br>2 = Unused<br>3 = Enemy |
 | ScnIndvVic[16][12]         | playerIndividualVictory  | 1.00->            | Player individual victory conditions, up to 12 entries per player. See section below. |
 | uint32 (Verify)            | checkpoint3              | 1.03->            | Skipped by the game but can be used to validate reading since this is always 0xFFFFFF9D |
-| bool32[16][16]             | playerAlliedVictory      | 1.01              | This early version seems to have included the possibility to have a separate allied victory stance with each player |
-| bool32[16]                 | playerAlliedVictory      | 1.02->            | Allied victory states for each player. If true, allied victory is checked for the player. Used by scenario editor |
+| bool32[16][16]             | playerAlliedVictory      | 1.01              | This early version seems to have included the possibility to have a separate allied victory stance with each player. |
+| bool32[16]                 | playerAlliedVictory      | 1.02->            | Allied victory states for each player. If true, allied victory is checked for the player. Used by scenario editor. |
 | ScnTechDisables            | techDisables             | 1.04->            | Information for disabling/enabling player techonlogies, units and buildings. See section below.
 | bool32                     | lengthenCombat           | 1.05->            | If true, lengthen combat is enabled (i.e. effect 100 is executed). This is buggy since it will be executed again when saving a game. |
 | bool32                     | enableCheats             | 1.12->            | Does nothing, but was likely planned for allowing cheats to be enabled or disabling trading (i.e. executing effect 105) |
 | bool32                     | fullTechTree             | 1.12->            | If true, full tech tree is enabled. Civilization effect is not used and in ROR, effect 210 is executed |
 | int32[16] (ScenarioAgeId)  | playerStartingAges       | 1.06->            | Starting age of player, 0 = Stone Age, 1 = Tool Age, 2 = Bronze Age, 3 = Iron Age, 4 = Post-Iron Age. For earlier versions, this should be read from the player attributes instead. |
 | uint32 (Verify)            | checkpoint4              | 1.03->            | Skipped by the game but can be used to validate reading since this is always 0xFFFFFF9D |
-| int32                      | gameViewPositionX        | 1.19->            | Local player initial view x coordinate |
-| int32                      | gameViewPositionY        | 1.19->            | Local player initial view y coordinate |
-| int32 (RandomMapId)        | aiRandomMapType          | 1.21->            | Scenario random map type (used by AI) |
+| int32                      | gameViewPositionX        | 1.19->            | Local player initial view x coordinate. |
+| int32                      | gameViewPositionY        | 1.19->            | Local player initial view y coordinate. |
+| int32 (RandomMapId)        | aiRandomMapType          | 1.21->            | Scenario random map type (used by AI). |
 
 ### Scenario Data Events (ScnEvents)
-This is actually a very simple trigger like system that is supported in all known versions with identical data. However, the functionality is very limited and saved games are a bit buggy with this functionality. Since the official scenario editor does not offer any way of actual editing these, they have fallen into obscurity. It seems that this was long since abandoned since the functionality is identical in the January 1997 build of Age of Empires.
+This is actually a very simple trigger like system that is supported in all known versions with identical data. However, the functionality is very limited and saved games are a bit buggy with this functionality. Since the official scenario editor does not offer any way of actual editing these, they have fallen into obscurity. It seems that this was long since abandoned since the functionality already exists and is identical in the earliest known January 1997 build of Age of Empires.
 
 | Type                   | Name                     | ScnDataVersion    | Description   |
 | ---------              | -------                  | -----------       | -----------   |
@@ -119,14 +116,14 @@ This is actually a very simple trigger like system that is supported in all know
 | EventEntry[eventCnt]   | eventEntries             | 1.00->            | Actual event entries. |
 
 #### EventEntry
-Event entries use their own ids that are called EventObjId for objects that have not been created yet. Once the object has been created, the game automatically updates all events that refer to this EventObjId to actually refer to the created ObjId.
+Event entries use their own ids that are called EventObjId in this document for objects that have not been created yet. Once the object has been created, the game automatically updates all events that refer to this EventObjId to actually refer to the created ObjId.
 
 While the format bascially supports using objects that are already present in the scenario editor (when player id is not -1), this is actually parsed by the game before the objects have been loaded. Thus it is unable to find any objects and it will not work... So in vanilla AoE, it is only possible to use the event system on objects that have been created by the event system.
 
 | Type                   | Name                     | ScnDataVersion    | Description   |
 | ---------              | -------                  | -----------       | -----------   |
 | float32                | eventTime                | 1.00->            | The game time when this event should occur. In seconds. |
-| uint8 (EventType)      | eventType                | 1.00->            | Type of event.<br>0 = Attack Object (non-functional)<br>1 = Create Object<br>2 = Move Object<br>3 = Unused<br>4 = Destroy Object |
+| uint8 (EventType)      | eventType                | 1.00->            | Type of event.<br>0 = Attack Object (non-functional)<br>1 = Create Object<br>2 = Move Object<br>3 = Unused<br>4 = Destroy Object. |
 | int16 (PrototypeId)    | objectPrototypeId        | 1.00->            | Prototype id of object to be created (object .DAT id). Used for create object event. |
 | uint8 (PlayerSlot)     | playerId                 | 1.00->            | Player whose object is to be created. 0 = Gaia, 1-7 = Players 1-7 |
 | float32                | eventPositionX           | 1.00->            | X position of event (where to create object = 1, or where to move object = 2) |
@@ -134,9 +131,9 @@ While the format bascially supports using objects that are already present in th
 | float32                | eventPositionZ           | 1.00->            | Z position of event (where to create object = 1, or where to move object = 2) |
 | uint16                 | taskType                 | 1.00->            | Unused. Perhaps meant for the unused event type 3 that would have allowed to task villagers? |
 | sint16 (*)             | sourceObjectId           | 1.00->            | If the following player id is -1 (unassigned), this is an EventObjId. Else this is ObjectId. |
-| sint16 (PlayerSlot)    | sourcePlayerId           | 1.00->            | If -1, the object has not been created yet. Else this is the owner id of the object (0 = Gaia, 1-7 = Players 1 - 7) |
+| sint16 (PlayerSlot)    | sourcePlayerId           | 1.00->            | If -1, the object has not been created yet. Else this is the owner id of the object (0 = Gaia, 1-7 = Players 1 - 7). For scenarios, this should be -1. |
 | sint16 (*)             | targetObjectId           | 1.00->            | Used by non-funtional attack event. If the following player id is -1 (unassigned), this is an EventObjId. Else this is ObjectId. |
-| sint16 (PlayerSlot)    | targetPlayerId           | 1.00->            | Used by non-funtional attack event. If -1, the object has not been created yet. Else this is the owner id of the object (0 = Gaia, 1-7 = Players 1 - 7) |
+| sint16 (PlayerSlot)    | targetPlayerId           | 1.00->            | Used by non-funtional attack event. If -1, the object has not been created yet. Else this is the owner id of the object (0 = Gaia, 1-7 = Players 1 - 7). For scenarios, this should be -1. |
 
 Since the EventObjId allows referring to units that have not been created yet, it is possible to create an object, move it and then finally delete it if so desired. The following three events will achieve this:
 1. Create object (EventType = 1); Clubman (PrototypeId = 73); Source object id = 1; Source player id = -1; Postion 5, 5, 0; Time: 5 (after 5 seconds of game time)
@@ -169,13 +166,20 @@ Since the EventObjId allows referring to units that have not been created yet, i
 #### Bitmap
 | Type                  | Name                     | ScnDataVersion    | Description |
 | ---------             | -------                  | -----------       | -----------   |
-| sint32                | memoryAllocationType     | 1.00->            | This should always be 2 if a bitmap is included. Else the bitmap will not be deleted properly and will leak memory! |
-| sint32                | bitmapWidth (width)      | 1.00->            | Width of the bitmap in pixels, 0 if no bitmap is included. NOTE! The width in pixel data is rounded up to the nearest number multiplyable by 4 to get the **pitch** value! |
-| sint32                | bitmapHeight (height)    | 1.00->            | Height of the bitmap in pixels, 0 if no bitmap is included |
-| BITMAPINFOHEADER      | bitmapInfoHeader         | 1.00->            | Standard BMP BITMAPINFOHEADER header structure |
-| RGBQUAD[256]          | bitmapPalette            | 1.00->            | Standard BMP RGBQUAD palette structure (this is actually ignored since the palette is decided by the game, but should optimally match the palette of the instructions screen) |
-| uint8[pitch*height]   | bitmapPixelData          | 1.00->            | Each entry corresponds to a palette entry |
+| sint32                | memoryAllocationType     | 1.10->            | This should always be 2 if a bitmap is included. Else the bitmap will not be deleted properly and will leak memory! 0 if no bitmap is included. |
+| sint32                | bitmapWidth (width)      | 1.10->            | Width of the bitmap in pixels, 0 if no bitmap is included. NOTE! The width in pixel data is rounded up to the nearest number multiplyable by 4 to get the **pitch** value! |
+| sint32                | bitmapHeight (height)    | 1.10->            | Height of the bitmap in pixels, 0 if no bitmap is included. |
+| int16                 | bitmapOrientation        | 1.10->            | Orientation of bitmap. -1 means bottomUp and 1 topDown. Should match the actual BMP data!. |
+| BitmapData            | bitmapData               | 1.10->            | Actual bitmap data only included if width and height are greater than 0. |
 
+#### Bitmap Data (BitmapData)
+This section is only included if both width and height are greater than 0!
+
+| Type                  | Name                     | ScnDataVersion    | Description |
+| ---------             | -------                  | -----------       | -----------   |
+| BITMAPINFOHEADER      | bitmapInfoHeader         | 1.10->            | Standard BMP BITMAPINFOHEADER header structure. |
+| RGBQUAD[256]          | bitmapPalette            | 1.10->            | Standard BMP RGBQUAD palette structure (this is actually ignored since the palette is decided by the game, but should optimally match the palette of the instructions screen). |
+| uint8[pitch*height]   | bitmapPixelData          | 1.10->            | Each entry corresponds to a palette entry. |
 
 ### Scenario Data AI Files (ScnAiFiles)
 | Type              | Name                             | ScnDataVersion    | Description   |
@@ -212,16 +216,25 @@ Since the EventObjId allows referring to units that have not been created yet, i
 ### Scenario Data Player Info (ScnPlayerInfo)
 | Type                   | Name                           | ScnDataVersion    | Description |
 | ---------              | -------                        | -----------       | -----------    |
-| bool32                 | playerEnabled                  | 1.00-1.13         | Boolean whether player slot is enabled. Here for earlier scenario versions |
-| int32                  | playerStartingGold             | 1.00->            | Player starting gold as shown in the scenario editor |
-| int32                  | playerStartingWood             | 1.00->            | Player starting wood as shown in the scenario editor |
-| int32                  | playerStartingFood             | 1.00->            | Player starting food as shown in the scenario editor |
-| int32                  | playerStartingStone            | 1.00->            | Player starting stone as shown in the scenario editor |
-| int32                  | playerStartingOre              | 1.17->            | Player starting ore as shown in the scenario editor |
-| int32                  | playerStartingTradeGoods       | 1.17->            | Player starting trade goods as shown in the scenario editor |
-| sint32 (ScnPlayerType) | playerType                     | 1.00-1.13         | Which player types may use slot in single player, see Appendix. Here for earlier scenario versions |
-| int32 (CivilizationId) | playerCivilization             | 1.00-1.13         | 0 is Gaia, 1 is Egyptian (order as stored in .DAT). Here for earlier scenario versions |
-| int32 (AiEmotion)      | playerAiEmotionalState         | 1.00-1.13         | Deprecated, does nothing in any known version. Here for earlier scenario versions |
+| bool32                 | playerEnabled                  | 1.14->            | Boolean whether player slot is enabled. Setting the max player count in the scenario editor modifies these fields. Having non-consecutive enabled fields can cause bugs but also allows for interesting effects (allow later player colors without enabling all players in AoE) |
+| sint32 (ScnPlayerType) | playerType                     | 1.14->            | Which player types may use the slot in single player, see Appendix. |
+| int32 (CivilizationId) | playerCivilization             | 1.14->            | 0 is Gaia, 1 is Egyptian (order as stored in .DAT). |
+| int32 (AiEmotion)      | playerAiEmotionalState         | 1.14->            | Deprecated, does nothing in any known version. |
+
+### Scenario Data Player Starting Info (ScnPlayerStartInfo)
+| Type                   | Name                           | ScnDataVersion    | Description |
+| ---------              | -------                        | -----------       | -----------    |
+| bool32                 | playerEnabled                  | 1.00-1.13         | Boolean whether player slot is enabled. Moved to ScnPlayerInfo in 1.14. |
+| int32                  | playerStartingGold             | 1.00->            | Player starting gold as shown in the scenario editor. |
+| int32                  | playerStartingWood             | 1.00->            | Player starting wood as shown in the scenario editor. |
+| int32                  | playerStartingFood             | 1.00->            | Player starting food as shown in the scenario editor. |
+| int32                  | playerStartingStone            | 1.00->            | Player starting stone as shown in the scenario editor. |
+| int32                  | playerStartingOre              | 1.17->            | Player starting ore as shown in the scenario editor. |
+| int32                  | playerStartingTradeGoods       | 1.17->            | Player starting trade goods as shown in the scenario editor. |
+| sint32 (ScnPlayerType) | playerType                     | 1.00-1.13         | Which player types may use the slot in single player, see Appendix. Moved to ScnPlayerInfo in 1.14. |
+| int32 (CivilizationId) | playerCivilization             | 1.00-1.13         | 0 is Gaia, 1 is Egyptian (order as stored in .DAT). Moved to ScnPlayerInfo in 1.14. |
+| int32 (AiEmotion)      | playerAiEmotionalState         | 1.00-1.13         | Deprecated, does nothing in any known version. Moved to ScnPlayerInfo in 1.14. |
+
 
 ### Scenario Data Global Victory (ScnGlobalVic)
 | Type                     | Name                            | ScnDataVersion    | Description |
@@ -276,7 +289,7 @@ Terrain data of the map follows. The format basically supports non-square maps, 
 ## Player Supplemental Data (PlayerSuppData)
 | Type                        | Name               | ContainerVersion  | Description |
 | ---------                   | -------            | -----------       | ----------- |
-| uint8 (PlayerType)          | playerType         | 1.01-1.04         | Player type data (not scneario player type), this can be ignored since this is overwritten when a game is started. |
+| uint8 (PlayerType)          | playerType         | 1.01-1.04         | Player type data (not scenario player type), this can be ignored since this is overwritten when a game is started. |
 | uint8 (CivilizationId)      | playerCivilization | 1.01-1.04         | Player civilization data again, this can be ignored |
 | float                       | playerFood         | 1.07->            | Player starting food, this is used by the game. (Previous was for editor only) |
 | float                       | playerWood         | 1.07->            | Player starting wood, this is used by the game. (Previous was for editor only) |

@@ -27,6 +27,7 @@ export type TerrainId<T> = T & { __type: "TerrainId" };
 export type BorderId<T> = T;
 export type SoundEffectId<T> = T & { __type: "SoundEffectId" };
 export type PlayerId<T> = T;
+export type PlayerScenarioSlot<T> = T & { __type: "PlayerScenarioSlot" };
 export type StringId<T> = T & { __type: "StringId" };
 export type SpriteId = Int16 & { __type: "SpriteId" };
 export type HabitatId = Int16 & { __type: "HabitatId" };
@@ -39,6 +40,7 @@ export type TechnologyId<T> = T & { __type: "TechnologyId" };
 export type ArchitectureStyleId = UInt8 & { __type: "ArchitectureStyleId" };
 export type AgeId<T> = T;
 export type TechnologyType = Int16 & { __type: "TechnologyType" };
+export type CivilizationId<T> = T & { __type: "CivilizationId" };
 
 export type ColorMapTypeValue = UInt8 & { __type: "ColorMapTypeValue" };
 

@@ -1,5 +1,5 @@
 import { readFileSync, statSync } from "fs";
-import BufferReader, { BufferReaderSeekWhence } from "../BufferReader";
+import BufferReader, { BufferSeekWhence } from "../BufferReader";
 import { Logger } from "../Logger";
 import { asInt32, UInt32 } from "../ts/base-types";
 import { FileEntry } from "../files/FileEntry";
@@ -160,7 +160,7 @@ function readDrs1996(
   buffer: BufferReader,
   modificationTime: number,
 ): DrsParsingResult {
-  buffer.seek(-271, BufferReaderSeekWhence.End);
+  buffer.seek(-271, BufferSeekWhence.End);
   const version = buffer.readUInt8();
   if (version !== 1) {
     Logger.error(`Encountered unsupported DRS 1996 version ${version}`);
@@ -178,7 +178,7 @@ function readDrs1996(
     );
   }
 
-  buffer.seek(40, BufferReaderSeekWhence.Start);
+  buffer.seek(40, BufferSeekWhence.Start);
   const smallestResourceId = buffer.readInt32<ResourceId>();
   const largestResourceId = buffer.readInt32<ResourceId>();
   const entryCount = buffer.readUInt32();
@@ -413,7 +413,7 @@ function detectDatFile(bufferReader: BufferReader) {
     if (bufferReader.size() === 147304) {
       const firstInt = bufferReader.readInt32();
       if (firstInt === 68) {
-        bufferReader.seek(-4, BufferReaderSeekWhence.End);
+        bufferReader.seek(-4, BufferSeekWhence.End);
         return bufferReader.readInt32() === -192;
       }
     }

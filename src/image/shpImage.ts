@@ -1,4 +1,4 @@
-import BufferReader, { BufferReaderSeekWhence } from "../BufferReader";
+import BufferReader, { BufferSeekWhence } from "../BufferReader";
 import { PaletteIndex } from "../database/Types";
 import { Rectangle } from "../geometry/Rectangle";
 import { Int32 } from "../ts/base-types";
@@ -24,7 +24,7 @@ export function parseShpImage(buffer: BufferReader): RawImage[] {
   }
 
   for (let i = 0; i < frameCount; i++) {
-    buffer.seek(frameOffsets[i], BufferReaderSeekWhence.Start);
+    buffer.seek(frameOffsets[i], BufferSeekWhence.Start);
 
     const _boundY = buffer.readInt16();
     const _boundX = buffer.readInt16();

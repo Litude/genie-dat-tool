@@ -15,7 +15,7 @@ import {
 } from "./ts/base-types";
 import { readFileSync } from "fs";
 
-export const enum BufferReaderSeekWhence {
+export const enum BufferSeekWhence {
   Start = 0,
   Relative = 1,
   End = 2,
@@ -114,6 +114,17 @@ export default class BufferReader {
     return value as Float64;
   }
 
+  readBuffer(size: number): Buffer {
+    if (this.offset + size > this.buffer.length) {
+      throw Error(
+        `Tried to create sub-buffer past end of current buffer! ${this.offset}, ${this.size}, ${size}`,
+      );
+    }
+    const value = this.buffer.subarray(this.offset, this.offset + size);
+    this.offset += size;
+    return value;
+  }
+
   // Pointers should not be stored, but AOE does it anyway :)
   readPointer(): Pointer {
     const value = this.buffer.readUInt32LE(this.offset);
@@ -121,9 +132,12 @@ export default class BufferReader {
     return value as Pointer;
   }
 
-  readFixedSizeString(size: number): string {
+  readFixedSizeString(
+    size: number,
+    encoding: BufferEncoding = "latin1",
+  ): string {
     const value = this.buffer.toString(
-      "latin1",
+      encoding,
       this.offset,
       this.offset + size,
     );
@@ -136,9 +150,14 @@ export default class BufferReader {
     }
   }
 
-  readPascalString16(): string {
-    const stringLength = this.readInt16();
-    return this.readFixedSizeString(stringLength);
+  readPascalString16(encoding: BufferEncoding = "latin1"): string {
+    const stringLength = this.readUInt16();
+    return this.readFixedSizeString(stringLength, encoding);
+  }
+
+  readPascalString32(encoding: BufferEncoding = "latin1"): string {
+    const stringLength = this.readUInt32();
+    return this.readFixedSizeString(stringLength, encoding);
   }
 
   tell(): number {
@@ -149,18 +168,15 @@ export default class BufferReader {
     return this.buffer.length;
   }
 
-  seek(
-    offset: number,
-    whence: BufferReaderSeekWhence = BufferReaderSeekWhence.Start,
-  ) {
+  seek(offset: number, whence: BufferSeekWhence = BufferSeekWhence.Start) {
     switch (whence) {
-      case BufferReaderSeekWhence.Start:
+      case BufferSeekWhence.Start:
         this.offset = offset;
         break;
-      case BufferReaderSeekWhence.Relative:
+      case BufferSeekWhence.Relative:
         this.offset += offset;
         break;
-      case BufferReaderSeekWhence.End:
+      case BufferSeekWhence.End:
         this.offset = this.buffer.length + offset;
         break;
     }

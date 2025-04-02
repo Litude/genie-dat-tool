@@ -30,11 +30,9 @@ export class FileEntry {
       fs.writeFileSync(filePath, this.data);
 
       if (this.modificationTime !== undefined) {
-        fs.utimesSync(
-          filePath,
-          this.modificationTime / 1000,
-          this.modificationTime / 1000,
-        );
+        // Must pass this as date to get millisecond precision, plain numbers are treated as seconds
+        const modificationTime = new Date(this.modificationTime);
+        fs.utimesSync(filePath, modificationTime, modificationTime);
       }
     } catch (err: unknown) {
       if (err instanceof Error) {

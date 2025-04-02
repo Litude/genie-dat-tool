@@ -11,4 +11,8 @@ output/
 *.gif
 *.col
 *.pal
+*.scn
+*.scx
+*.cpn
+*.cpx
 tr_*.txt

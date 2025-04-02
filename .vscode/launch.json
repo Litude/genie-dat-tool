@@ -66,16 +66,21 @@
         //     "--force-system-colors",
         //     "--animate-water"
         // ],
+        // "args": [
+        //     "dat",
+        //     "extract-borders",
+        //     "empires_970917.dat",
+        //     "--palette-file",
+        //     "palette.bmp",
+        //     "--graphics",
+        //     "Border_970917.drs",
+        //     "--force-system-colors",
+        //     "--animate-water"
+        // ],
         "args": [
-            "dat",
-            "extract-borders",
-            "empires_970917.dat",
-            "--palette-file",
-            "palette.bmp",
-            "--graphics",
-            "Border_970917.drs",
-            "--force-system-colors",
-            "--animate-water"
+            "scn",
+            "extract-files",
+            "DEMO.scn"
         ],
         // "args": [
         //     "drs",
