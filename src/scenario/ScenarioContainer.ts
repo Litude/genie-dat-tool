@@ -1,15 +1,7 @@
 import { inflateRawSync } from "zlib";
 import BufferReader from "../BufferReader";
 import { ParsingError } from "../database/Error";
-import {
-  asFloat32,
-  asFloat64,
-  asInt32,
-  asUInt32,
-  Float32,
-  Float64,
-  Int32,
-} from "../ts/base-types";
+import { asFloat32, asInt32, asUInt32, Float32, Int32 } from "../ts/base-types";
 import { ScenarioHeader } from "./ScenarioHeader";
 import { ObjectId } from "../database/Types";
 import { ScenarioLoadingContext } from "./ScenarioLoadingContext";
@@ -18,8 +10,14 @@ import { FileEntry } from "../files/FileEntry";
 import { Logger } from "../Logger";
 import path from "path";
 
+export enum ScenarioParsingAmount {
+  Header = 0,
+  Data = 1, // everything needed for extracting data
+  Complete = 2,
+}
+
 export class ScenarioContainer {
-  version: Float64 = asFloat64(0.0);
+  version: string = "";
   dataVersion: Float32 = asFloat32(0.0);
   header: ScenarioHeader = new ScenarioHeader();
   nextObjectId: ObjectId<Int32> = asInt32<ObjectId<Int32>>(-1);
@@ -85,7 +83,11 @@ export class ScenarioContainer {
     });
   }
 
-  static readFromBuffer(inputBuffer: BufferReader, modifyDate: number) {
+  static readFromBuffer(
+    inputBuffer: BufferReader,
+    modifyDate: number,
+    parsingAmount: ScenarioParsingAmount = ScenarioParsingAmount.Data,
+  ) {
     let buffer = inputBuffer;
 
     const loadingContext: ScenarioLoadingContext = {
@@ -97,10 +99,10 @@ export class ScenarioContainer {
     let scenarioVersion = 0;
     const versionString = buffer.readFixedSizeString(4);
     if (versionString.match(/^\d\.\d\d$/)) {
+      scenario.version = versionString;
       scenarioVersion = parseFloat(versionString);
       loadingContext.containerVersion = scenarioVersion;
 
-      scenario.version = asFloat64(scenarioVersion);
       if (scenarioVersion < 1.03) {
         throw new ParsingError(
           `Unexpected version number ${scenarioVersion} for uncompressed header scenario`,
@@ -110,7 +112,10 @@ export class ScenarioContainer {
       const startOffset = buffer.tell();
       const endOffset = buffer.size();
       const compressedData = buffer.data().subarray(startOffset, endOffset);
-      buffer = new BufferReader(inflateRawSync(compressedData));
+
+      if (parsingAmount > ScenarioParsingAmount.Header) {
+        buffer = new BufferReader(inflateRawSync(compressedData));
+      }
     } else {
       // We may have a completely compressed old scenario
       try {
@@ -123,9 +128,8 @@ export class ScenarioContainer {
       const versionString = buffer.readFixedSizeString(4);
 
       if (versionString.match(/^\d\.\d\d$/)) {
+        scenario.version = versionString;
         scenarioVersion = parseFloat(versionString);
-
-        scenario.version = asFloat64(scenarioVersion);
         if (scenarioVersion < 1.0 || scenarioVersion >= 1.03) {
           throw new ParsingError(
             `Unexpected version number ${scenario.version} for compressed header scenario`,
@@ -135,17 +139,23 @@ export class ScenarioContainer {
         scenario.header.modifyDate = modifyDate;
       }
     }
-    if (scenarioVersion < 1.01 || scenarioVersion > 1.21) {
-      throw new Error(`Unsupported scenario version ${scenarioVersion}`);
+
+    if (parsingAmount > ScenarioParsingAmount.Header) {
+      if (scenarioVersion < 1.01 || scenarioVersion > 1.21) {
+        throw new Error(`Unsupported scenario version ${scenarioVersion}`);
+      }
+
+      scenario.nextObjectId = buffer.readInt32<ObjectId<Int32>>();
+
+      scenario.dataVersion = buffer.readFloat32();
+      // We need to round the float value to the matching double value so version number comparisons will work correctly
+      loadingContext.dataVersion = parseFloat(scenario.dataVersion.toFixed(6));
+
+      scenario.scenarioData = ScenarioData.readFromBuffer(
+        buffer,
+        loadingContext,
+      );
     }
-
-    scenario.nextObjectId = buffer.readInt32<ObjectId<Int32>>();
-
-    scenario.dataVersion = buffer.readFloat32();
-    // We need to round the float value to the matching double value so version number comparisons will work correctly
-    loadingContext.dataVersion = parseFloat(scenario.dataVersion.toFixed(6));
-
-    scenario.scenarioData = ScenarioData.readFromBuffer(buffer, loadingContext);
 
     return scenario;
   }

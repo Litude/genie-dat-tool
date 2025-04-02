@@ -3,6 +3,7 @@ import { hideBin } from "yargs/helpers";
 import * as DrsCommand from "./drs/drsCommand";
 import * as DatCommand from "./database/datCommand";
 import * as ScnCommand from "./scenario/scnCommand";
+import * as CpnCommand from "./campaign/cpnCommand";
 import * as ShpCommand from "./image/shpCommand";
 import * as SlpCommand from "./image/slpCommand";
 import * as ScpCommand from "./image/scpCommand";
@@ -15,6 +16,9 @@ const yargsInstance = yargs(hideBin(process.argv))
   })
   .command("scn", "Handle SCN/SCX files", (yargs) => {
     ScnCommand.addCommands(yargs);
+  })
+  .command("cpn", "Handle CPN/CPX files", (yargs) => {
+    CpnCommand.addCommands(yargs);
   })
   .command("drs", "Handle DRS files", (yargs) => {
     DrsCommand.addCommands(yargs);
@@ -42,6 +46,9 @@ function main() {
       break;
     case "scn":
       ScnCommand.execute(argv, showHelp);
+      break;
+    case "cpn":
+      CpnCommand.execute(argv, showHelp);
       break;
     case "drs":
       DrsCommand.execute(argv, showHelp);

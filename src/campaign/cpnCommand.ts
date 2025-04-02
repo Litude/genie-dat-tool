@@ -1,32 +1,27 @@
 import { readFileSync, statSync } from "fs";
 import yargs from "yargs";
-import { ScenarioContainer } from "./ScenarioContainer";
 import BufferReader from "../BufferReader";
 import path from "path";
 import { clearDirectory } from "../files/file-utils";
 import { Logger } from "../Logger";
+import { Campaign } from "./Campaign";
+import { FileEntry } from "../files/FileEntry";
 
-interface ExtractScenarioFilesCommandArgs {
+interface ExtractCampaignScenariosCommandArgs {
   filename: string;
-  metadata: boolean;
   outputDir: string;
 }
 
 export function addCommands(yargs: yargs.Argv<unknown>) {
-  yargs.command<ExtractScenarioFilesCommandArgs>(
-    "extract-files <filename>",
-    "Process a SCN file and extract its bundled files (bitmaps and AI files)",
+  yargs.command<ExtractCampaignScenariosCommandArgs>(
+    "extract-scenarios <filename>",
+    "Process a CPN file and extract its bundled scenarios",
     (yargs) => {
       return yargs
         .positional("filename", {
           type: "string",
-          describe: "Filename of scenario file that will be parsed",
+          describe: "Filename of campaign file that will be parsed",
           demandOption: true,
-        })
-        .option("metadata", {
-          type: "boolean",
-          describe: "Write additional scenario metadata",
-          default: false,
         })
         .option("output-dir", {
           type: "string",
@@ -43,8 +38,10 @@ export function execute(
 ) {
   const commandType = argv._[1];
   switch (commandType) {
-    case "extract-files":
-      extractScenarioFiles(argv as unknown as ExtractScenarioFilesCommandArgs);
+    case "extract-scenarios":
+      extractCampaignScenarios(
+        argv as unknown as ExtractCampaignScenariosCommandArgs,
+      );
       break;
     default:
       showHelp();
@@ -52,21 +49,29 @@ export function execute(
   }
 }
 
-function extractScenarioFiles(args: ExtractScenarioFilesCommandArgs) {
+function extractCampaignScenarios(args: ExtractCampaignScenariosCommandArgs) {
   const { filename, outputDir } = args;
-  const scenarioFile = readFileSync(filename);
+  const campaignFile = readFileSync(filename);
   const fileStats = statSync(filename);
-  const scenario = ScenarioContainer.readFromBuffer(
-    new BufferReader(scenarioFile),
+  const campaign = Campaign.readFromBuffer(
+    new BufferReader(campaignFile),
     fileStats.mtimeMs,
   );
 
   const outputDirectory = path.join(
     outputDir,
-    "scnfiles",
+    "scenarios",
     path.parse(filename).name,
   );
   clearDirectory(outputDirectory);
-  scenario.extractEmbeddedFiles(outputDirectory);
-  Logger.info(`Scenario file extraction finished`);
+  campaign.scenarios.forEach((scenario) => {
+    const scenarioFile = new FileEntry({
+      data: scenario.data,
+      filename: scenario.filename,
+      modificationTime: scenario.modifyDate,
+    });
+    Logger.info(`Writing ${scenario.filename}`);
+    scenarioFile.writeToFile(outputDirectory);
+  });
+  Logger.info(`Campaign scenario extraction finished`);
 }
