@@ -44,6 +44,7 @@ interface ExtractSpritesArgs {
   paletteFile: string;
   forceSystemColors: boolean;
   animateWater: boolean;
+  extendAnimations: boolean;
   transparentColor: number;
   shadowOffset: Point<number>;
   animationDelayMultiplier: number;
@@ -230,6 +231,12 @@ export function addCommands(yargs: yargs.Argv<unknown>) {
             type: "string",
             describe: "Directory where output files will be written",
             default: "output",
+          })
+          .option("extend-animations", {
+            type: "boolean",
+            describe:
+              "Make animations last for the duration of all subanimations it contains",
+            default: false,
           });
       },
     )
@@ -647,10 +654,12 @@ function extractSprites(args: ExtractSpritesArgs) {
     transparentColor,
     shadowOffset,
     animationDelayMultiplier,
+    extendAnimations,
     player,
   } = args;
   const datResult = readDatFile(filename, inputVersionParameter);
   if (datResult) {
+    console.log(`Shadow offset: ${shadowOffset.x},${shadowOffset.y}`);
     const { worldDatabase } = datResult;
     writeWorldDatabaseSprites(
       worldDatabase,
@@ -665,6 +674,7 @@ function extractSprites(args: ExtractSpritesArgs) {
         player,
         forceSystemColors,
         animateWater,
+        extendAnimations,
       },
     );
   }
@@ -837,6 +847,7 @@ function writeWorldDatabaseSprites(
     player,
     forceSystemColors,
     animateWater,
+    extendAnimations,
   }: {
     transparentColor: number;
     shadowOffset: Point<number>;
@@ -844,6 +855,7 @@ function writeWorldDatabaseSprites(
     player: number;
     forceSystemColors: boolean;
     animateWater: boolean;
+    extendAnimations: boolean;
   },
 ) {
   let paletteFile = readPaletteFile(palettePath);
@@ -878,6 +890,7 @@ function writeWorldDatabaseSprites(
         shadowOffset,
         delayMultiplier: animationDelayMultiplier,
         animateWater,
+        extendLength: extendAnimations,
       },
       finalDirectory,
     );

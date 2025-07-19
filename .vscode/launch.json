@@ -55,6 +55,17 @@
         //     "--force-system-colors",
         //     "--animate-water"
         // ],
+        "args": [
+            "dat",
+            "extract-sprites",
+            "empires_970204.dat",
+            "--palette-file",
+            "palette.bmp",
+            "--graphics",
+            "output/resources/graphics_970204",
+            // "--force-system-colors",
+            // "--animate-water"
+        ],
         // "args": [
         //     "dat",
         //     "extract-terrains",
@@ -77,11 +88,11 @@
         //     "--force-system-colors",
         //     "--animate-water"
         // ],
-        "args": [
-            "scn",
-            "extract-files",
-            "DEMO.scn"
-        ],
+        // "args": [
+        //     "scn",
+        //     "extract-files",
+        //     "DEMO.scn"
+        // ],
         // "args": [
         //     "drs",
         //     "extract-graphics",

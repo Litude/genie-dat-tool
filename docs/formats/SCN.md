@@ -306,6 +306,8 @@ Terrain data of the map follows. The format basically supports non-square maps, 
 | ObjectData[objectCount]     | objects            | 1.01->            | Entry for each map object |
 
 ### Object Data (ObjectData)
+| Type                        | Name               | ContainerVersion  | Description |
+| ---------                   | -------            | -----------       | ----------- |
 | float                       | positionX          | 1.01->            | Object x position |
 | float                       | positionY          | 1.01->            | Object y position |
 | float                       | positionZ          | 1.01->            | Object z position |

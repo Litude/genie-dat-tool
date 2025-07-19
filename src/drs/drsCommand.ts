@@ -420,7 +420,6 @@ function extractDrsGraphics(args: ExtractDrsGraphicsCommandArgs) {
     // list resources that don't have a json entry
     graphics.forEach((file) => {
       if (file.resourceId !== undefined && file.filename !== undefined) {
-        console.log(`Handling ${file.resourceId}`);
         const newFilename = filenames[file.resourceId.toString()];
         if (!newFilename) {
           orphanResourceIds.push(file.resourceId);

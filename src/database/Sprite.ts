@@ -628,11 +628,13 @@ export class Sprite {
       shadowOffset,
       delayMultiplier,
       animateWater,
+      extendLength,
     }: {
       transparentIndex: number;
       shadowOffset: Point<number>;
       delayMultiplier: number;
       animateWater: boolean;
+      extendLength: boolean;
     },
     outputDirectory: string,
   ) {
@@ -641,7 +643,8 @@ export class Sprite {
 
     const mainGraphic = graphics.find(
       (graphic) =>
-        graphic.filename?.toLocaleLowerCase() === this.resourceFilename ||
+        graphic.filename?.toLocaleLowerCase() ===
+          this.resourceFilename?.toLocaleLowerCase() ||
         graphic.resourceId === this.resourceId,
     );
     const backgroundGraphic = mainGraphic
@@ -652,6 +655,7 @@ export class Sprite {
           sprite: this,
         }
       : null;
+
     // If any overlays are specified, the main graphic is only drawn in case
     // there is an overlay specified with sprite id -1
     const actualGraphics = this.overlays.length
@@ -660,7 +664,8 @@ export class Sprite {
           if (overlaySprite) {
             const overlayGraphic = graphics.find(
               (graphic) =>
-                graphic.filename === overlaySprite.internalName ||
+                graphic.filename?.toLocaleLowerCase() ===
+                  overlaySprite.resourceFilename?.toLocaleLowerCase() ||
                 graphic.resourceId === overlaySprite.resourceId,
             );
             if (overlayGraphic) {
@@ -685,6 +690,25 @@ export class Sprite {
     const allGraphics = actualGraphics
       .filter(isDefined)
       .sort((a, b) => (a.sprite?.layer ?? 0) - (b.sprite?.layer ?? 0));
+
+    let framesPerAngle: number = this.framesPerAngle;
+    if (extendLength && allGraphics.length) {
+      framesPerAngle = 1;
+      allGraphics.forEach((graphic) => {
+        framesPerAngle = lcm(
+          framesPerAngle,
+          Math.min(
+            graphic.sprite?.framesPerAngle ?? 1,
+            graphic.graphic.frames.length,
+          ),
+        );
+      });
+    }
+    if (framesPerAngle !== this.framesPerAngle) {
+      Logger.info(
+        `Extending frames per angle for ${this.internalName} from ${this.framesPerAngle} to ${framesPerAngle}`,
+      );
+    }
 
     allGraphics.forEach((graphic) => {
       if ((graphic.sprite?.layer ?? 99) <= 10) {
@@ -720,13 +744,13 @@ export class Sprite {
                     .slice(
                       angle * sprite.framesPerAngle,
                       angle * sprite.framesPerAngle +
-                        Math.min(sprite.framesPerAngle, this.framesPerAngle),
+                        Math.min(sprite.framesPerAngle, framesPerAngle),
                     )
                     .mirrored()
                 : graphic.graphic.slice(
                     angle * sprite.framesPerAngle,
                     angle * sprite.framesPerAngle +
-                      Math.min(sprite.framesPerAngle, this.framesPerAngle),
+                      Math.min(sprite.framesPerAngle, framesPerAngle),
                   ),
             };
           })
@@ -792,7 +816,7 @@ export class Sprite {
               let animationFrame = 0;
               let waterFrameRemaining = WaterAnimationDelay;
               let animationFrameRemaining =
-                this.framesPerAngle === animationFrame + 1
+                framesPerAngle === animationFrame + 1
                   ? finalFrameLength
                   : animationFrameLength;
               let length = 0;
@@ -815,8 +839,9 @@ export class Sprite {
                 );
                 combinedFrame.delay = frameLength;
                 angleGraphics.forEach((graphic) => {
-                  const index =
-                    animationFrame >= graphic.graphic.frames.length
+                  const index = extendLength
+                    ? animationFrame % graphic.graphic.frames.length
+                    : animationFrame >= graphic.graphic.frames.length
                       ? 0
                       : animationFrame;
                   combinedFrame.overlayImage(
@@ -834,9 +859,9 @@ export class Sprite {
                   waterFrameRemaining = WaterAnimationDelay;
                 }
                 if (animationFrameRemaining === 0) {
-                  animationFrame = (animationFrame + 1) % this.framesPerAngle;
+                  animationFrame = (animationFrame + 1) % framesPerAngle;
                   animationFrameRemaining =
-                    this.framesPerAngle === animationFrame + 1
+                    framesPerAngle === animationFrame + 1
                       ? finalFrameLength
                       : animationFrameLength;
                 }
@@ -853,7 +878,7 @@ export class Sprite {
               });
             }
           } else {
-            for (let j = 0; j < this.framesPerAngle; ++j) {
+            for (let j = 0; j < framesPerAngle; ++j) {
               const combinedFrame = new RawImage(
                 totalBounds.right - totalBounds.left + 1,
                 totalBounds.bottom - totalBounds.top + 1,
@@ -863,7 +888,11 @@ export class Sprite {
                 y: -totalBounds.top,
               });
               angleGraphics.forEach((graphic) => {
-                const index = j >= graphic.graphic.frames.length ? 0 : j;
+                const index = extendLength
+                  ? j % graphic.graphic.frames.length
+                  : j >= graphic.graphic.frames.length
+                    ? 0
+                    : j;
                 combinedFrame.overlayImage(
                   graphic.graphic.frames[index],
                   graphic.offset,
@@ -875,10 +904,16 @@ export class Sprite {
             finalGraphic.palette = graphics[0].palette;
             finalGraphic.filename = `${this.internalName}_${i}`;
             finalGraphic.writeToGif(outputDirectory, {
-              delay: Math.round(this.frameDuration * 100 * delayMultiplier),
-              replayDelay: Math.round(
-                this.animationReplayDelay * 100 * delayMultiplier,
-              ),
+              delay:
+                framesPerAngle > 1
+                  ? Math.round(this.frameDuration * 100 * delayMultiplier)
+                  : 0,
+              replayDelay:
+                framesPerAngle > 1
+                  ? Math.round(
+                      this.animationReplayDelay * 100 * delayMultiplier,
+                    )
+                  : 0,
               transparentIndex,
             });
           }
