@@ -174,6 +174,47 @@ export class Graphic {
     //Logger.info(`Wrote ${outputPath}`);
   }
 
+  writeToGifFrames(
+    outputDir: string,
+    {
+      transparentIndex,
+    }: {
+      transparentIndex: number | undefined;
+    },
+    filename?: string,
+  ) {
+    if (this.palette.length !== 256) {
+      throw Error(
+        `Attempted to convert RawImage to GIF frames but palette length was ${this.palette.length}`,
+      );
+    }
+
+    this.frames.forEach((frame, index) => {
+      const width = frame.getWidth();
+      const height = frame.getHeight();
+
+      const gifBuffer = Buffer.alloc(1024 * 1024 + width * height);
+      const gifWriter = new GifWriter(gifBuffer, width, height, {
+        palette: this.palette.map((entry) => {
+          let value = +entry.blue;
+          value |= entry.green << 8;
+          value |= entry.red << 16;
+          return value;
+        }),
+      });
+      frame.appendToGif(gifWriter, frame.getBounds(), {
+        delay: 0,
+        transparentIndex,
+      });
+      const gifData = gifBuffer.subarray(0, gifWriter.end());
+      const outputPath = path.join(
+        outputDir,
+        `${path.parse(filename ?? this.filename ?? "unnamed").name}_${index}.gif`,
+      );
+      writeFileSync(outputPath, gifData);
+    });
+  }
+
   slice(start?: number, end?: number) {
     const sliced = new Graphic(this.frames.slice(start, end));
     sliced.filename = this.filename;
@@ -309,7 +350,7 @@ export function readGraphics(
 }
 
 export function writeGraphic(
-  outputFormat: "gif" | "bmp",
+  outputFormat: "gif" | "bmp" | "gif-frames",
   graphic: Graphic,
   {
     transparentIndex,
@@ -343,6 +384,14 @@ export function writeGraphic(
       normalizedGraphic.writeToGif(
         outputDir,
         { delay, replayDelay: 0, transparentIndex },
+        filename,
+      );
+      return true;
+    }
+    case "gif-frames": {
+      graphic.writeToGifFrames(
+        outputDir,
+        { delay, transparentIndex },
         filename,
       );
       return true;

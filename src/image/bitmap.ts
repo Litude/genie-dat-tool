@@ -1,15 +1,25 @@
 import BufferReader from "../BufferReader";
 
+export const enum DetectionResult {
+  NotBitmap,
+  Bitmap,
+  PossiblyTruncatedBitmap,
+}
+
 export function detectBitmapFile(bufferReader: BufferReader) {
   try {
     bufferReader.seek(0);
     const firstBytes = bufferReader.readFixedSizeString(2);
     if (firstBytes === "BM") {
       const fileSize = bufferReader.readUInt32();
-      return fileSize === bufferReader.size();
+      if (fileSize === bufferReader.size()) {
+        return DetectionResult.Bitmap;
+      } else {
+        return DetectionResult.PossiblyTruncatedBitmap;
+      }
     }
-    return false;
+    return DetectionResult.NotBitmap;
   } catch (_e: unknown) {
-    return false;
+    return DetectionResult.NotBitmap;
   }
 }

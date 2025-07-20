@@ -1,7 +1,11 @@
 import yargs from "yargs";
 import BufferReader from "../BufferReader";
 import { parseSlpImage } from "./slpImage";
-import { applySystemColors, readPaletteFile } from "./palette";
+import {
+  applySystemColors,
+  getPaletteWithWaterColors,
+  readPaletteFile,
+} from "./palette";
 import { Logger } from "../Logger";
 import { Graphic, writeGraphic } from "./Graphic";
 import { asUInt8 } from "../ts/base-types";
@@ -12,11 +16,12 @@ interface ConvertSlpArgs {
   filename: string;
   paletteFile: string;
   forceSystemColors: boolean;
+  forceWaterColors: boolean;
   playerColor: number;
   shadowColor: number;
   transparentColor: number | undefined;
   frameDelay: number;
-  outputFormat: "bmp" | "gif";
+  outputFormat: "bmp" | "gif" | "gif-frames";
   outputDir: string;
 }
 
@@ -40,6 +45,12 @@ export function addCommands(yargs: yargs.Argv<unknown>) {
           type: "boolean",
           describe:
             "Forces the 20 reserved Windows system colors to appear in all palettes. AoE does not always have these properly set in all palettes but some graphics still use them. Use this to correct strange green pixels.",
+          default: false,
+        })
+        .option("force-water-colors", {
+          type: "boolean",
+          describe:
+            "Forces the 7 water colors to appear in the palette. These will override the system colors if specified.",
           default: false,
         })
         .option("transparent-color", {
@@ -70,7 +81,7 @@ export function addCommands(yargs: yargs.Argv<unknown>) {
         .option("output-format", {
           type: "string",
           describe: "Format that output file will be written in",
-          choices: ["bmp", "gif"],
+          choices: ["bmp", "gif", "gif-frames"],
           demandOption: true,
         })
         .option("output-dir", {
@@ -94,6 +105,7 @@ export function execute(
       outputDir,
       paletteFile,
       forceSystemColors,
+      forceWaterColors,
       outputFormat,
       transparentColor,
       frameDelay,
@@ -101,9 +113,12 @@ export function execute(
       shadowColor,
     } = argv as unknown as ConvertSlpArgs;
 
-    const palette = readPaletteFile(paletteFile);
+    let palette = readPaletteFile(paletteFile);
     if (forceSystemColors) {
       applySystemColors(palette);
+    }
+    if (forceWaterColors) {
+      palette = getPaletteWithWaterColors(palette, 0);
     }
 
     const buffer = new BufferReader(filename);

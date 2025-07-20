@@ -11,7 +11,7 @@ import { detectColormapFile } from "../image/colormap";
 import { detectJascPaletteFile, readPaletteFile } from "../image/palette";
 import { detectSlpFile } from "../image/slpImage";
 import { detectShpFile } from "../image/shpImage";
-import { detectBitmapFile } from "../image/bitmap";
+import { detectBitmapFile, DetectionResult } from "../image/bitmap";
 import { ResourceDescriptor } from "./ResourceDescriptor";
 import { detectSinFile, ScreenInformation } from "./ScreenInformation";
 import { isDefined } from "../ts/ts-utils";
@@ -428,7 +428,7 @@ function detectBinaryFileType(data: Buffer<ArrayBufferLike>): string {
   // 1996 DRS format files have bin for wav, shp and slp as well so need to detect these too...
   if (detectWavFile(bufferReader)) {
     return "wav";
-  } else if (detectBitmapFile(bufferReader)) {
+  } else if (detectBitmapFile(bufferReader) === DetectionResult.Bitmap) {
     return "bmp";
   } else if (detectShpFile(bufferReader)) {
     return "shp";

@@ -14,7 +14,11 @@ import BufferReader from "../BufferReader";
 import { Graphic, writeGraphic } from "../image/Graphic";
 import { parseShpImage } from "../image/shpImage";
 import { isDefined } from "../ts/ts-utils";
-import { applySystemColors, readPaletteFile } from "../image/palette";
+import {
+  applySystemColors,
+  getPaletteWithWaterColors,
+  readPaletteFile,
+} from "../image/palette";
 
 export interface ExtractDrsFilesCommandArgs {
   filename: string;
@@ -27,8 +31,9 @@ export interface ExtractDrsGraphicsCommandArgs {
   outputDir: string;
   resourceNamesFile?: string;
   resourcePalettesFile?: string;
-  outputFormat: "bmp" | "gif";
+  outputFormat: "bmp" | "gif" | "gif-frames";
   forceSystemColors: boolean;
+  forceWaterColors: boolean;
   paletteFile: string;
   playerColor: number;
   shadowColor: number;
@@ -94,7 +99,13 @@ export function addCommands(yargs: yargs.Argv<unknown>) {
           .option("force-system-colors", {
             type: "boolean",
             describe:
-              "Forces the 20 reserved Windows system colors to appear in all palettes. AoE does not always have these properly set in all palettes but some graphics still use them. Use this to correct strange green pixels.",
+              "Forces the 20 reserved Windows system colors to appear in the palette. AoE does not always have these properly set in all palettes but some graphics still use them. Use this to correct strange green pixels.",
+            default: false,
+          })
+          .option("force-water-colors", {
+            type: "boolean",
+            describe:
+              "Forces the 7 water colors to appear in the palette. These will override the system colors if specified.",
             default: false,
           })
           .option("transparent-color", {
@@ -125,7 +136,7 @@ export function addCommands(yargs: yargs.Argv<unknown>) {
           .option("output-format", {
             type: "string",
             describe: "Format that output graphics will be written in",
-            choices: ["bmp", "gif"],
+            choices: ["bmp", "gif", "gif-frames"],
             demandOption: true,
           });
       },
@@ -291,6 +302,7 @@ function extractDrsGraphics(args: ExtractDrsGraphicsCommandArgs) {
     resourceNamesFile: resourceNamesFiles,
     resourcePalettesFile,
     forceSystemColors,
+    forceWaterColors,
     paletteFile,
     playerColor,
     shadowColor,
@@ -361,6 +373,11 @@ function extractDrsGraphics(args: ExtractDrsGraphicsCommandArgs) {
   if (forceSystemColors) {
     palettes.forEach((palette) => {
       applySystemColors(palette.palette);
+    });
+  }
+  if (forceWaterColors) {
+    palettes.forEach((palette) => {
+      palette.palette = getPaletteWithWaterColors(palette.palette, 0);
     });
   }
   const { defaultNames: filenames, extraNames } =

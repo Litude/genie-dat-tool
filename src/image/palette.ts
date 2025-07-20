@@ -1,7 +1,7 @@
 import { decode as bmpDecode } from "bmp-ts";
 import BufferReader from "../BufferReader";
 import { asUInt8, UInt8 } from "../ts/base-types";
-import { detectBitmapFile } from "./bitmap";
+import { detectBitmapFile, DetectionResult } from "./bitmap";
 import { PaletteIndex } from "../database/Types";
 
 export interface ColorRgb {
@@ -30,6 +30,21 @@ const WaterColors: ColorRgb[] = [
 
 export const WaterAnimationDelay = 20; // cs
 export const WaterAnimationFrameCount = 7;
+
+function isValidBmpPaletteFile(buffer: BufferReader): boolean {
+  const detectionResult = detectBitmapFile(buffer);
+  if (detectionResult === DetectionResult.Bitmap) {
+    return true;
+  } else if (
+    detectionResult === DetectionResult.PossiblyTruncatedBitmap &&
+    buffer.size() >= 1078
+  ) {
+    // There is enough data to read the palette, so we assume that what data is here is valid.
+    return true;
+  } else {
+    return false;
+  }
+}
 
 export function readPaletteFile(input: string | BufferReader): ColorRgb[] {
   const buffer = typeof input === "string" ? new BufferReader(input) : input;
@@ -68,7 +83,7 @@ export function readPaletteFile(input: string | BufferReader): ColorRgb[] {
       }
     });
     return colors;
-  } else if (detectBitmapFile(buffer)) {
+  } else if (isValidBmpPaletteFile(buffer)) {
     const bmpFile = bmpDecode(buffer.data());
     const mappedPalette: ColorRgb[] = bmpFile.palette.map((entry) => ({
       red: asUInt8(entry.red),
