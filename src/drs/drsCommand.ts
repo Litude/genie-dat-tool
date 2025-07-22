@@ -308,9 +308,12 @@ function extractDrsGraphics(args: ExtractDrsGraphicsCommandArgs) {
     shadowColor,
   } = args;
 
-  const palette = readPaletteFile(paletteFile);
+  let palette = readPaletteFile(paletteFile);
   if (forceSystemColors) {
     applySystemColors(palette);
+  }
+  if (forceWaterColors) {
+    palette = getPaletteWithWaterColors(palette, 0);
   }
 
   const resourcePalettes = resourcePalettesFile
@@ -559,7 +562,14 @@ function extractDrsGraphics(args: ExtractDrsGraphicsCommandArgs) {
     writeGraphic(
       outputFormat,
       graphic,
-      { transparentIndex: transparentColor, delay: frameDelay },
+      {
+        transparentIndex: transparentColor,
+        delay: frameDelay,
+        animateWater: false,
+        animate1996Ui: false,
+        firstFrame: 0,
+        lastFrame: graphic.frames.length - 1,
+      },
       graphic.filename ?? "unnamed",
       graphicsDirectory,
     );

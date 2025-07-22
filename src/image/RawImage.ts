@@ -2,7 +2,7 @@ import { PaletteIndex } from "../database/Types";
 import { Point } from "../geometry/Point";
 import { GifWriter } from "omggif";
 import { Rectangle } from "../geometry/Rectangle";
-import { ColorRgb } from "./palette";
+import { ColorRgb, SimpleColorCycle } from "./palette";
 import { Logger } from "../Logger";
 
 export class RawImage {
@@ -27,6 +27,12 @@ export class RawImage {
   hasWaterAnimation() {
     return this.data.some(
       (color) => color !== null && color >= 248 && color <= 254,
+    );
+  }
+
+  hasColorCycleAnimation(colorCycle: SimpleColorCycle) {
+    return this.data.some(
+      (color) => color !== null && color === colorCycle.colorIndex,
     );
   }
 

@@ -66,7 +66,7 @@ import { RawImage } from "../../image/RawImage";
 import { GifWriter } from "omggif";
 import {
   getPaletteWithWaterColors,
-  WaterAnimationDelay,
+  ColorCycleAnimationDelay,
   WaterAnimationFrameCount,
 } from "../../image/palette";
 import { TileTypeDeltaYMultiplier } from "./MapProperties";
@@ -621,7 +621,7 @@ export class Terrain extends BaseTerrainTile {
       for (let i = 0; i < WaterAnimationFrameCount; ++i) {
         const waterFrame = imageFrame.clone();
         waterFrame.palette = getPaletteWithWaterColors(palette, i);
-        waterFrame.delay = Math.round(WaterAnimationDelay * delayMultiplier);
+        waterFrame.delay = Math.round(ColorCycleAnimationDelay * delayMultiplier);
         frames.push(waterFrame);
       }
     } else {
@@ -771,7 +771,7 @@ export class Terrain extends BaseTerrainTile {
       for (let i = 0; i < WaterAnimationFrameCount; ++i) {
         const waterFrame = imageFrame.clone();
         waterFrame.palette = getPaletteWithWaterColors(palette, i);
-        waterFrame.delay = Math.round(WaterAnimationDelay * delayMultiplier);
+        waterFrame.delay = Math.round(ColorCycleAnimationDelay * delayMultiplier);
         frames.push(waterFrame);
       }
     } else {

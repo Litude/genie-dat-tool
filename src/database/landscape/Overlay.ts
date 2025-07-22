@@ -52,7 +52,7 @@ import {
 } from "../../geometry/Rectangle";
 import {
   getPaletteWithWaterColors,
-  WaterAnimationDelay,
+  ColorCycleAnimationDelay,
   WaterAnimationFrameCount,
 } from "../../image/palette";
 import { GifWriter } from "omggif";
@@ -291,7 +291,7 @@ export class Overlay extends BaseTerrainTile {
       for (let i = 0; i < WaterAnimationFrameCount; ++i) {
         const waterFrame = imageFrame.clone();
         waterFrame.palette = getPaletteWithWaterColors(palette, i);
-        waterFrame.delay = Math.round(WaterAnimationDelay * delayMultiplier);
+        waterFrame.delay = Math.round(ColorCycleAnimationDelay * delayMultiplier);
         frames.push(waterFrame);
       }
     } else {
@@ -441,7 +441,7 @@ export class Overlay extends BaseTerrainTile {
       for (let i = 0; i < WaterAnimationFrameCount; ++i) {
         const waterFrame = imageFrame.clone();
         waterFrame.palette = getPaletteWithWaterColors(palette, i);
-        waterFrame.delay = Math.round(WaterAnimationDelay * delayMultiplier);
+        waterFrame.delay = Math.round(ColorCycleAnimationDelay * delayMultiplier);
         frames.push(waterFrame);
       }
     } else {

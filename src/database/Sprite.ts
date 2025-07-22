@@ -64,7 +64,7 @@ import { RawImage } from "../image/RawImage";
 import { Logger } from "../Logger";
 import {
   getPaletteWithWaterColors,
-  WaterAnimationDelay,
+  ColorCycleAnimationDelay,
   WaterAnimationFrameCount,
 } from "../image/palette";
 
@@ -767,13 +767,13 @@ export class Sprite {
           if (shouldAnimateWater) {
             Logger.info(`${this.internalName}_${i} has water animation`);
             const waterAnimationLength =
-              WaterAnimationDelay * WaterAnimationFrameCount;
+              ColorCycleAnimationDelay * WaterAnimationFrameCount;
             const animationFrameLength = Math.round(this.frameDuration * 100);
             const finalFrameLength =
               animationFrameLength +
               Math.round(this.animationReplayDelay * 100);
             const animationLength =
-              this.framesPerAngle * animationFrameLength +
+              framesPerAngle * animationFrameLength +
               Math.round(this.animationReplayDelay * 100);
             const totalAnimationLength = lcm(
               waterAnimationLength,
@@ -806,7 +806,7 @@ export class Sprite {
               finalGraphic.palette = graphics[0].palette;
               finalGraphic.filename = `${this.internalName}_${i}`;
               finalGraphic.writeToGif(outputDirectory, {
-                delay: WaterAnimationDelay * delayMultiplier,
+                delay: ColorCycleAnimationDelay * delayMultiplier,
                 replayDelay: 0,
                 transparentIndex,
               });
@@ -814,7 +814,7 @@ export class Sprite {
               const totalLength = totalAnimationLength;
               let waterFrame = 0;
               let animationFrame = 0;
-              let waterFrameRemaining = WaterAnimationDelay;
+              let waterFrameRemaining = ColorCycleAnimationDelay;
               let animationFrameRemaining =
                 framesPerAngle === animationFrame + 1
                   ? finalFrameLength
@@ -856,7 +856,7 @@ export class Sprite {
                 animationFrameRemaining -= frameLength;
                 if (waterFrameRemaining === 0) {
                   waterFrame = (waterFrame + 1) % WaterAnimationFrameCount;
-                  waterFrameRemaining = WaterAnimationDelay;
+                  waterFrameRemaining = ColorCycleAnimationDelay;
                 }
                 if (animationFrameRemaining === 0) {
                   animationFrame = (animationFrame + 1) % framesPerAngle;
