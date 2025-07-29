@@ -10,7 +10,7 @@ export interface ColorRgb {
   blue: UInt8;
 }
 
-const color = (red: number, green: number, blue: number) => {
+export const color = (red: number, green: number, blue: number): ColorRgb => {
   return {
     red: asUInt8<PaletteIndex>(red),
     green: asUInt8<PaletteIndex>(green),
@@ -33,58 +33,8 @@ export const WaterColorCycleColors: Readonly<ColorRgb[]> = [
   color(23, 39, 123),
 ];
 
-// Animation that changes from red to black and back to red (used in palette index 247)
-// The only known use of this color index is in BTNBORD.SHP
-export const UiColorCycleColors1: Readonly<ColorRgb[]> = [
-  color(255, 0, 0),
-  color(217, 0, 0),
-  color(185, 0, 0),
-  color(150, 0, 0),
-  color(120, 0, 0),
-  color(90, 0, 0),
-  color(75, 0, 0),
-  color(20, 0, 0),
-  color(0, 0, 0),
-  color(20, 0, 0),
-  color(75, 0, 0),
-  color(90, 0, 0),
-  color(120, 0, 0),
-  color(150, 0, 0),
-  color(185, 0, 0),
-  color(217, 0, 0),
-];
-
-export const UiColorCycle1: SimpleColorCycle = {
-  colorIndex: asUInt8<PaletteIndex>(247),
-  colors: UiColorCycleColors1,
-};
-
-// Animation that changes from red to white and back to red (used in palette index 246)
-// No graphics are known to use this color index, but it was probably used for some UI animations
-export const UiColorCycleColors2: Readonly<ColorRgb[]> = [
-  color(255, 0, 0),
-  color(255, 30, 30),
-  color(255, 60, 60),
-  color(255, 100, 100),
-  color(255, 160, 160),
-  color(255, 200, 200),
-  color(255, 254, 254),
-  color(255, 200, 200),
-  color(255, 160, 160),
-  color(255, 100, 100),
-  color(255, 60, 60),
-  color(255, 30, 30),
-];
-
-export const UiColorCycle2: SimpleColorCycle = {
-  colorIndex: asUInt8<PaletteIndex>(246),
-  colors: UiColorCycleColors2,
-};
-
 export const ColorCycleAnimationDelay = 20; // cs, common for all color cycle animations
 export const WaterAnimationFrameCount = WaterColorCycleColors.length;
-export const UiAnimationFrameCount1 = UiColorCycleColors1.length;
-export const UiAnimationFrameCount2 = UiColorCycleColors2.length;
 
 function isValidBmpPaletteFile(buffer: BufferReader): boolean {
   const detectionResult = detectBitmapFile(buffer);
@@ -208,13 +158,13 @@ export function getPaletteWithWaterColors(
     );
   }
 
-  const adjustedAnimationState =
+  const firstIndexOffset =
     waterAnimationState === 0 ? 0 : 7 - waterAnimationState;
 
   const clonedPalette = structuredClone(palette);
   for (let i = 0; i < 7; ++i) {
     const waterColor = structuredClone(
-      WaterColorCycleColors[(i + adjustedAnimationState) % 7],
+      WaterColorCycleColors[(firstIndexOffset + i) % 7],
     );
     clonedPalette[248 + i] = waterColor;
   }

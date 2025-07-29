@@ -13,8 +13,7 @@ export interface BaseImageCommandArgs {
   filePath: string;
   paletteFile: string;
   forceSystemColors: boolean;
-  firstFrame: number;
-  lastFrame: number;
+  frameRange?: string;
   animateWater: boolean;
   animate1996Ui: boolean;
   transparentColor: number | undefined;
@@ -83,6 +82,11 @@ export function addBaseImageCommand(
             "Frame delay added to last frame (frame delay is also considered)",
           default: 0,
         })
+        .option("frame-range", {
+          type: "string",
+          describe:
+            "Range of frames to include in the output (e.g. '0-3,5'). Omit this option to include all frames.",
+        })
         .option("first-frame", {
           type: "number",
           describe: "Index of the first frame to include in the output",
@@ -137,8 +141,7 @@ export function executeBaseImageCommand(
       transparentColor,
       frameDelay,
       replayDelay,
-      firstFrame,
-      lastFrame,
+      frameRange,
     } = argv as unknown as BaseImageCommandArgs;
 
     const palette = readPaletteFile(paletteFile);
@@ -192,8 +195,7 @@ export function executeBaseImageCommand(
           replayDelay,
           animateWater,
           animate1996Ui,
-          firstFrame,
-          lastFrame,
+          frameRange,
         },
         filename,
         outputDirectory,

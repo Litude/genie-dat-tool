@@ -58,13 +58,13 @@
         "args": [
             "dat",
             "extract-sprites",
-            "empires_970204.dat",
+            "empires_970424.dat",
             "--palette-file",
             "palette.bmp",
             "--graphics",
-            "output/resources/graphics_970204",
-            // "--force-system-colors",
-            // "--animate-water"
+            "output/resources/graphics_970424",
+            "--force-system-colors",
+            "--animate-water"
         ],
         // "args": [
         //     "dat",

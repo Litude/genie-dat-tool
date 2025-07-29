@@ -44,6 +44,7 @@ interface ExtractSpritesArgs {
   paletteFile: string;
   forceSystemColors: boolean;
   animateWater: boolean;
+  animate1996Ui: boolean;
   extendAnimations: boolean;
   transparentColor: number;
   shadowOffset: Point<number>;
@@ -179,7 +180,13 @@ export function addCommands(yargs: yargs.Argv<unknown>) {
           .option("animate-water", {
             type: "boolean",
             describe:
-              "Animates water colors in GIF animations. Can make the files significantly larger and processing much slower.",
+              "Animates water colors in animations that use these color indices. Can make the files significantly larger and processing much slower.",
+            default: false,
+          })
+          .option("animate-1996-ui", {
+            type: "boolean",
+            describe:
+              "Animates the two 1996 UI color cycles in animations that use these color indices. Can make the files significantly larger and processing much slower.",
             default: false,
           })
           .option("graphics", {
@@ -649,6 +656,7 @@ function extractSprites(args: ExtractSpritesArgs) {
     paletteFile,
     forceSystemColors,
     animateWater,
+    animate1996Ui,
     graphics,
     outputDir,
     transparentColor,
@@ -674,6 +682,7 @@ function extractSprites(args: ExtractSpritesArgs) {
         player,
         forceSystemColors,
         animateWater,
+        animate1996Ui,
         extendAnimations,
       },
     );
@@ -847,6 +856,7 @@ function writeWorldDatabaseSprites(
     player,
     forceSystemColors,
     animateWater,
+    animate1996Ui,
     extendAnimations,
   }: {
     transparentColor: number;
@@ -855,15 +865,13 @@ function writeWorldDatabaseSprites(
     player: number;
     forceSystemColors: boolean;
     animateWater: boolean;
+    animate1996Ui: boolean;
     extendAnimations: boolean;
   },
 ) {
-  let paletteFile = readPaletteFile(palettePath);
+  const paletteFile = readPaletteFile(palettePath);
   if (forceSystemColors) {
     applySystemColors(paletteFile);
-  }
-  if (animateWater) {
-    paletteFile = getPaletteWithWaterColors(paletteFile, 0);
   }
   const colormap = worldDatabase.colormaps.find(
     (color) => color.id === player - 1,
@@ -890,6 +898,7 @@ function writeWorldDatabaseSprites(
         shadowOffset,
         delayMultiplier: animationDelayMultiplier,
         animateWater,
+        animate1996Ui,
         extendLength: extendAnimations,
       },
       finalDirectory,

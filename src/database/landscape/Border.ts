@@ -642,7 +642,9 @@ export class Border extends BaseTerrainTile {
       for (let i = 0; i < WaterAnimationFrameCount; ++i) {
         const waterFrame = imageFrame.clone();
         waterFrame.palette = getPaletteWithWaterColors(palette, i);
-        waterFrame.delay = Math.round(ColorCycleAnimationDelay * delayMultiplier);
+        waterFrame.delay = Math.round(
+          ColorCycleAnimationDelay * delayMultiplier,
+        );
         frames.push(waterFrame);
       }
     } else {

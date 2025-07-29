@@ -6,16 +6,7 @@ import { lstatSync, readdirSync, readFileSync, writeFileSync } from "fs";
 import * as DrsFile from "../drs/DrsFile";
 import { parseSlpImage } from "./slpImage";
 import { isDefined } from "../ts/ts-utils";
-import {
-  ColorCycleAnimationDelay,
-  ColorRgb,
-  getPaletteWithSimpleColorCycle,
-  getPaletteWithWaterColors,
-  SimpleColorCycle,
-  UiColorCycle1,
-  UiColorCycle2,
-  WaterAnimationFrameCount,
-} from "./palette";
+import { ColorRgb } from "./palette";
 import { GifWriter } from "omggif";
 import path from "path";
 import { Logger } from "../Logger";
@@ -23,7 +14,13 @@ import { encode as bmpEncode } from "bmp-ts";
 import { Point } from "../geometry/Point";
 import { asInt32, Int16 } from "../ts/base-types";
 import { parseShpImage } from "./shpImage";
-import { lcm } from "../util";
+import {
+  applyColorCyclesToFrames,
+  ColorCycle,
+  Ui1996ColorCycle1,
+  Ui1996ColorCycle2,
+  WaterColorCycle,
+} from "./ColorCycle";
 
 export class Graphic {
   frames: RawImage[];
@@ -142,7 +139,10 @@ export class Graphic {
     },
     filename?: string,
   ) {
-    if (this.palette.length !== 256) {
+    if (
+      this.palette.length !== 256 &&
+      this.frames.some((frame) => frame.palette?.length !== 256)
+    ) {
       throw Error(
         `Attempted to convert RawImage to GIF but palette length was ${this.palette.length}`,
       );
@@ -365,22 +365,62 @@ export function readGraphics(
   return result;
 }
 
+function extractFrameRange(frames: RawImage[], frameRange: string) {
+  const result: RawImage[] = [];
+  frameRange.split(",").forEach((range) => {
+    if (range.includes("-") === false) {
+      const index = +range;
+      if (isNaN(index)) {
+        throw new Error(`Invalid frame index: ${range}`);
+      }
+      if (index < 0) {
+        throw new Error(`Frame index cannot be negative: ${range}`);
+      }
+      if (index >= frames.length) {
+        throw new Error(
+          `Frame index ${index} exceeds available frames, max index is ${frames.length - 1}`,
+        );
+      }
+      result.push(frames[index]);
+    } else {
+      const [start, end] = range.split("-").map((entry) => +entry);
+      if (isNaN(start) || isNaN(end)) {
+        throw new Error(`Invalid frame range: ${range}`);
+      }
+      if (start < 0 || end < 0) {
+        throw new Error(`Frame range cannot be negative: ${range}`);
+      }
+      if (end < start) {
+        throw new Error(`End of frame range cannot be before start: ${range}`);
+      }
+      if (start >= frames.length || end >= frames.length) {
+        throw new Error(
+          `Frame range ${range} exceeds available frames, max index is ${frames.length - 1}`,
+        );
+      }
+      for (let i = start; i <= end; ++i) {
+        result.push(frames[i]);
+      }
+    }
+  });
+  return result;
+}
+
 function graphicWithColorCycles(
   graphic: Graphic,
   animateWater: boolean,
   animate1996Ui: boolean,
   animationDelay: number, // in cs
-  firstFrameIndex: number,
-  lastFrameIndex: number,
+  replayDelay: number, // in cs
+  frameRange?: string,
 ): Graphic {
   if (!animateWater && !animate1996Ui) {
     return graphic;
   }
 
-  const frames =
-    lastFrameIndex === -1
-      ? graphic.frames.slice(firstFrameIndex)
-      : graphic.frames.slice(firstFrameIndex, lastFrameIndex + 1);
+  const frames = (
+    frameRange ? extractFrameRange(graphic.frames, frameRange) : graphic.frames
+  ).map((frame) => frame.clone());
   const frameCount = frames.length;
   if (!frameCount) {
     Logger.warn(
@@ -388,117 +428,65 @@ function graphicWithColorCycles(
     );
     return new Graphic([]);
   }
+  frames.forEach((frame, index) => {
+    if (frame.delay === undefined) {
+      frame.delay = animationDelay;
+      if (index === frameCount - 1) {
+        frame.delay += replayDelay;
+      }
+    }
+  });
 
-  const cycledGraphic = new Graphic([]);
-  cycledGraphic.filename = graphic.filename;
-  cycledGraphic.resourceId = graphic.resourceId;
-
-  const colorCycleCounts: number[] = [];
-  const simpleColorCycles: SimpleColorCycle[] = [];
+  const colorCycles: ColorCycle[] = [];
 
   let palette = graphic.palette;
 
-  let useWaterColors = false;
   if (animateWater) {
-    palette = getPaletteWithWaterColors(palette, 0);
-    if (frames.some((frame) => frame.hasWaterAnimation())) {
-      useWaterColors = true;
-      colorCycleCounts.push(WaterAnimationFrameCount);
+    palette = WaterColorCycle.getPaletteColors(palette, 0);
+    if (frames.some((frame) => WaterColorCycle.isUsedByImage(frame))) {
+      colorCycles.push(WaterColorCycle);
       Logger.info(
         `Graphic ${graphic.filename ?? graphic.resourceId} has water animation`,
       );
     }
   }
   if (animate1996Ui) {
-    palette = getPaletteWithSimpleColorCycle(palette, UiColorCycle1, 0);
-    palette = getPaletteWithSimpleColorCycle(palette, UiColorCycle2, 0);
-    if (frames.some((frame) => frame.hasColorCycleAnimation(UiColorCycle1))) {
+    palette = Ui1996ColorCycle1.getPaletteColors(palette, 0);
+    palette = Ui1996ColorCycle1.getPaletteColors(palette, 0);
+    if (frames.some((frame) => Ui1996ColorCycle1.isUsedByImage(frame))) {
       Logger.info(
         `Graphic ${graphic.filename ?? graphic.resourceId} has 1996 UI color cycle animation 1`,
       );
-      simpleColorCycles.push(UiColorCycle1);
+      colorCycles.push(Ui1996ColorCycle1);
     }
-    if (frames.some((frame) => frame.hasColorCycleAnimation(UiColorCycle2))) {
+    if (frames.some((frame) => Ui1996ColorCycle2.isUsedByImage(frame))) {
       Logger.info(
         `Graphic ${graphic.filename ?? graphic.resourceId} has 1996 UI color cycle animation 2`,
       );
-      simpleColorCycles.push(UiColorCycle2);
+      colorCycles.push(Ui1996ColorCycle2);
     }
   }
-  simpleColorCycles.forEach((colorCycle) => {
-    colorCycleCounts.push(colorCycle.colors.length);
-  });
 
   // If no color cycles are found, return the original graphic
   // but update the palette to include the first state of each requested color cycle
-  if (!colorCycleCounts.length) {
+  if (!colorCycles.length) {
     const copy = graphic.slice();
     copy.palette = palette;
     copy.frames = frames;
     return copy;
   }
 
-  const cycleTotalDurations = colorCycleCounts.map(
-    (count) => count * ColorCycleAnimationDelay,
-  );
-  let totalDuration = frameCount > 1 ? animationDelay * frameCount : 1;
-  cycleTotalDurations.forEach((duration) => {
-    totalDuration = lcm(totalDuration, duration);
-  });
-  Logger.debug(
-    `Total duration of color cycle animation is ${totalDuration} cs, with ${frameCount} frames and ${colorCycleCounts.length} color cycles`,
-  );
-  if (frameCount > 1) {
-    Logger.debug(
-      `Animation will be repeated ${totalDuration / (animationDelay * frameCount) - 1} times to allow for color cycles, totaling ${totalDuration / Math.min(animationDelay, ColorCycleAnimationDelay)} frames`,
-    );
-  } else {
-    Logger.debug(
-      `Graphic ${graphic.filename ?? graphic.resourceId} has no animation frames, so only color cycles will be applied`,
-    );
-  }
+  const cycledGraphic = new Graphic([]);
+  cycledGraphic.filename = graphic.filename;
+  cycledGraphic.resourceId = graphic.resourceId;
 
-  let length = 0;
-  let colorCycleFrameRemaining = ColorCycleAnimationDelay;
-  let animationFrameRemaining = animationDelay;
-  let colorCycleIndex = 0;
-  let animationIndex = 0;
-  while (length < totalDuration) {
-    if (useWaterColors) {
-      palette = getPaletteWithWaterColors(
-        palette,
-        colorCycleIndex % WaterAnimationFrameCount,
-      );
-    }
-    simpleColorCycles.forEach((colorCycle) => {
-      palette = getPaletteWithSimpleColorCycle(
-        palette,
-        colorCycle,
-        colorCycleIndex,
-      );
-    });
-    let frameLength = 0;
-    if (frameCount > 1) {
-      frameLength = Math.min(colorCycleFrameRemaining, animationFrameRemaining);
-    } else {
-      frameLength = colorCycleFrameRemaining;
-    }
-    length += frameLength;
-    colorCycleFrameRemaining -= frameLength;
-    animationFrameRemaining -= frameLength;
-    const frame = frames[animationIndex % frames.length].clone();
-    frame.palette = palette;
-    frame.delay = frameLength;
-    if (colorCycleFrameRemaining === 0) {
-      colorCycleFrameRemaining = ColorCycleAnimationDelay;
-      ++colorCycleIndex;
-    }
-    if (frameCount > 1 && animationFrameRemaining === 0) {
-      animationFrameRemaining = animationDelay;
-      ++animationIndex;
-    }
-    cycledGraphic.frames.push(frame);
-  }
+  const cycledFrames = applyColorCyclesToFrames(
+    frames,
+    animationDelay,
+    palette,
+    colorCycles,
+  );
+  cycledGraphic.frames.push(...cycledFrames);
   return cycledGraphic;
 }
 
@@ -511,16 +499,14 @@ export function writeGraphic(
     replayDelay,
     animateWater,
     animate1996Ui,
-    firstFrame,
-    lastFrame,
+    frameRange,
   }: {
     transparentIndex: number | undefined;
     delay: number;
     replayDelay: number;
     animateWater: boolean;
     animate1996Ui: boolean;
-    firstFrame: number;
-    lastFrame: number;
+    frameRange?: string;
   },
   filename: string,
   outputDir: string,
@@ -530,8 +516,8 @@ export function writeGraphic(
     animateWater,
     animate1996Ui,
     delay,
-    firstFrame,
-    lastFrame,
+    replayDelay,
+    frameRange,
   );
   switch (outputFormat) {
     case "bmp": {
