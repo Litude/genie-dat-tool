@@ -59,10 +59,10 @@
 
     // Other files are actual filenames but this is a total guess since this seems to be totally unused...
     // This is the same palette that v00.07.12.0529 uses for scenario instructions...
-    "50509": "prevpal9.pal",
+    "50509": "pal9old.pal",
 
-    "50512": "exit3.pal", // Unused, name is a guess...
-    "50515": "logo2.pal", // Unused, name is a guess...
+    "50512": "exit3.pal", // Unused, but this is identical to scenedit.pal (the scenario editor teaser palette)
+    "50515": "pal1demo.pal", // Unused, but this is identical to pal11.pal (the trial title screen palette)
 
     "50704": "btnbldg0.slp",
     "50705": "btnbldg1.slp",

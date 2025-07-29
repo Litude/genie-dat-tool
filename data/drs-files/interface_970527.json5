@@ -1,6 +1,4 @@
 // Most of these filenames are hardcoded inside the game EXE file
-// TODO: Resource 50508, which is a palette is missing its filename.
-// 50508 is actually the proper palette for scr10, the wrong palette is used in the game.
 {
     "50051": "scr1.sin",
     "50052": "scr2.sin",
@@ -29,6 +27,8 @@
     "50401": "map.bmp",
     "50402": "map640.bmp",
     "50403": "groupnum.slp",
+
+    "50508": "pal10new.pal", // This is a total guess, but this is the palette that actually works with scr10
 
     "50704": "btnbldg0.slp",
     "50705": "btnbldg1.slp",
