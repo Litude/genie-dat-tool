@@ -17,7 +17,11 @@ export class ScenarioHeader {
   individualVictoryConditions: Bool32 = asBool32(false);
   playerCount: Int32 = asInt32(0);
 
-  static readFromBuffer(buffer: BufferReader, modifyDate: number) {
+  static readFromBuffer(
+    buffer: BufferReader,
+    modifyDate: number,
+    encoding: string = "latin1",
+  ) {
     const header = new ScenarioHeader();
     const headerSize = buffer.readUInt32();
     const startOffset = buffer.tell();
@@ -35,7 +39,7 @@ export class ScenarioHeader {
       header.modifyDate = modifyDate;
     }
 
-    header.description = buffer.readPascalString32();
+    header.description = buffer.readPascalString32(encoding);
     header.individualVictoryConditions = buffer.readBool32();
     header.playerCount = buffer.readInt32();
 

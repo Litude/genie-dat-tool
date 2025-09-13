@@ -66,7 +66,7 @@ The header only exists for container version 1.03 and later! This is not compres
 | uint32                 | headerSize         | 1->              | Size of header, excluding this field. Always 0 in header version 6? |
 | sint32 (HeaderVersion) | headerVersion      | 1->              | Header version (known values are 1, 2, 3 and 6). |
 | uint32                 | checksum           | 2->              | Checksum used to ensure scenarios match for multiplayer. In maps saved by the game scenario editor, this is always the current timestamp as Unix time. |
-| str32                  | description        | 1->              | Description of scenario, shown in scenario selection preview. |
+| str32z                 | description        | 1->              | Description of scenario, shown in scenario selection preview. |
 | bool32                 | individualVicConds | 1->              | Whether the scenario has individual victory conditions. |
 | sint32                 | playerCount        | 1->              | Number of non-gaia players. |
 | uint32[9]              | dlcInformation     | 3->              | Information about DLC(?). |
@@ -78,7 +78,7 @@ The scenario data usually has slots for up to 16 players, but only 9 (or 8) of t
 
 | Type                       | Name                     | ScnDataVersion    | Description |
 | ---------                  | -------                  | -----------       | -----------    |
-| char[16][256]              | playerNames              | 1.14->            | Player names. |
+| char[16][256]z             | playerNames              | 1.14->            | Player names. Null terminated. |
 | int32[16] (StringId)       | playerNameStringIds      | 1.16->            | Localized player name string ids. |
 | ScnPlayerInfo[16]          | playerData               | 1.14->            | Player specific data, see section below. |
 | bool8                      | conquestVictory          | 1.07->            | Global conquest victory is enabled. |
@@ -143,24 +143,24 @@ Since the EventObjId allows referring to units that have not been created yet, i
 ### Scenario Presentation Data (ScnPresentationData)
 | Type                  | Name                     | ScnDataVersion    | Description |
 | ---------             | -------                  | -----------       | -----------   |
-| str16                 | scenarioFilename         | 1.00->            | Scenario filename as saved, including extension |
+| str16                 | scenarioFilename         | 1.00->            | Scenario filename as saved, including extension. Max 224 characters. Null termination is optional. |
 | int32 (StringId)      | instructionsStringId     | 1.16->            | Localized scenario instructions string id |
 | int32 (StringId)      | hintsStringId            | 1.16->            | Localized scenario hints message string id |
 | int32 (StringId)      | victoryStringId          | 1.16->            | Localized scenario victory message string id |
 | int32 (StringId)      | defeatStringId           | 1.16->            | Localized scenario defeat message string id |
 | int32 (StringId)      | historyStringId          | 1.16->            | Localized scenario history message string id |
 | int32 (StringId)      | scoutsStringId           | 1.22->            | Localized scenario scouts message string id |
-| str16                 | descriptionMessage       | 1.00-1.02         | Scenario description message for preview, moved to header in later versions |
-| str16                 | instructionsMessage      | 1.00->            | Scenario instructions message |
-| str16                 | hintsMessage             | 1.11->            | Scenario hints message |
-| str16                 | victoryMessage           | 1.00-1.02, 1.11-> | Scenario victory message |
-| str16                 | defeatMessage            | 1.00-1.02, 1.11-> | Scenario defeat message |
-| str16                 | historyMessage           | 1.11->            | Scenario history message |
-| str16                 | scoutsMessage            | 1.22->            | Scenario scouts message |
-| str16                 | introVideoName           | 1.00->            | Video name shown before instructions. Filename without extension. |
-| str16                 | victoryVideoName         | 1.00->            | Video name shown after victory. Filename without extension. |
-| str16                 | defeatVideoName          | 1.00->            | Video name shown after defeat. Filename without extension. |
-| str16                 | instructionBitmapName    | 1.09->            | Bitmap name shown in scenario instructions. Filename without extension. |
+| str16z                | descriptionMessage       | 1.00-1.02         | Scenario description message for preview, moved to header in later versionss. Null terminated. |
+| str16z                | instructionsMessage      | 1.00->            | Scenario instructions message. Early game versions support max 224 characters. Null terminated. |
+| str16z                | hintsMessage             | 1.11->            | Scenario hints message. Null terminated. |
+| str16z                | victoryMessage           | 1.00-1.02, 1.11-> | Scenario victory message. Early game versions support max 224 characterss. Null terminated. |
+| str16z                | defeatMessage            | 1.00-1.02, 1.11-> | Scenario defeat message. Early game versions support max 224 characterss. Null terminated. |
+| str16z                | historyMessage           | 1.11->            | Scenario history message. Null terminated. |
+| str16z                | scoutsMessage            | 1.22->            | Scenario scouts message. Null terminated. |
+| str16                 | introVideoName           | 1.00->            | Video name shown before instructions. Filename without extension. Max 224 characters. Null termination is optional. |
+| str16                 | victoryVideoName         | 1.00->            | Video name shown after victory. Filename without extension. Max 224 characters. Null termination is optional. |
+| str16                 | defeatVideoName          | 1.00->            | Video name shown after defeat. Filename without extension. Max 224 characters. Null termination is optional. |
+| str16                 | instructionBitmapName    | 1.09->            | Bitmap name shown in scenario instructions. Filename without extension. Max 224 characters. Null termination is optional. |
 | Bitmap                | instructionBitmap        | 1.10->            | Bitmap content shown in scenario instructions, see section below |
 
 #### Bitmap
@@ -184,9 +184,9 @@ This section is only included if both width and height are greater than 0!
 ### Scenario Data AI Files (ScnAiFiles)
 | Type              | Name                             | ScnDataVersion    | Description   |
 | ---------         | -------                          | -----------       | -----------   |
-| str16[16]         | aiStrategyNames                  | 1.00->            | AI Strategy (.ai) filename without extension. "Random" (localized!!!) is a special name which causes the strategy to be randomized. If file does not exist, no strategy is loaded and the AI only does basic functions. |
-| str16[16]         | aiCityPlanNames                  | 1.00->            | AI city plan (.cty) filename without extension. If "Random" (localized!!!) or file does not exist, influence placement is used instead. |
-| str16[16]         | aiPersonalityNames               | 1.08->            | AI personality (.per) Filename without extension. Random (localized!!!) is a special name which causes the personality to be randomzied if (and only if) the strategy is also Random! |
+| str16[16]         | aiStrategyNames                  | 1.00->            | AI Strategy (.ai) filename without extension. "Random" (localized!!!) is a special name which causes the strategy to be randomized. If file does not exist, no strategy is loaded and the AI only does basic functions. Null termination is optional. |
+| str16[16]         | aiCityPlanNames                  | 1.00->            | AI city plan (.cty) filename without extension. If "Random" (localized!!!) or file does not exist, influence placement is used instead. Null termination is optional. |
+| str16[16]         | aiPersonalityNames               | 1.08->            | AI personality (.per) Filename without extension. Random (localized!!!) is a special name which causes the personality to be randomzied if (and only if) the strategy is also Random! Null termination is optional. |
 | AiFileData[16]    | aiFileData                       | 1.00->            | File sizes and possibly content of AI files |
 | char[16][aiSize]  | aiStrategies                     | 1.00-1.02         | AI strategy file (.ai) content here for earlier versions, size is still above | 
 | char[16][ctySize] | aiCityPlans                      | 1.00-1.02         | AI city plan file (.cty) content here for earlier versions, size is still above |
@@ -198,9 +198,9 @@ This section is only included if both width and height are greater than 0!
 | uint32            | aiStrategyFileSize (aiSize)      | 1.00->            | File size of the possibly bundled AI strategy (.ai) file |
 | uint32            | aiCityPlanFileSize (ctySize)     | 1.00->            | File size of the possibly bundled AI city plan (.cty) file |
 | uint32            | aiPersonalityFileSize (perSize)  | 1.08->            | File size of the possibly bundled AI personality (.per) file |
-| char[aiSize]      | aiStrategies                     | 1.15->            | AI strategy file (.ai) content. This is a text file. | 
-| char[ctySize]     | aiCityPlans                      | 1.15->            | AI city plan file (.cty) content. This is a text file. |
-| char[perSize]     | aiPersonalities                  | 1.15->            | AI personality file (.per) content. This is a text file. |
+| char[aiSize]      | aiStrategies                     | 1.15->            | AI strategy file (.ai) content. This is a text file. Not null terminated. | 
+| char[ctySize]     | aiCityPlans                      | 1.15->            | AI city plan file (.cty) content. This is a text file. Not null terminated. |
+| char[perSize]     | aiPersonalities                  | 1.15->            | AI personality file (.per) content. This is a text file. Not null terminated. |
 
 ### Scenario Technology Disables (ScnTechDisables)
 | Type                          | Name                            | ScnDataVersion  | Description   |
@@ -320,7 +320,7 @@ Terrain data of the map follows. The format basically supports non-square maps, 
 ## Player Main Data (PlayerData)
 | Type                             | Name                     | ContainerVersion  | Description |
 | ---------                        | -------                  | -----------       | ----------- |
-| str16                            | playerInternalName       | 1.01->            | Player internal name, this is never used |
+| str16z                           | playerInternalName       | 1.01->            | Player internal name, this is never used. Null terminated. |
 | float                            | gameViewPositionX        | 1.01->            | Game view X position, ignored? |
 | float                            | gameViewPositionY        | 1.01->            | Game view Y position, ignored? |
 | sint16                           | minimapPositionX         | 1.01->            | Minimap X position, ignored? |

@@ -1,4 +1,5 @@
 import { isAscii } from "buffer";
+import iconv from "iconv-lite";
 import {
   Bool16,
   Bool32,
@@ -132,14 +133,10 @@ export default class BufferReader {
     return value as Pointer;
   }
 
-  readFixedSizeString(
-    size: number,
-    encoding: BufferEncoding = "latin1",
-  ): string {
-    const value = this.buffer.toString(
+  readFixedSizeString(size: number, encoding: string = "latin1"): string {
+    const value = iconv.decode(
+      this.buffer.subarray(this.offset, this.offset + size),
       encoding,
-      this.offset,
-      this.offset + size,
     );
     this.offset += size;
     const nullTerminatorIndex = value.indexOf("\0");
@@ -150,12 +147,12 @@ export default class BufferReader {
     }
   }
 
-  readPascalString16(encoding: BufferEncoding = "latin1"): string {
+  readPascalString16(encoding: string = "latin1"): string {
     const stringLength = this.readUInt16();
     return this.readFixedSizeString(stringLength, encoding);
   }
 
-  readPascalString32(encoding: BufferEncoding = "latin1"): string {
+  readPascalString32(encoding: string = "latin1"): string {
     const stringLength = this.readUInt32();
     return this.readFixedSizeString(stringLength, encoding);
   }

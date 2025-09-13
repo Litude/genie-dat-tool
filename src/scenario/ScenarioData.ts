@@ -60,11 +60,14 @@ export class ScenarioData {
   static readFromBuffer(
     buffer: BufferReader,
     loadingContext: ScenarioLoadingContext,
+    encoding: string = "latin1",
   ) {
     const scenarioData = new ScenarioData();
     if (loadingContext.dataVersion >= 1.14) {
       for (let i = 0; i < 16; ++i) {
-        scenarioData.playerNames.push(buffer.readFixedSizeString(256));
+        scenarioData.playerNames.push(
+          buffer.readFixedSizeString(256, encoding),
+        );
       }
       if (loadingContext.dataVersion >= 1.16) {
         for (let i = 0; i < 16; ++i) {
@@ -92,6 +95,7 @@ export class ScenarioData {
     scenarioData.presentationData = ScenarioPresentationData.readFromBuffer(
       buffer,
       loadingContext,
+      encoding,
     );
     scenarioData.aiData = ScenarioAiData.readFromBuffer(buffer, loadingContext);
 
@@ -106,7 +110,9 @@ export class ScenarioData {
 
     if (loadingContext.dataVersion <= 1.13) {
       for (let i = 0; i < 16; ++i) {
-        scenarioData.playerNames.push(buffer.readFixedSizeString(256));
+        scenarioData.playerNames.push(
+          buffer.readFixedSizeString(256, encoding),
+        );
       }
     }
 

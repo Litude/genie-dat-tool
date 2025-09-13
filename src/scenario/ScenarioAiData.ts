@@ -63,6 +63,7 @@ export class ScenarioAiData {
   static readFromBuffer(
     buffer: BufferReader,
     loadingContext: ScenarioLoadingContext,
+    encoding: string = "latin1",
   ) {
     const strategyNames: string[] = [];
     const cityPlanNames: string[] = [];
@@ -75,14 +76,14 @@ export class ScenarioAiData {
     const personalities: Buffer[] = [];
     const ruleTypes: UInt8[] = [];
     for (let i = 0; i < 16; ++i) {
-      strategyNames.push(buffer.readPascalString16());
+      strategyNames.push(buffer.readPascalString16(encoding));
     }
     for (let i = 0; i < 16; ++i) {
-      cityPlanNames.push(buffer.readPascalString16());
+      cityPlanNames.push(buffer.readPascalString16(encoding));
     }
     if (loadingContext.dataVersion >= 1.08) {
       for (let i = 0; i < 16; ++i) {
-        personalityNames.push(buffer.readPascalString16());
+        personalityNames.push(buffer.readPascalString16(encoding));
       }
     }
 

@@ -23,8 +23,7 @@ export class ScenarioContainer {
   nextObjectId: ObjectId<Int32> = asInt32<ObjectId<Int32>>(-1);
   scenarioData: ScenarioData = new ScenarioData();
 
-  extractEmbeddedFiles(outputPath: string) {
-    const modifyDate = this.header.modifyDate;
+  extractEmbeddedFiles(outputPath: string, modifyDate: number) {
     const presentationFiles =
       this.scenarioData.presentationData.getEmbeddedFiles(modifyDate);
     const aiFiles = this.scenarioData.aiData.flatMap((aiData) =>
@@ -87,6 +86,7 @@ export class ScenarioContainer {
     inputBuffer: BufferReader,
     modifyDate: number,
     parsingAmount: ScenarioParsingAmount = ScenarioParsingAmount.Data,
+    encoding: string = "latin1",
   ) {
     let buffer = inputBuffer;
 
@@ -108,7 +108,11 @@ export class ScenarioContainer {
           `Unexpected version number ${scenarioVersion} for uncompressed header scenario`,
         );
       }
-      scenario.header = ScenarioHeader.readFromBuffer(buffer, modifyDate);
+      scenario.header = ScenarioHeader.readFromBuffer(
+        buffer,
+        modifyDate,
+        encoding,
+      );
       const startOffset = buffer.tell();
       const endOffset = buffer.size();
       const compressedData = buffer.data().subarray(startOffset, endOffset);
@@ -154,6 +158,7 @@ export class ScenarioContainer {
       scenario.scenarioData = ScenarioData.readFromBuffer(
         buffer,
         loadingContext,
+        encoding,
       );
     }
 

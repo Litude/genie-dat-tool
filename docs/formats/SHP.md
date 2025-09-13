@@ -2,15 +2,30 @@
 
 This document describes the .SHP file format as used by Age of Empires.
 
-The SHP format is the precursor of the common SLP format. This format is much simpler and does not support many of the more advanced game specific features that SLP supports. While this format was completely unused in AoK, AoE still uses this format for some menu graphics even in the final game.
+The SHP format is what was used before the SLP format had been created. This format is much simpler and does not support many of the more advanced game specific features that SLP supports. While this format was completely unused in AoK, AoE still uses this format for some menu graphics even in the final game.
 
 Only earliest known build of Age of Empires, v00.04.03.0113 from January 1997, still supports using SHP files even for game graphics, provided that the game is started with the SLOWDRAW parameter and SHP graphics are present. These make use of other obsolete features, such as the player color maps and information in the sprites on what kind of graphic a sprite is (to determine whether colormaps should be applied).
+
+It seems that strangely the SHP format was not created by Ensemble Studios. This same format is used for graphics in many games released y Strategic Simulations, Inc. (SSI). How exactly this format ended up in so many titles by different companies is not known. Either there was some unidentified graphics library that was licensed by all these developers, or the other companies decided to borrow the SHP format from the SSI titles.
+
+There are actually at least three versions of this format:
+
+* SHP Version 1.00 (1993-11-15):
+
+  * Used by Great Naval Battles Vol. II: Guadalcanal 1942-43, Renegade: Battle for Jacob's Star, Silent Hunter (also used 1.10 files), PGA Tour 96 (not an SSI title?!), PGA European Tour (also not an SSI title)
+
+* SHP Version 1.10 (1994-04-19):
+
+  * Used by Panzer General, Great Naval Battles Vol. III, Silent Hunter, Fantasy General, Steel Panthers, Great Naval Battles IV, Age of Rifles, Star General, Great Naval Battles V, Steel Panthers II, Steel Panthers III, Panzer General II, Mechwarrior II (not an SSI title?!) MechWarrior II: Mercenaries (not an SSI title either...!), and Age of Empires!
+* SHP Version 1.11 (1996-04-18):
+
+  * Used by Jane's AH-64D Longbow (not an SSI title?!)
 
 ## Basic structure
 
 | Type                          | Name              | Description |
 | ---------                     | -------           | ----------- |
-| char[4]                       | shpVersion        | Only known version is 1.10 which is from 1995, so it is unlikely that earlier versions will be found. |
+| char[4]                       | shpVersion        | Only known version supported by Age of Empires is 1.10. |
 | sint32                        | frameCount        | Number of frames in SHP file. |
 | FrameOffset[frameCount]       | frameOffsets      | Offsets of each frame in the file, see below |
 | *FrameData[frameCount]        | frameData         | This does not need to immediately follow the FrameOffset section since the actual location is determined by the offsets. Furthermore it also does not need to be consecutive since each frame has a separate offset value. However, in all official files this data immediately follows the offset data and all frames are stored consecutively. |

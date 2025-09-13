@@ -13,6 +13,7 @@ import BufferReader from "../BufferReader";
 import { ScenarioLoadingContext } from "./ScenarioLoadingContext";
 import { BufferWriter } from "../BufferWriter";
 import { FileEntry } from "../files/FileEntry";
+import { Logger } from "../Logger";
 
 interface BitmapInfoHeader {
   size: UInt32;
@@ -133,9 +134,10 @@ export class ScenarioPresentationData {
   static readFromBuffer(
     buffer: BufferReader,
     loadingContext: ScenarioLoadingContext,
+    encoding: string = "latin1",
   ) {
     const presentationData = new ScenarioPresentationData();
-    presentationData.scenarioFilename = buffer.readPascalString16();
+    presentationData.scenarioFilename = buffer.readPascalString16(encoding);
     if (loadingContext.dataVersion >= 1.16) {
       presentationData.instructionsStringId =
         buffer.readInt32<StringId<Int32>>();
@@ -148,34 +150,35 @@ export class ScenarioPresentationData {
       }
     }
     if (loadingContext.dataVersion <= 1.02) {
-      presentationData.descriptionMessage = buffer.readPascalString16();
+      presentationData.descriptionMessage = buffer.readPascalString16(encoding);
     }
-    presentationData.instructionsMessage = buffer.readPascalString16();
+    presentationData.instructionsMessage = buffer.readPascalString16(encoding);
     if (loadingContext.dataVersion >= 1.11) {
-      presentationData.hintsMessage = buffer.readPascalString16();
+      presentationData.hintsMessage = buffer.readPascalString16(encoding);
     }
 
     if (
       loadingContext.dataVersion <= 1.02 ||
       loadingContext.dataVersion >= 1.11
     ) {
-      presentationData.victoryMessage = buffer.readPascalString16();
-      presentationData.defeatMessage = buffer.readPascalString16();
+      presentationData.victoryMessage = buffer.readPascalString16(encoding);
+      presentationData.defeatMessage = buffer.readPascalString16(encoding);
     }
 
     if (loadingContext.dataVersion >= 1.11) {
-      presentationData.historyMessage = buffer.readPascalString16();
+      presentationData.historyMessage = buffer.readPascalString16(encoding);
     }
     if (loadingContext.dataVersion >= 1.22) {
-      presentationData.scoutsMessage = buffer.readPascalString16();
+      presentationData.scoutsMessage = buffer.readPascalString16(encoding);
     }
 
-    presentationData.introVideoName = buffer.readPascalString16();
-    presentationData.victoryVideoName = buffer.readPascalString16();
-    presentationData.defeatVideoName = buffer.readPascalString16();
+    presentationData.introVideoName = buffer.readPascalString16(encoding);
+    presentationData.victoryVideoName = buffer.readPascalString16(encoding);
+    presentationData.defeatVideoName = buffer.readPascalString16(encoding);
 
     if (loadingContext.dataVersion >= 1.09) {
-      presentationData.instructionsBitmapName = buffer.readPascalString16();
+      presentationData.instructionsBitmapName =
+        buffer.readPascalString16(encoding);
     }
     // eslint-disable-next-line prettier/prettier
     if (loadingContext.dataVersion >= 1.10) {
@@ -199,18 +202,22 @@ export class ScenarioPresentationData {
           colorsImportant: buffer.readUInt32(),
         };
         if (bitmapInfoHeader.bitCount !== 8) {
-          throw new Error(
-            `Tried parsing Bitmap file but bits per pixel was ${bitmapInfoHeader.bitCount} which is not supported!`,
+          // One beta scenario (test_chang.scn) has a 24-bit bitmap that is truncated to match the size of an 8-bit bitmap.
+          Logger.warn(
+            `Bitmap file but bits per pixel was ${bitmapInfoHeader.bitCount}, this might not work correctly!`,
           );
+          // throw new Error(
+          //   `Tried parsing Bitmap file but bits per pixel was ${bitmapInfoHeader.bitCount} which is not supported!`,
+          // );
         }
-        if (
-          bitmapInfoHeader.colorsUsed !== 0 &&
-          bitmapInfoHeader.colorsUsed !== 256
-        ) {
-          throw new Error(
-            `Tried parsing Bitmap file but palette contains only ${bitmapInfoHeader.colorsUsed} which is not supported!`,
-          );
-        }
+        // if (
+        //   bitmapInfoHeader.colorsUsed !== 0 &&
+        //   bitmapInfoHeader.colorsUsed !== 256
+        // ) {
+        //   Logger.warn(
+        //     `Bitmap file but palette contains only ${bitmapInfoHeader.colorsUsed} but will be parssed as 256 colors!`,
+        //   );
+        // }
 
         const bitmapPalette: BitmapColor[] = [];
         for (let i = 0; i < 256; ++i) {
