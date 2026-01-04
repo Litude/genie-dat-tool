@@ -1,5 +1,6 @@
 import BufferReader from "../BufferReader";
 import { ParsingError } from "../database/Error";
+import { Logger } from "../Logger";
 import {
   asBool32,
   asInt32,
@@ -21,15 +22,21 @@ export class ScenarioHeader {
     buffer: BufferReader,
     modifyDate: number,
     encoding: string = "latin1",
+    parsingOptions: {
+      parseVersionZero?: boolean;
+      allowSizeMismatch?: boolean;
+    } = {},
   ) {
     const header = new ScenarioHeader();
     const headerSize = buffer.readUInt32();
     const startOffset = buffer.tell();
     header.headerVersion = buffer.readInt32();
     if (header.headerVersion < 1 || header.headerVersion > 2) {
-      throw new ParsingError(
-        `Encountered unsupported/unexpected header version ${header.headerVersion}`,
-      );
+      if (header.headerVersion !== 0 || !parsingOptions.parseVersionZero) {
+        throw new ParsingError(
+          `Encountered unsupported/unexpected header version ${header.headerVersion}`,
+        );
+      }
     }
     if (header.headerVersion >= 2) {
       header.checksum = buffer.readUInt32();
@@ -45,11 +52,20 @@ export class ScenarioHeader {
 
     const endOffset = buffer.tell();
     if (headerSize !== 0 && headerSize !== endOffset - startOffset) {
-      throw new ParsingError(
-        `Something went wrong with header parsing. Parsed ${endOffset - startOffset} bytes but size should be ${headerSize}`,
-      );
+      // Sometimes the header size seems to include the first field, and sometimes not, so if the diff is 4 bytes, allow it
+      if (
+        headerSize - 4 !== endOffset - startOffset ||
+        !parsingOptions.allowSizeMismatch
+      ) {
+        throw new ParsingError(
+          `Something went wrong with header parsing. Parsed ${endOffset - startOffset} bytes but size should be ${headerSize}`,
+        );
+      } else {
+        Logger.warn(
+          `Header size mismatch with actual header size. Difference of 4 bytes, assuming header size includes its own field.`,
+        );
+      }
     }
-
     return header;
   }
 }

@@ -16,4 +16,5 @@ input/
 *.scx
 *.cpn
 *.cpx
+*.inf
 tr_*.txt

@@ -7,6 +7,7 @@ import * as CpnCommand from "./campaign/cpnCommand";
 import * as ShpCommand from "./image/shpCommand";
 import * as SlpCommand from "./image/slpCommand";
 import * as ScpCommand from "./image/scpCommand";
+import * as ScnInfoCommand from "./scenario-info/scnInfoCommand";
 
 const yargsInstance = yargs(hideBin(process.argv))
   .scriptName("rge-multitool")
@@ -16,6 +17,9 @@ const yargsInstance = yargs(hideBin(process.argv))
   })
   .command("scn", "Handle SCN/SCX files", (yargs) => {
     ScnCommand.addCommands(yargs);
+  })
+  .command("scn-info", "Handle SCN INF files", (yargs) => {
+    ScnInfoCommand.addCommands(yargs);
   })
   .command("cpn", "Handle CPN/CPX files", (yargs) => {
     CpnCommand.addCommands(yargs);
@@ -46,6 +50,9 @@ function main() {
       break;
     case "scn":
       ScnCommand.execute(argv, showHelp);
+      break;
+    case "scn-info":
+      ScnInfoCommand.execute(argv, showHelp);
       break;
     case "cpn":
       CpnCommand.execute(argv, showHelp);

@@ -1,0 +1,21 @@
+{
+    "5025": "birds1.wav",
+    "5087": "forest1.wav",
+    "5088": "forest2.wav",
+    "5089": "forest3.wav",
+    "5090": "forest4.wav",
+    "5097": "grass2.wav",
+    "5098": "grass3.wav",
+    "5131": "lake1.wav",
+    "5150": "ocean.wav",
+    "5151": "ocean1.wav",
+    "5152": "ocean2.wav",
+    "5153": "ocean3.wav",
+    "5154": "ocean4.wav",
+    "5155": "ocean5.wav",
+    "5161": "owl.wav",
+    "5188": "stream2.wav",
+    "5212": "wind1.wav",
+    "5213": "wind2.wav",
+    "5231": "mmph.wav" // does not actually have a sound entry, filename is a guess
+}
